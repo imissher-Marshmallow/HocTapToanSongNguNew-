@@ -1,0 +1,30 @@
+functionsDirectory = "C:\\Users\\ADMIN\\Downloads\\STEMProjectReal\\netlify\\functions"
+functionsDirectoryOrigin = "config-v1"
+plugins = []
+headers = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "C:\\Users\\ADMIN\\Downloads\\STEMProjectReal\\npm start"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npm run build"
+functions = "C:\\Users\\ADMIN\\Downloads\\STEMProjectReal\\netlify\\functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
