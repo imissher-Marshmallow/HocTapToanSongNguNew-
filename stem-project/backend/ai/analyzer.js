@@ -44,28 +44,22 @@ function loadQuestionsForQuiz(quizId) {
   if (parsed && parsed.contests) {
     // If contests is an array (legacy), keep existing numeric selection behavior
     if (Array.isArray(parsed.contests)) {
-      // Support selecting from contests 1-5 randomly
-      let contestKey;
+      // Numeric array style contests: pick by index or random
+      let idx = 0;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        // Randomly select from contest1 to contest5
-        const contestNum = Math.floor(Math.random() * 5) + 1;
-        contestKey = `contest${contestNum}`;
-        console.log(`loadQuestionsForQuiz: selected random ${contestKey}`);
+        idx = Math.floor(Math.random() * parsed.contests.length);
       } else {
         const parsedId = parseInt(quizId, 10);
-        if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= 5) {
-          contestKey = `contest${parsedId}`;
+        if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) {
+          idx = parsedId - 1;
         } else {
-          // fallback to random contest if the provided id is invalid
-          const contestNum = Math.floor(Math.random() * 5) + 1;
-          contestKey = `contest${contestNum}`;
-          console.log(`loadQuestionsForQuiz: invalid quizId "${quizId}", selecting random contest`);
+          idx = Math.floor(Math.random() * parsed.contests.length);
         }
       }
-      const contest = parsed.contests[contestKey] || [];
+      const contest = parsed.contests[idx] || [];
       const shuffled = shuffleArray([...contest]);
-      // Return all 20 questions with randomized order
-      return shuffled;
+      const chosenKey = `contest${idx + 1}`;
+      return { questions: shuffled, contestKey: chosenKey };
     }
 
     // If contests is an object with named contests, support selecting by name, numeric index or random
@@ -102,15 +96,17 @@ function loadQuestionsForQuiz(quizId) {
       }
       const contest = parsed.contests[chosenKey] || [];
       const shuffled = shuffleArray([...contest]);
-      return shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+      const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+      return { questions: trimmed, contestKey: chosenKey };
     }
   }
   // backwards compatibility: if file is a plain array of questions
   if (Array.isArray(parsed)) {
     const shuffled = shuffleArray([...parsed]);
-    return shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+    const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+    return { questions: trimmed, contestKey: 'contest1' };
   }
-  return [];
+  return { questions: [], contestKey: null };
 }
 
 // Load questions grouped by topic categories for a specific quiz
@@ -403,7 +399,10 @@ Trả về JSON ví dụ:
 // Main analyze function
 async function analyzeQuiz(payload) {
   const { userId, quizId, answers } = payload;
-  const questions = loadQuestionsForQuiz(quizId);
+  // loadQuestionsForQuiz now returns { questions, contestKey }
+  const loadResult = loadQuestionsForQuiz(quizId);
+  const questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
+  const contestKey = loadResult && loadResult.contestKey ? loadResult.contestKey : quizId;
   let correct = 0;
   const perQuestionFeedback = [];
   const topicStats = {};

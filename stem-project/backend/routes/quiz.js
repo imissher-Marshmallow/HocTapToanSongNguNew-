@@ -7,8 +7,10 @@ const router = express.Router();
 router.get('/questions/:quizId', (req, res) => {
   try {
     const { quizId } = req.params;
-    const questions = loadQuestionsForQuiz(quizId);
-    res.json(questions);
+    const result = loadQuestionsForQuiz(quizId);
+    // result may be { questions, contestKey } or an array for backward compatibility
+    if (result && result.questions) res.json(result);
+    else res.json({ questions: result, contestKey: quizId });
   } catch (error) {
     console.error('Error loading questions:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -18,8 +20,9 @@ router.get('/questions/:quizId', (req, res) => {
 // GET /api/questions/random -> pick one random contest (1..N) and return shuffled questions
 router.get('/questions/random', (req, res) => {
   try {
-    const questions = loadQuestionsForQuiz('random');
-    res.json(questions);
+    const result = loadQuestionsForQuiz('random');
+    if (result && result.questions) res.json(result);
+    else res.json({ questions: result, contestKey: 'random' });
   } catch (error) {
     console.error('Error loading random questions:', error);
     res.status(500).json({ error: 'Internal server error' });
