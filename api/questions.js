@@ -52,8 +52,15 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const questions = analyzer.loadQuestionsForQuiz(quizId);
-    res.json(questions);
+    // Use the analyzer helper which now returns both questions and the chosen contest key
+    const result = analyzer.loadQuestionsForQuiz(quizId);
+    // result: { questions: [...], contestKey: 'contest5' }
+    if (result && result.questions) {
+      res.json(result);
+    } else {
+      // backward-compat: if analyzer returned an array, wrap it
+      res.json({ questions: result, contestKey: quizId });
+    }
   } catch (err) {
     console.error('API /api/questions error:', err);
     res.status(500).json({ error: 'Internal server error' });

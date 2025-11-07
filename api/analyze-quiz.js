@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const result = await analyzer.analyzeQuiz(payload);
+  const result = await analyzer.analyzeQuiz(payload);
     res.json(result);
   } catch (err) {
     console.error('API /api/analyze-quiz error:', err);

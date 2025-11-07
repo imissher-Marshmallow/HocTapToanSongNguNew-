@@ -30,6 +30,7 @@ function QuizPage() {
   const t = quizTranslations[language];
   const [started, setStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
+  const [selectedContestKey, setSelectedContestKey] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [questionStartTime, setQuestionStartTime] = useState(null);
@@ -38,22 +39,35 @@ function QuizPage() {
   const [isReviewMode, setIsReviewMode] = useState(false);
 
   useEffect(() => {
-    if (started) {
-      // Always request a random contest when starting a test so each attempt is varied
-      fetch(`/api/questions/random`)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
-          return res.json();
-        })
-        .then(data => {
-          // Keep questions in state and ensure they have consistent shapes
+    if (!started) return;
+    // Request questions for the selected quiz id when provided, otherwise fall back to 'random'
+    const quizKey = id || 'random';
+    const endpoint = `/api/questions/${quizKey}`;
+
+    fetch(endpoint)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        // API returns { questions, contestKey } now. Support both shapes for compatibility.
+        if (data && data.questions && Array.isArray(data.questions)) {
+          setQuestions(data.questions);
+          setSelectedContestKey(data.contestKey || (id || 'random'));
+        } else if (Array.isArray(data)) {
           setQuestions(data);
-          setQuestionStartTime(Date.now());
-        })
-        .catch(err => console.error('Error fetching questions:', err));
-    }
+          setSelectedContestKey(id || 'random');
+        } else {
+          // unexpected shape
+          console.warn('Unexpected questions payload shape', data);
+          setQuestions([]);
+          setSelectedContestKey(id || 'random');
+        }
+        setQuestionStartTime(Date.now());
+      })
+      .catch(err => console.error('Error fetching questions:', err));
   }, [started, id]);
 
   // Countdown timer (default 30 minutes = 1800 seconds)
@@ -133,7 +147,8 @@ function QuizPage() {
   const submitQuiz = async (finalAnswers) => {
     const payload = {
       userId: 'user1',
-      quizId: id,
+      // Prefer the contest key returned by the questions API so grading uses the same contest
+      quizId: selectedContestKey || id || 'random',
       answers: finalAnswers,
     };
     try {
