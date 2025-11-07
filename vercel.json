@@ -14,6 +14,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/questions/:path*",
+      "destination": "/api/questions.js"
+    },
+    {
+      "source": "/api/analyze-quiz/:path*",
+      "destination": "/api/analyze-quiz.js"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api/:path*"
     },
