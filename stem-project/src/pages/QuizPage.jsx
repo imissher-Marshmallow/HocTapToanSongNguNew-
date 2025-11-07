@@ -40,8 +40,13 @@ function QuizPage() {
   useEffect(() => {
     if (started) {
       // Always request a random contest when starting a test so each attempt is varied
-      fetch(`http://localhost:5000/api/questions/random`)
-        .then(res => res.json())
+      fetch(`/api/questions/random`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
         .then(data => {
           // Keep questions in state and ensure they have consistent shapes
           setQuestions(data);
@@ -132,11 +137,14 @@ function QuizPage() {
       answers: finalAnswers,
     };
     try {
-      const res = await fetch('http://localhost:5000/api/analyze-quiz', {
+      const res = await fetch('/api/analyze-quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
   const result = await res.json();
   // pass result object directly in location.state (not nested) for ResultPage
   navigate('/result', { state: result });
