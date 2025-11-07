@@ -2,21 +2,25 @@
   "name": "stem-project-monorepo-root",
   "private": true,
   "dependencies": {
+    "dotenv": "^16.4.5",
     "express": "^5.1.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.552.0",
-    "openai": "^4.76.0",
-    "dotenv": "^16.4.5"
+    "openai": "^4.76.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.0",
+    "serve": "^14.2.5"
   },
   "scripts": {
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:frontend": "cd stem-project && DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=5000 HOST=0.0.0.0 npm start",
     "dev:backend": "PORT=3000 node stem-project/backend/server.js",
     "build": "cd stem-project && npm install && npm run build",
-    "start": "node stem-project/backend/server.js",
-    "postinstall": "cd stem-project && npm install"
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "PORT=3000 node stem-project/backend/server.js",
+    "start:frontend": "cd stem-project && serve -s build -l 5000",
+    "postinstall": "cd stem-project && npm install",
+    "vercel-build": "npm install && cd stem-project && npm install && npm run build"
   }
 }
