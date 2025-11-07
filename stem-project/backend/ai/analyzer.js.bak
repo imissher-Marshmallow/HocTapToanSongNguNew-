@@ -1,0 +1,153 @@
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+// Prefer updated questions file if present
+const defaultQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
+const updatedQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
+const questionsPath = fs.existsSync(updatedQuestionsPath) ? updatedQuestionsPath : defaultQuestionsPath;
+
+// Utility: Fisher-Yates shuffle (in-place)
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Load questions for a quiz
+function loadQuestionsForQuiz(quizId) {
+  const data = fs.readFileSync(questionsPath, 'utf8');
+  const parsed = JSON.parse(data);
+  
+  if (parsed && parsed.contests) {
+    if (typeof parsed.contests === 'object') {
+      // Get list of contest keys (contest1, contest2, etc.)
+      const allKeys = Object.keys(parsed.contests);
+      const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
+        const na = parseInt((a.match(/\d+/) || [0])[0], 10);
+        const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
+        return na - nb;
+      });
+      const keys = namedKeys.length ? namedKeys : allKeys;
+
+      if (keys.length === 0) return [];
+      
+      let chosenKey;
+      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
+        const idx = Math.floor(Math.random() * keys.length);
+        chosenKey = keys[idx];
+        console.log(`loadQuestionsForQuiz: selected random contest "${chosenKey}"`);
+      } else if (parsed.contests.hasOwnProperty(quizId)) {
+        chosenKey = quizId;
+      } else {
+        const parsedId = parseInt(quizId, 10);
+        chosenKey = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= keys.length) ? keys[parsedId - 1] : keys[0];
+      }
+      
+      const contest = parsed.contests[chosenKey] || [];
+      const shuffled = shuffleArray([...contest]);
+      return shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+    }
+  }
+  return [];
+}
+
+// Load questions grouped by topic categories
+function loadGroupedQuestionsForQuiz(quizId) {
+  const data = fs.readFileSync(questionsPath, 'utf8');
+  const parsed = JSON.parse(data);
+  
+  // Helper to map topic strings to buckets
+  const mapTopicToBucket = (topicStr) => {
+    if (!topicStr || typeof topicStr !== 'string') return 'other';
+    const s = topicStr.toLowerCase();
+    if (s.includes('nhận biết') || s.includes('knowledge')) return 'knowledge';
+    if (s.includes('thông hiểu') || s.includes('comprehension')) return 'comprehension';
+    if (s.includes('vận dụng thấp') || s.includes('low application')) return 'lowApplication';
+    if (s.includes('vận dụng cao') || s.includes('high application')) return 'highApplication';
+    return 'other';
+  };
+
+  // Get contest array using same logic as loadQuestionsForQuiz
+  let contestArray = [];
+  if (parsed && parsed.contests && typeof parsed.contests === 'object') {
+    const allKeys = Object.keys(parsed.contests);
+    const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
+      const na = parseInt((a.match(/\d+/) || [0])[0], 10);
+      const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
+      return na - nb;
+    });
+    const keys = namedKeys.length ? namedKeys : allKeys;
+    
+    if (keys.length > 0) {
+      let chosenKey;
+      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
+        const idx = Math.floor(Math.random() * keys.length);
+        chosenKey = keys[idx];
+      } else if (parsed.contests.hasOwnProperty(quizId)) {
+        chosenKey = quizId;
+      } else {
+        const parsedId = parseInt(quizId, 10);
+        chosenKey = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= keys.length) ? keys[parsedId - 1] : keys[0];
+      }
+      contestArray = parsed.contests[chosenKey] || [];
+    }
+  }
+
+  // Group into buckets
+  const buckets = { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
+  for (const q of contestArray) {
+    const b = mapTopicToBucket(q.topic);
+    buckets[b].push(q);
+  }
+  return buckets;
+}
+
+// Analyze quiz answers (Azota-style feedback)
+function analyzeQuiz(payload) {
+  const { quizId, answers } = payload;
+  const questions = loadQuestionsForQuiz(quizId);
+  let correct = 0;
+  const wrongAnswers = []; // Only store feedback for wrong answers
+
+  for (const ans of answers) {
+    const q = questions.find(x => x.id === ans.questionId);
+    if (!q) continue;
+    
+    const selectedIndex = q.options.indexOf(ans.selectedOption);
+    const isCorrect = selectedIndex === q.answerIndex;
+    
+    if (isCorrect) {
+      correct++;
+    } else {
+      // For wrong answers, provide Azota-style feedback:
+      // Question text + correct answer (A,B,C,D) + student's choice (A,B,C,D)
+      wrongAnswers.push({
+        questionId: q.id,
+        question: q.question,
+        correctAnswerLetter: String.fromCharCode(65 + q.answerIndex),    // A, B, C, or D
+        studentAnswerLetter: String.fromCharCode(65 + selectedIndex),    // A, B, C, or D
+        topic: q.topic
+      });
+    }
+  }
+
+  const score = answers.length > 0 ? Math.round((correct / answers.length) * 10) : 0;
+  
+  // Simple performance label based on score
+  let performanceLabel = 'Không đạt';
+  if (score <= 5) performanceLabel = 'Không đạt';
+  else if (score <= 7) performanceLabel = 'Trung bình';
+  else if (score <= 8) performanceLabel = 'Đạt';
+  else performanceLabel = 'Giỏi';
+
+  return {
+    score,                // Score out of 10 
+    performanceLabel,     // Không đạt, Trung bình, Đạt, or Giỏi
+    wrongAnswers         // Array of wrong answers with Azota-style feedback
+  };
+}
+
+module.exports = { analyzeQuiz, loadQuestionsForQuiz, loadGroupedQuestionsForQuiz };
