@@ -15,8 +15,9 @@
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
     "dev:frontend": "cd stem-project && npm start",
     "dev:backend": "node stem-project/backend/server.js",
-    "build": "cd stem-project && npm run build",
+    "build": "cd stem-project && npm install && npm run build",
     "start": "node stem-project/backend/server.js",
-    "vercel-build": "cd stem-project && npm run build"
+    "vercel-build": "cd stem-project && npm install && npm run build",
+    "postinstall": "cd stem-project && npm install"
   }
 }
