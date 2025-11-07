@@ -13,7 +13,7 @@
   },
   "scripts": {
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
-    "dev:frontend": "cd stem-project && PORT=5000 HOST=0.0.0.0 npm start",
+    "dev:frontend": "cd stem-project && DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=5000 HOST=0.0.0.0 npm start",
     "dev:backend": "PORT=3000 node stem-project/backend/server.js",
     "build": "cd stem-project && npm install && npm run build",
     "start": "node stem-project/backend/server.js",
