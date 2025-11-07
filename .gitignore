@@ -1,0 +1,25 @@
+# Node
+node_modules/
+
+# Build output
+stem-project/build/
+build/
+
+# Environment
+.env
+*.env
+*.local
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+coverage/
+.cache/
