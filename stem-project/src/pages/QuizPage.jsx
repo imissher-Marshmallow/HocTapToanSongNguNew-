@@ -37,6 +37,13 @@ function QuizPage() {
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
+  const containerRef = React.useRef(null);
+
+  // Anti-cheat state
+  const [infractions, setInfractions] = useState(0);
+  const infractionsRef = React.useRef(0);
+  const lastInfractionAt = React.useRef(0);
+  const autoSubmittedRef = React.useRef(false);
 
   useEffect(() => {
     if (!started) return;
@@ -70,10 +77,85 @@ function QuizPage() {
       .catch(err => console.error('Error fetching questions:', err));
   }, [started, id]);
 
+  // Anti-cheat: monitor visibility, focus and fullscreen changes
+  useEffect(() => {
+    if (!started) return;
+
+    const MIN_INFRACTION_GAP_MS = 1500;
+
+    function recordInfraction(reason) {
+      const now = Date.now();
+      if (now - lastInfractionAt.current < MIN_INFRACTION_GAP_MS) return; // debounce repeated events
+      lastInfractionAt.current = now;
+      infractionsRef.current += 1;
+      setInfractions(infractionsRef.current);
+      // show quick warning
+      try { window.navigator && window.navigator.vibrate && window.navigator.vibrate(200); } catch (e) {}
+      // If reached limit, auto-submit
+      if (infractionsRef.current >= 3 && !autoSubmittedRef.current) {
+        autoSubmittedRef.current = true;
+        // small timeout so UI can update before submit
+        setTimeout(() => {
+          submitQuiz(answersRef.current);
+        }, 300);
+      }
+      console.warn('Cheat infraction recorded:', reason, 'count=', infractionsRef.current);
+    }
+
+    function onVisibilityChange() {
+      if (document.hidden) recordInfraction('visibility:hidden');
+    }
+
+    function onBlur() {
+      recordInfraction('window:blur');
+    }
+
+    function onFullscreenChange() {
+      // If user exits fullscreen during exam, count as infraction
+      if (!document.fullscreenElement) recordInfraction('fullscreen:exit');
+    }
+
+    function onKeyDown(e) {
+      // Best-effort detection of Alt+Tab or switching keys. Browsers may not expose Alt+Tab reliably,
+      // but we can watch for common modifier combos (Alt, Meta) plus Tab or Escape.
+      if (e.altKey && e.key === 'Tab') {
+        recordInfraction('alt+tab');
+      }
+      // detect Meta/Command+Tab on Mac (best-effort)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Tab') {
+        recordInfraction('meta+tab');
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [started]);
+
   // Countdown timer (default 30 minutes = 1800 seconds)
   const [remainingSec, setRemainingSec] = useState(30 * 60);
   const answersRef = React.useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
+
+  // Start handler requests fullscreen on user gesture then starts the quiz
+  const handleStart = async () => {
+    try {
+      const el = containerRef.current || document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch (e) {
+      console.warn('Failed to enter fullscreen:', e);
+    }
+    setStarted(true);
+  };
   useEffect(() => {
     if (!started) return;
     // reset timer when quiz starts
@@ -174,7 +256,7 @@ function QuizPage() {
         <h1 className="text-3xl font-bold mb-4">{t.test} {id}</h1>
         <p className="text-gray-600 mb-6">{t.ready}</p>
         <button
-          onClick={() => setStarted(true)}
+          onClick={handleStart}
           className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors"
         >
           {t.startTest}
@@ -195,7 +277,7 @@ function QuizPage() {
   };
 
   return (
-    <div className={classNames('quiz-container', { 'review-mode': isReviewMode })}>
+    <div ref={containerRef} className={classNames('quiz-container', { 'review-mode': isReviewMode })}>
       <div className="quiz-header">
         <h1 className="quiz-title">{t.test} {id}</h1>
         <div className="quiz-progress">
@@ -205,6 +287,18 @@ function QuizPage() {
           <TimerDisplay seconds={remainingSec} />
         </div>
       </div>
+
+      {/* Anti-cheat banner */}
+      {infractions > 0 && infractions < 3 && (
+        <div className="anti-cheat-banner" style={{background:'#fee2e2',color:'#991b1b',padding:'8px',borderRadius:6,margin:'8px 0'}}>
+          Cảnh báo: Phát hiện rời khỏi bài kiểm tra {infractions} lần. Hết cảnh báo sau {3 - infractions} lần nữa sẽ tự động nộp bài.
+        </div>
+      )}
+      {infractions >= 3 && (
+        <div className="anti-cheat-banner" style={{background:'#fecaca',color:'#7f1d1d',padding:'8px',borderRadius:6,margin:'8px 0'}}>
+          Bài kiểm tra đang được nộp tự động do vi phạm chính sách thi.
+        </div>
+      )}
 
       <div className="topics-section">
         <div className="topic-tabs">
