@@ -10,7 +10,11 @@ export default function QuizList() {
 
   const quizzes = t.quizzes.map(quiz => ({
     ...quiz,
-    attempts: Math.floor(Math.random() * 3) // Simulated attempts, replace with real data later
+    // For quiz id 2 the user requested attempts = 0 (Đã làm: 0 lần)
+    attempts: quiz.id === 2 ? 0 : Math.floor(Math.random() * 3), // Simulated attempts, replace with real data later
+    // For English language make quiz id 2 a temporary exam and disable starting it
+    title: language === 'en' && quiz.id === 2 ? 'Temp Exam' : quiz.title,
+    disabledStart: language === 'en' && quiz.id === 2
   }));
 
   return (
@@ -33,8 +37,9 @@ export default function QuizList() {
                 {t.details}
               </button>
               <button
-                onClick={() => navigate(`/quiz/${quiz.id}`)}
-                className="btn-secondary bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                onClick={() => !quiz.disabledStart && navigate(`/quiz/${quiz.id}`)}
+                className={`btn-secondary text-white px-4 py-2 rounded ${quiz.disabledStart ? 'opacity-50 cursor-not-allowed bg-gray-400 hover:bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+                disabled={quiz.disabledStart}
               >
                 {t.start}
               </button>
