@@ -1,0 +1,10 @@
+{
+  "name": "stem-api",
+  "version": "1.0.0",
+  "description": "API endpoints for STEM quiz platform",
+  "main": "index.js",
+  "dependencies": {
+    "openai": "^4.76.0",
+    "dotenv": "^16.4.5"
+  }
+}

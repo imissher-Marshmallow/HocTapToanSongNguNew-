@@ -79,11 +79,6 @@ export default function ResultPage() {
   const summary = result ? result.summary || null : null;
   const [showSummary, setShowSummary] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(!!summary);
-  const [expandedIds, setExpandedIds] = useState([]);
-
-  const toggleExpanded = (id) => {
-    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
 
   useEffect(() => {
     // If there's a summary, show a short AI replying animation then reveal summary

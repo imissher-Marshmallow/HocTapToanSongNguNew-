@@ -13,6 +13,15 @@ The platform is bilingual (English/Vietnamese) and features an engaging, modern 
 - Set up Replit workflow to run both frontend and backend concurrently using concurrently package
 - Configured OpenAI API key through Replit Secrets for secure environment variable management
 - Application now runs successfully on Replit with proper client-server separation
+- Fixed "Invalid Host header" error by adding DANGEROUSLY_DISABLE_HOST_CHECK=true
+
+**Prepared for Vercel Deployment:**
+- Fixed all ESLint errors (removed unused imports and variables)
+- Created independent `/api/package.json` with OpenAI and dotenv dependencies
+- Copied analyzer.js and data files to `/api` folder for serverless deployment
+- Updated all API import paths to use relative references
+- Added CI=false to build script to handle warnings gracefully
+- Production build now compiles successfully without errors
 
 # User Preferences
 

@@ -1,5 +1,4 @@
-const path = require('path');
-const analyzer = require(path.join(__dirname, '..', 'stem-project', 'backend', 'ai', 'analyzer'));
+const analyzer = require('./ai/analyzer');
 
 module.exports = async (req, res) => {
   try {

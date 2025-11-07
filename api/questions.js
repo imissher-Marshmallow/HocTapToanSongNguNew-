@@ -4,9 +4,7 @@
 //  - /api/questions?quizId=random
 //  - /api/questions?quizId=contest3&grouped=true
 
-const path = require('path');
-// Require analyzer from the existing backend code so we reuse logic
-const analyzer = require(path.join(__dirname, '..', 'stem-project', 'backend', 'ai', 'analyzer'));
+const analyzer = require('./ai/analyzer');
 
 module.exports = async (req, res) => {
   try {

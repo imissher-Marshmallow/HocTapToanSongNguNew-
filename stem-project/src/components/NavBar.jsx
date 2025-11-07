@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Brain, BookOpen, Trophy, User } from 'lucide-react';
+import { Menu, X, BookOpen, Trophy, User } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import LanguageSelector from './LanguageSelector';
 import { navTranslations } from '../translations/navTranslations';
@@ -8,16 +8,7 @@ import '../styles/NavBar.css';
 
 function NavBar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -28,8 +19,6 @@ function NavBar() {
     { to: '/', label: t.home, icon: <BookOpen className="w-4 h-4" /> },
     { to: '/quizzes', label: t.quizzes, icon: <Trophy className="w-4 h-4" /> },
   ];
-
-  const isLandingPage = location.pathname === '/';
 
   return (
     <nav className="navbar opaque">
