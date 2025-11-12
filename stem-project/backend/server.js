@@ -57,6 +57,30 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running', timestamp: new Date() });
 });
 
+// Debug endpoint - returns non-sensitive runtime info to help with CORS / env debugging
+app.get('/debug', (req, res) => {
+  try {
+    const frontendEnv = process.env.FRONTEND_ORIGINS || '';
+    const allowedOrigins = Array.from(new Set([...(frontendEnv ? frontendEnv.split(',').map(s => s.trim()).filter(Boolean) : []), 'http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000']));
+    const frontendAllowAll = String(process.env.FRONTEND_ALLOW_ALL || 'false').toLowerCase() === 'true';
+    const openaiSet = Boolean(process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEYS);
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    const originHeader = req.get('origin') || null;
+
+    return res.json({
+      status: 'ok',
+      nodeEnv,
+      allowedOrigins,
+      frontendAllowAll,
+      openaiKeyPresent: openaiSet,
+      requestOrigin: originHeader,
+      timestamp: new Date()
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'debug endpoint error', details: e && e.message });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path });

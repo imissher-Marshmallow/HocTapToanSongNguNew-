@@ -41,9 +41,9 @@ export function AuthProvider({ children }) {
       const envIsLocal = envBase.startsWith('http://localhost') || envBase.startsWith('http://127.0.0.1');
       if (!isLocalHostOrigin && envIsLocal) {
         // Frontend is served from a public host but API base points to localhost.
-        // This would cause the browser to attempt connecting to the user's machine and fail (or be a security/privacy issue).
-        console.error('REACT_APP_API_BASE_URL is not set for a deployed frontend. Set REACT_APP_API_BASE_URL in your hosting provider to your backend URL.');
-        return null;
+        // Instead of blocking, fall back to the serverless backend path and warn.
+        console.warn('REACT_APP_API_BASE_URL points to localhost but the app is running from a non-localhost origin. Falling back to /api/backend. Update REACT_APP_API_BASE_URL in your hosting provider to your backend URL.');
+        return '/api/backend';
       }
     }
     return envBase;
