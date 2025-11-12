@@ -32,7 +32,8 @@ export function AuthProvider({ children }) {
   const verifyToken = async () => {
     try {
       const decoded = decodeToken(token);
-      const response = await fetch('http://localhost:5000/auth/me', {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -51,7 +52,8 @@ export function AuthProvider({ children }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/auth/signup', {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, username, password, confirmPassword })
@@ -79,7 +81,8 @@ export function AuthProvider({ children }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/auth/signin', {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
