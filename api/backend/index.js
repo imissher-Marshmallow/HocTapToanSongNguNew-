@@ -1,11 +1,14 @@
 const app = require('../../stem-project/backend/server');
 
 module.exports = (req, res) => {
-  // Strip the /api/backend prefix so Express routes (which are mounted at /auth, /api, etc.) match.
+  // Debug logging to help diagnose 404 routing issues
   try {
+    console.log('[proxy:index] incoming', req.method, 'url=', req.url, 'originalUrl=', req.originalUrl || null, 'headers.origin=', req.headers && req.headers.origin);
     const prefix = '/api/backend';
     if (req.url && req.url.startsWith(prefix)) {
+      const old = req.url;
       req.url = req.url.slice(prefix.length) || '/';
+      console.log('[proxy:index] rewritten url', old, '->', req.url);
     }
     return app(req, res);
   } catch (err) {
