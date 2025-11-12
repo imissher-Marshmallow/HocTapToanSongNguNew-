@@ -10,9 +10,15 @@
         { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
         { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version" }
       ]
+    },
+    {
+      "source": "/(manifest.json|robots.txt|favicon.ico)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
     }
   ],
-    "rewrites": [
+  "rewrites": [
     {
       "source": "/api/questions/:path*",
       "destination": "/api/questions.js"
@@ -20,6 +26,10 @@
     {
       "source": "/api/analyze-quiz/:path*",
       "destination": "/api/analyze-quiz.js"
+    },
+    {
+      "source": "/api/backend/:path*",
+      "destination": "/api/backend"
     },
     {
       "source": "/api/:path*",
