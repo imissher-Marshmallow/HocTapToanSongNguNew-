@@ -32,7 +32,9 @@ export function AuthProvider({ children }) {
   // Build API base url safely. If the app is running from a non-localhost origin (deployed),
   // require REACT_APP_API_BASE_URL to be set to avoid calling user's localhost from the browser.
   function getApiBase() {
-    const envBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+  // For deployed frontends prefer relative API path so same origin will be used.
+  // If REACT_APP_API_BASE_URL is set, use it; otherwise use a relative path for production builds.
+  const envBase = process.env.REACT_APP_API_BASE_URL || (typeof window !== 'undefined' && !['localhost','127.0.0.1','::1'].includes(window.location.hostname) ? '' : 'http://localhost:5000');
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       const host = window.location.hostname;
       const isLocalHostOrigin = host === 'localhost' || host === '127.0.0.1' || host === '::1';
