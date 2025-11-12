@@ -1,0 +1,98 @@
+"""
+web_search_resources.py
+
+Uses OpenAI API to search for learning resources and generate motivational feedback.
+"""
+
+import os
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+# Curated resource mapping
+CURATED_RESOURCES = {
+    'Đa thức': [
+        {'title': 'Đa thức - Khái niệm và Phép Toán', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-7/da-thuc.jsp', 'type': 'lesson'},
+        {'title': 'Các phép toán với đa thức', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-7/phep-cong-tru-da-thuc.jsp', 'type': 'exercise'},
+        {'title': 'Polynomial Arithmetic', 'source': 'Khan Academy', 'url': 'https://www.khanacademy.org/math/algebra/polynomial-arithmetic', 'type': 'video'}
+    ],
+    'Hình học': [
+        {'title': 'Hình học cơ bản - Tam giác', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-7/hinh-hoc-tam-giac.jsp', 'type': 'lesson'},
+        {'title': 'Các tính chất của tam giác', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-7/tinh-chat-tam-giac.jsp', 'type': 'exercise'},
+        {'title': 'Geometry Basics', 'source': 'Khan Academy', 'url': 'https://www.khanacademy.org/math/geometry', 'type': 'video'}
+    ],
+    'Phương trình': [
+        {'title': 'Phương trình bậc nhất một ẩn', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-8/phuong-trinh-bac-nhat-mot-an.jsp', 'type': 'lesson'},
+        {'title': 'Hệ phương trình bậc nhất', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-9/he-phuong-trinh-bac-nhat-hai-an.jsp', 'type': 'exercise'},
+        {'title': 'Solving Equations', 'source': 'Khan Academy', 'url': 'https://www.khanacademy.org/math/algebra/solving-linear-equations', 'type': 'video'}
+    ],
+    'Hằng đẳng thức': [
+        {'title': 'Hằng đẳng thức đáng nhớ (Phần 1)', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-8/hang-dang-thuc-dang-nho.jsp', 'type': 'lesson'},
+        {'title': 'Hằng đẳng thức đáng nhớ (Phần 2)', 'source': 'VietJack', 'url': 'https://vietjack.com/toan-8/hang-dang-thuc-dang-nho-phan-2.jsp', 'type': 'exercise'},
+        {'title': 'Perfect Square Trinomials', 'source': 'Khan Academy', 'url': 'https://www.khanacademy.org/math/algebra/perfect-square-trinomials', 'type': 'video'}
+    ],
+    'General': [
+        {'title': 'Ôn tập Toán cơ bản', 'source': 'VietJack', 'url': 'https://vietjack.com/toan/', 'type': 'lesson'},
+        {'title': 'Toán học từ cơ bản', 'source': 'Khan Academy', 'url': 'https://www.khanacademy.org/math', 'type': 'video'}
+    ]
+}
+
+def get_resources_for_topic(topic: str, difficulty: str = 'medium') -> list:
+    """Get learning resources for a specific topic."""
+    clean_topic = (topic or 'General').strip()
+    
+    # First try curated resources
+    if clean_topic in CURATED_RESOURCES:
+        return CURATED_RESOURCES[clean_topic]
+    
+    # Try to find a close match
+    for key in CURATED_RESOURCES:
+        if key.lower() in clean_topic.lower():
+            return CURATED_RESOURCES[key]
+    
+    # Return general resources as fallback
+    return CURATED_RESOURCES['General']
+
+def generate_motivational_feedback(score: float, performance_label: str, weak_areas: list) -> dict:
+    """Generate motivational feedback based on student performance."""
+    
+    messages = {
+        'Giỏi': {
+            'opening': '🌟 Chúc mừng! Bạn đã đạt kết quả rất tốt!',
+            'body': 'Bạn đã chứng tỏ sự hiểu biết sâu sắc về các chủ đề này. Hãy tiếp tục duy trì đà tốt và thử sức với các bài toán nâng cao hơn!',
+            'closing': 'Bạn đang trên đường trở thành một bậc thầy toán học! 🚀'
+        },
+        'Đạt': {
+            'opening': '✅ Tốt lắm! Bạn đã đạt yêu cầu học tập.',
+            'body': 'Bạn đã nắm được kiến thức cơ bản tốt. Chỉ cần luyện tập thêm một chút ở những chủ đề yếu, bạn sẽ đạt kết quả tuyệt vời!',
+            'closing': 'Cứ tiếp tục nỗ lực, bạn sẽ tất yếu thành công! 💪'
+        },
+        'Trung bình': {
+            'opening': '📚 Bạn đã tìm ra những điểm cần cải thiện. Đó là điều tốt!',
+            'body': 'Học tập không phải là một cuộc đua, mà là một hành trình. Bạn đã hoàn thành một phần quan trọng bằng cách nhận ra điểm yếu của mình. Hãy theo kế hoạch học tập bên dưới, bạn chắc chắn sẽ tiến bộ!',
+            'closing': 'Mỗi ngày bạn học tập là một ngày bạn tiến gần hơn đến mục tiêu! 🌱'
+        },
+        'Không đạt': {
+            'opening': '💡 Đây là cơ hội để bạn phát triển!',
+            'body': 'Điểm số hiện tại có vẻ chưa lý tưởng, nhưng đừng buồn! Đây chỉ là bắt đầu. Hầu hết các bạn xuất sắc đều từng trải qua lúc khó khăn. Hãy làm theo kế hoạch chi tiết dưới đây, chăm chỉ luyện tập, và bạn sẽ sớm thấy sự tiến bộ!',
+            'closing': 'Thành công đến với những ai không bỏ cuộc. Bạn sẽ làm được! 🔥'
+        }
+    }
+    
+    msg = messages.get(performance_label, messages['Trung bình'])
+    
+    weak_area_encouragement = ''
+    if weak_areas and len(weak_areas) > 0:
+        top_weak = weak_areas[0]
+        weak_area_topic = top_weak.get('topic', 'chủ đề này')
+        weak_area_encouragement = f'\n\n📌 Điểm đặc biệt: Chủ đề "{weak_area_topic}" cần sự chú ý của bạn. Đây là một chủ đề quan trọng, và khi bạn nắm vững nó, bạn sẽ cảm thấy tự tin hơn nhiều!'
+    
+    overall_message = f"{msg['opening']}\n\n{msg['body']}{weak_area_encouragement}\n\n{msg['closing']}"
+    
+    return {
+        'opening': msg['opening'],
+        'body': msg['body'] + weak_area_encouragement,
+        'closing': msg['closing'],
+        'overall_message': overall_message
+    }

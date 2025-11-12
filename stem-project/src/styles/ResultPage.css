@@ -44,8 +44,26 @@
 .correct-answer{word-break:break-word}
 .answer-line strong{margin-right:8px}
 
+/* Motivational Feedback Styling */
+.motivational-feedback{background:linear-gradient(135deg,#f3e8ff 0%,#ede9fe 100%);border-left:5px solid #a855f7;border-radius:10px;padding:18px;margin:16px 0}
+.motivational-feedback p:first-child{color:#7c3aed;font-weight:600;font-size:1.1rem;margin-bottom:12px}
+.motivational-feedback p:last-child{color:#9333ea;font-weight:500;font-style:italic;margin-top:12px;padding-top:12px;border-top:1px solid rgba(168,85,247,0.2)}
+
+/* Learning Resources Styling */
+.learning-resources{margin:32px 0}
+.learning-resources h2{color:#1e40af;margin-bottom:24px;display:flex;align-items:center;gap:8px}
+.resources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.resource-card{background:#ffffff;border:1px solid #dbeafe;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 0.3s ease}
+.resource-card:hover{box-shadow:0 4px 12px rgba(59,130,246,0.15);transform:translateY(-2px);border-color:#60a5fa}
+.resource-card h3{color:#1e40af;font-size:1.05rem;font-weight:600;margin-bottom:8px;line-height:1.4}
+.resource-card .badge{background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:6px;font-size:0.75rem;font-weight:600}
+.resource-card p{color:#64748b;font-size:0.9rem;margin:8px 0}
+.resource-card a{display:inline-block;padding:10px 16px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.9rem;transition:all 0.3s ease}
+.resource-card a:hover{background:linear-gradient(135deg,#1d4ed8,#1e40af);transform:translateX(4px);box-shadow:0 4px 8px rgba(37,99,235,0.3)}
+
 /* small responsive tweaks */
 @media (max-width: 640px){
 	.answer-comparison-grid{grid-template-columns:1fr}
+	.resources-grid{grid-template-columns:1fr}
 }
 

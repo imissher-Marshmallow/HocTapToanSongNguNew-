@@ -1,5 +1,6 @@
 {
   "name": "stem-project-monorepo-root",
+  "description": "Deep Learning With Love - Integrated Learning Platform with AI",
   "private": true,
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -10,17 +11,31 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3",
     "serve": "^14.2.5"
   },
   "scripts": {
-    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
-    "dev:frontend": "cd stem-project && DANGEROUSLY_DISABLE_HOST_CHECK=true PORT=5000 HOST=0.0.0.0 npm start",
-    "dev:backend": "PORT=3000 node stem-project/backend/server.js",
-    "build": "cd stem-project && npm install && npm run build",
-    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
-    "start:backend": "PORT=3000 node stem-project/backend/server.js",
-    "start:frontend": "cd stem-project && serve -s build -l 5000",
-    "postinstall": "cd stem-project && npm install",
-    "vercel-build": "npm install && cd stem-project && npm install && npm run build"
+    "comment_dev": "=== DEVELOPMENT MODE (local) ===",
+    "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\" \"npm:dev:ai\"",
+    "dev:frontend": "cd stem-project && npm start",
+    "dev:backend": "cd stem-project/backend && npm start",
+    "dev:ai": "cd ai_engine && python -m uvicorn main:app --reload --port 8000",
+    "comment_prod": "=== PRODUCTION MODE (Vercel/deployed) ===",
+    "start": "concurrently \"npm:start:frontend\" \"npm:start:backend\"",
+    "start:frontend": "cd stem-project && serve -s build -l 3000",
+    "start:backend": "cd stem-project/backend && node server.js",
+    "comment_build": "=== BUILD SCRIPTS ===",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd stem-project && npm install && npm run build",
+    "build:backend": "cd stem-project/backend && npm install",
+    "vercel-build": "npm install && cd stem-project && npm install && npm run build && cd ../ai_engine && pip install -r requirements.txt",
+    "comment_ai": "=== AI ENGINE SCRIPTS ===",
+    "ai:setup": "cd ai_engine && python -m venv venv && .\\venv\\Scripts\\activate && pip install -r requirements.txt && python init_db.py",
+    "ai:init": "cd ai_engine && python init_db.py",
+    "ai:check": "cd ai_engine && python check_setup.py",
+    "comment_util": "=== UTILITY SCRIPTS ===",
+    "check": "node check-setup.js",
+    "postinstall": "cd stem-project && npm install && cd ../stem-project/backend && npm install",
+    "clean": "rm -rf stem-project/build stem-project/node_modules stem-project/backend/node_modules ai_engine/__pycache__ ai_engine/.venv"
   }
 }

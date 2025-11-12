@@ -284,3 +284,77 @@
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
+
+/* Auth / Signup / User styles */
+.navbar-auth-links {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.navbar-signup-btn {
+  padding: 0.45rem 0.9rem;
+  background: white;
+  color: #2563eb;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.navbar-signup-btn:hover {
+  background: #eff6ff;
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-username {
+  font-weight: 600;
+  color: #111827;
+}
+
+.navbar-logout-btn {
+  padding: 0.35rem 0.7rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.navbar-logout-btn:hover {
+  background: #dc2626;
+}
+
+/* Mobile signed-in styles */
+.navbar-mobile-user, .navbar-mobile-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.navbar-mobile-signup-btn {
+  padding: 0.75rem 1rem;
+  background: white;
+  color: #2563eb;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  text-align: left;
+}
+
+.navbar-mobile-logout-btn {
+  padding: 0.75rem 1rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  text-align: left;
+}
+

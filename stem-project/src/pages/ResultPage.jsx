@@ -106,6 +106,11 @@ export default function ResultPage() {
   weakAreas.forEach(area => {
     severityCounts[area.severity] = (severityCounts[area.severity] || 0) + 1;
   });
+
+    // Extract motivational feedback and resource links
+    const motivationalFeedback = result.motivationalFeedback || {};
+    const resourceLinks = result.resourceLinks || [];
+
   const chartData = {
     labels: ['High', 'Medium', 'Low'],
     datasets: [
@@ -152,6 +157,22 @@ export default function ResultPage() {
             <div className="summary mb-8 p-5 bg-white border shadow-sm rounded summary-highlight">
               <h2 className="text-xl font-semibold mb-3">{t.aiOverview}</h2>
               {summary.overall && <p className="mb-3 summary-overall">{summary.overall}</p>}
+              
+                {/* Motivational Feedback Section */}
+                {motivationalFeedback && (motivationalFeedback.opening || motivationalFeedback.body || motivationalFeedback.closing) && (
+                  <div className="motivational-feedback mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 rounded">
+                    {motivationalFeedback.opening && (
+                      <p className="text-lg font-semibold text-purple-700 mb-3">{motivationalFeedback.opening}</p>
+                    )}
+                    {motivationalFeedback.body && (
+                      <p className="text-gray-700 mb-3">{motivationalFeedback.body}</p>
+                    )}
+                    {motivationalFeedback.closing && (
+                      <p className="text-purple-700 font-semibold italic">{motivationalFeedback.closing}</p>
+                    )}
+                  </div>
+                )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {summary.strengths && summary.strengths.length > 0 && (
                     <div className="p-3 border rounded ai-card-column">
@@ -233,6 +254,34 @@ export default function ResultPage() {
           </div>
         </div>
       </div>
+
+        {/* Learning Resources Section */}
+        {resourceLinks && resourceLinks.length > 0 && (
+          <div className="learning-resources mb-12">
+            <h2 className="text-2xl font-bold mb-4">📚 {language === 'vi' ? 'Tài nguyên học tập đề xuất' : 'Recommended Learning Resources'}</h2>
+            <div className="resources-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {resourceLinks.map((resource, idx) => (
+                <div key={idx} className="resource-card p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white">
+                  <div className="mb-2">
+                    <h3 className="font-semibold text-lg text-blue-700 mb-1">{resource.title}</h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <span className="badge bg-blue-100 text-blue-800 px-2 py-1 rounded">{resource.source}</span>
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">Type: {resource.type || 'lesson'}</p>
+                  <a 
+                    href={resource.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    {language === 'vi' ? 'Học ngay' : 'Learn Now'} →
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* Overall AI Summary (single concise block) */}
       {summary && (

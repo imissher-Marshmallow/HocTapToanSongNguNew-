@@ -1,31 +1,53 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthProvider } from './contexts/AuthContext';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import LandingPage from './pages/LandingPage';
 import QuizList from './pages/QuizList';
 import QuizPage from './pages/QuizPage';
 import ResultPage from './pages/ResultPage';
+import Signup from './components/Signup';
+import Signin from './components/Signin';
+import ProtectedRoute from './components/ProtectedRoute';
 import './styles.css';
 
 function App() {
   return (
     <LanguageProvider>
-      <Router>
-        <div className="app">
-          <NavBar />
-          <main>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/quizzes" element={<QuizList />} />
-              <Route path="/quiz/:id" element={<QuizPage />} />
-              <Route path="/result" element={<ResultPage />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <div className="app">
+            <NavBar />
+            <main>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/quizzes" element={<QuizList />} />
+                <Route
+                  path="/quiz/:id"
+                  element={
+                    <ProtectedRoute>
+                      <QuizPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/result"
+                  element={
+                    <ProtectedRoute>
+                      <ResultPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/signin" element={<Signin />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </AuthProvider>
     </LanguageProvider>
   );
 }

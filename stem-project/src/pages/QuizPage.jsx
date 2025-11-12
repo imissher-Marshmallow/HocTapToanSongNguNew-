@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { quizTranslations } from '../translations/quizTranslations';
 import '../styles/AzotaQuiz.css';
 import classNames from 'classnames';
@@ -27,6 +28,7 @@ function QuizPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { language } = useLanguage();
+  const { token, getUserId } = useAuth();
   const t = quizTranslations[language];
   const [started, setStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
@@ -49,7 +51,8 @@ function QuizPage() {
     if (!started) return;
     // Request questions for the selected quiz id when provided, otherwise fall back to 'random'
     const quizKey = id || 'random';
-    const endpoint = `/api/questions/${quizKey}`;
+    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+    const endpoint = `${apiBaseUrl}/api/questions/${quizKey}`;
 
     fetch(endpoint)
       .then(res => {
@@ -227,24 +230,34 @@ function QuizPage() {
   };
 
   const submitQuiz = async (finalAnswers) => {
+    const userId = getUserId();
     const payload = {
-      userId: 'user1',
+      userId,
       // Prefer the contest key returned by the questions API so grading uses the same contest
       quizId: selectedContestKey || id || 'random',
       answers: finalAnswers,
+      questions: questions  // Include questions so backend can calculate score and store full context
     };
     try {
-      const res = await fetch('/api/analyze-quiz', {
+      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      // Include authorization token if available
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(`${apiBaseUrl}/api/analyze-quiz`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-  const result = await res.json();
-  // pass result object directly in location.state (not nested) for ResultPage
-  navigate('/result', { state: result });
+      const result = await res.json();
+      // pass result object directly in location.state (not nested) for ResultPage
+      navigate('/result', { state: result });
     } catch (err) {
       console.error('Error submitting quiz:', err);
     }
