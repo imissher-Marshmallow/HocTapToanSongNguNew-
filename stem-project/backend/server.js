@@ -27,6 +27,7 @@ const corsOptions = {
     if (String(process.env.FRONTEND_ALLOW_ALL || '').toLowerCase() === 'true') {
       return callback(null, true);
     }
+    console.warn(`CORS rejection for origin: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
