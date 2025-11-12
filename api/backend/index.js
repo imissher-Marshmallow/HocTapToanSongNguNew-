@@ -1,18 +1,26 @@
 const app = require('../../stem-project/backend/server');
 
 module.exports = (req, res) => {
-  // Debug logging to help diagnose 404 routing issues
+  // Strip the /api/backend prefix so Express routes (which are mounted at /auth, /api, etc.) match.
   try {
-    console.log('[proxy:index] incoming', req.method, 'url=', req.url, 'originalUrl=', req.originalUrl || null, 'headers.origin=', req.headers && req.headers.origin);
     const prefix = '/api/backend';
+    const originalUrl = req.url;
     if (req.url && req.url.startsWith(prefix)) {
-      const old = req.url;
       req.url = req.url.slice(prefix.length) || '/';
-      console.log('[proxy:index] rewritten url', old, '->', req.url);
     }
+    console.log(`[backend/index] Incoming: ${req.method} ${originalUrl} -> ${req.url}`);
+    
+    // Wrap res.json to log responses
+    const originalJson = res.json.bind(res);
+    res.json = function(data) {
+      console.log(`[backend/index] Response: ${res.statusCode}`, data && data.error ? data.error : 'OK');
+      return originalJson(data);
+    };
+    
     return app(req, res);
   } catch (err) {
-    console.error('Error in backend index route:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error in backend index route:', err && err.message ? err.message : err);
+    console.error('Stack:', err && err.stack);
+    res.status(500).json({ error: 'Internal server error', details: err && err.message });
   }
 };
