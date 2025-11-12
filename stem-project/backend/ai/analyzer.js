@@ -173,17 +173,18 @@ function recommendNextQuestions(weakAreas, questions) {
 // Call LLM to generate summary
 async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }) {
   if (!openai) return null;
-  
+
   try {
     const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% lỗi)`).join(', ');
-    const prompt = `Bạn là một giáo viên toán tốt bụng. Sinh viên vừa làm bài kiểm tra và được ${score}/10 điểm (${performanceLabel}). Điểm yếu chính: ${weakAreasList}. Hãy viết một thông điệp khuyến khích ngắn gọn (2-3 câu) bằng tiếng Việt, kèm lời khuyên ôn tập.`;
-    
+    const prompt = `Bạn là một giáo viên toán tốt bụng. Sinh viên vừa làm bài kiểm tra và được ${score}/10 điểm (${performanceLabel}). Điểm yếu chính: ${weakAreasList}.\n\nHãy viết một thông điệp khuyến khích ngắn gọn (2-3 câu) bằng tiếng Việt, kèm lời khuyên ôn tập.`;
+
+    // Use defensive API call in case of invalid key or network error
     const message = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 300
     });
-    
+
     return {
       overall: message.choices[0]?.message?.content || '',
       strengths: [],
@@ -191,7 +192,24 @@ async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendati
       plan: (recommendations || []).slice(0, 2).map(r => `Ôn lại ${r.topic}`)
     };
   } catch (error) {
-    console.error('LLM error:', error);
+    // Detect invalid/unauthorized (401) errors and attach friendly hint
+    try {
+      const status = error?.status || (error?.response && error.response.status);
+      if (status === 401) {
+        console.warn('LLM returned 401 Unauthorized. Check OPENAI_API_KEY.');
+        return {
+          overall: null,
+          strengths: [],
+          weaknesses: weakAreas.slice(0, 2).map(w => `${w.topic}: ${w.percentage}% sai`),
+          plan: (recommendations || []).slice(0, 2).map(r => `Ôn lại ${r.topic}`),
+          error: { code: 401, message: 'Invalid or missing OPENAI_API_KEY' }
+        };
+      }
+    } catch (inner) {
+      // ignore
+    }
+
+    console.error('LLM error:', error && (error.message || error));
     return null;
   }
 }
@@ -307,9 +325,17 @@ async function analyzeQuiz(payload) {
     const topWeakAreas = weakAreas.slice(0, 3);
     for (const area of topWeakAreas) {
       const topic = area.topic || area.subtopic;
-      const resources = getResourcesForTopic(topic);
-      if (resources && resources.length > 0) {
-        resourceLinks.push(...resources);
+      try {
+        // getResourcesForTopic is async (performs HEAD checks); await it so resources are populated
+        // eslint-disable-next-line no-await-in-loop
+        const resources = await getResourcesForTopic(topic);
+        if (resources && resources.length > 0) {
+          resourceLinks.push(...resources);
+        }
+      } catch (e) {
+        // If reachability checks fail (network or blocked HEAD), fall back to returning an empty set for this topic
+        // The webSearchResources module will itself return curated items as a last resort.
+        console.warn(`Resource lookup failed for topic "${topic}":`, e && (e.message || e));
       }
     }
   }

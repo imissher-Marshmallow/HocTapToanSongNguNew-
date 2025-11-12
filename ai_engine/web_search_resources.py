@@ -9,6 +9,8 @@ try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None
+import requests
+from urllib.parse import urlparse
 
 # Curated resource mapping
 CURATED_RESOURCES = {
@@ -42,16 +44,53 @@ def get_resources_for_topic(topic: str, difficulty: str = 'medium') -> list:
     """Get learning resources for a specific topic."""
     clean_topic = (topic or 'General').strip()
     
-    # First try curated resources
+    # Helper: check URL is reachable (HEAD or GET) quickly
+    def is_url_ok(url: str, timeout: float = 3.0) -> bool:
+        try:
+            parsed = urlparse(url)
+            if not parsed.scheme.startswith('http'):
+                return False
+            # Use HEAD first to be lightweight
+            resp = requests.head(url, allow_redirects=True, timeout=timeout)
+            return resp.status_code >= 200 and resp.status_code < 400
+        except Exception:
+            return False
+
+    # First try curated resources and filter invalid links
     if clean_topic in CURATED_RESOURCES:
-        return CURATED_RESOURCES[clean_topic]
-    
-    # Try to find a close match
+        valid = [r for r in CURATED_RESOURCES[clean_topic] if isinstance(r.get('url'), str) and is_url_ok(r.get('url'))]
+        if valid:
+            return valid
+
+    # Try to find a close match and validate links
     for key in CURATED_RESOURCES:
         if key.lower() in clean_topic.lower():
-            return CURATED_RESOURCES[key]
-    
-    # Return general resources as fallback
+            valid = [r for r in CURATED_RESOURCES[key] if isinstance(r.get('url'), str) and is_url_ok(r.get('url'))]
+            if valid:
+                return valid
+
+    # If none valid, attempt to build safe VietJack link for common topics
+    vk_base = 'https://vietjack.com'
+    slug_map = {
+        'đa thức': '/toan-7/da-thuc.jsp',
+        'hình học': '/toan-7/hinh-hoc-tam-giac.jsp',
+        'phương trình': '/toan-8/phuong-trinh-bac-nhat-mot-an.jsp',
+        'hằng đẳng thức': '/toan-8/hang-dang-thuc-dang-nho.jsp',
+        'số học': '/toan-6/so-nguyen-phan-so.jsp'
+    }
+    key = clean_topic.lower()
+    for k in slug_map:
+        if k in key:
+            candidate = vk_base + slug_map[k]
+            if is_url_ok(candidate):
+                return [{'title': f'Bài học {clean_topic}', 'source': 'VietJack', 'url': candidate, 'type': 'lesson'}]
+
+    # Return general curated resources filtered by validity
+    general_valid = [r for r in CURATED_RESOURCES['General'] if isinstance(r.get('url'), str) and is_url_ok(r.get('url'))]
+    if general_valid:
+        return general_valid
+
+    # Last resort: return the unfiltered general list (best-effort)
     return CURATED_RESOURCES['General']
 
 def generate_motivational_feedback(score: float, performance_label: str, weak_areas: list) -> dict:

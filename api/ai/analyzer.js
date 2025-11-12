@@ -19,6 +19,9 @@ if (!process.env.OPENAI_API_KEY) {
   console.log('OPENAI_API_KEY detected in environment.');
 }
 
+// Default model: allow overriding via env var. Use gpt-3.5-turbo by default to reduce RPM/cost.
+const DEFAULT_MODEL = process.env.PREFERRED_MODEL || 'gpt-3.5-turbo';
+
 // Prefer updated questions file if present (user may be editing questions_updated.json)
 const defaultQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
 const updatedQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
@@ -31,6 +34,66 @@ function shuffleArray(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+// Helper: resilient OpenAI chat call with retries and optional key rotation
+let __openai_key_index = 0;
+async function sendChatWithRetries(opts) {
+  const { model, messages, max_tokens = 300, temperature = 0, maxRetries = 4 } = opts || {};
+  const rawKeys = (process.env.OPENAI_API_KEYS || process.env.OPENAI_API_KEY || '').split(',').map(k => k && k.trim()).filter(Boolean);
+  const keys = rawKeys.length ? rawKeys : [''];
+
+  // Start index is rotated per-request to distribute load across keys
+  const startIndex = (__openai_key_index++ % keys.length + keys.length) % keys.length;
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < Math.max(1, maxRetries); attempt++) {
+    const key = keys[(startIndex + attempt) % keys.length];
+    try {
+      const client = new OpenAI({ apiKey: key });
+      // prefer chat.completions.create when available
+      if (client.chat && client.chat.completions && typeof client.chat.completions.create === 'function') {
+        return await client.chat.completions.create({ model: model || DEFAULT_MODEL, messages, temperature, max_tokens });
+      }
+      // fallback to other SDK shapes
+      if (typeof client.createChatCompletion === 'function') {
+        return await client.createChatCompletion({ model: model || DEFAULT_MODEL, messages, temperature, max_tokens });
+      }
+      if (client.responses && typeof client.responses.create === 'function') {
+        // Map messages array into a single input string
+        const input = (messages || []).map(m => `${m.role}: ${m.content}`).join('\n');
+        return await client.responses.create({ model: model || DEFAULT_MODEL, input });
+      }
+      throw new Error('No supported OpenAI client method found');
+    } catch (err) {
+      lastErr = err;
+      const status = err?.status || (err?.response && err.response.status) || null;
+      const low = String(err || '').toLowerCase();
+      const isAuth = status === 401 || low.includes('unauthor') || low.includes('invalid api key');
+      const isRate = status === 429 || low.includes('rate limit') || low.includes('quota') || low.includes('rpm');
+
+      if (isAuth) {
+        console.error('OpenAI auth error (invalid key). Aborting retries.');
+        throw err;
+      }
+
+      if (isRate) {
+        const wait = Math.min(30000, Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 1000));
+        console.warn(`OpenAI rate/quota error (attempt ${attempt + 1}), will retry after ${wait}ms.`, err && err.message ? err.message : err);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, wait));
+        continue; // try next key/attempt
+      }
+
+      // For other transient errors, do a short backoff and retry
+      const shortWait = Math.min(8000, 500 * (attempt + 1));
+      console.warn(`OpenAI call failed (attempt ${attempt + 1}), retrying after ${shortWait}ms:`, err && err.message ? err.message : err);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(r => setTimeout(r, shortWait));
+    }
+  }
+  console.error('sendChatWithRetries exhausted all attempts. Last error:', lastErr);
+  throw lastErr;
 }
 
 // Load questions for a quiz (supports new `contests` format in questions.json)
@@ -297,11 +360,27 @@ CorrectOption: "${correctLetter}"
 StudentChoice: "${studentLetter}"
 `;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: enhancedPrompt }],
-      max_tokens: 300,
-    });
+    // Use resilient send helper to mitigate rate limits or multiple API keys
+    let response;
+    try {
+      response = await sendChatWithRetries({
+        model: DEFAULT_MODEL,
+        messages: [{ role: 'user', content: enhancedPrompt }],
+        max_tokens: 300
+      });
+    } catch (e) {
+      // If it's a rate/quota error mention, try an immediate fallback to gpt-3.5-turbo
+      const msg = String(e || '').toLowerCase();
+      if (msg.includes('rate limit') || msg.includes('rpm') || msg.includes('quota') || msg.includes('429')) {
+        try {
+          response = await sendChatWithRetries({ model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: enhancedPrompt }], max_tokens: 300 });
+        } catch (e2) {
+          throw e; // rethrow original
+        }
+      } else {
+        throw e;
+      }
+    }
     const raw = response.choices[0].message.content.trim();
     console.log('LLM Raw Response:', raw);
     // Robust parsing
@@ -343,15 +422,31 @@ Trả về JSON ví dụ:
 
   try {
     if (!openai) throw new Error('OpenAI client not initialized');
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: userMessage }
-      ],
-      temperature: 0,
-      max_tokens: 600,
-    });
+    let response;
+    try {
+      response = await sendChatWithRetries({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: 'system', content: systemMessage },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0,
+        max_tokens: 600
+      });
+    } catch (e) {
+      const msg = String(e || '').toLowerCase();
+      if (msg.includes('rate limit') || msg.includes('rpm') || msg.includes('quota') || msg.includes('429')) {
+        // try fallback to gpt-3.5 once
+        try {
+          response = await sendChatWithRetries({ model: 'gpt-3.5-turbo', messages: [{ role: 'system', content: systemMessage }, { role: 'user', content: userMessage }], temperature: 0, max_tokens: 600 });
+        } catch (e2) {
+          console.error('Fallback model also failed:', e2);
+          throw e; // rethrow original so upper layer falls back
+        }
+      } else {
+        throw e;
+      }
+    }
 
     const raw = (response && response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) ? response.choices[0].message.content.trim() : '';
     console.log('LLM Summary Raw Response:', raw);
@@ -464,18 +559,15 @@ async function analyzeQuiz(payload) {
     console.error('Error generating summary:', e);
   }
 
-  // Derive a performance label based on the requested mapping.
-  // Assumption (interpreting the user's overlapping ranges into integer-friendly buckets):
-  // - score <= 5: 'Not passed'
-  // - score > 5 and <= 7: 'Average'
-  // - score > 7 and <= 8: 'Đạt'
-  // - score > 8: 'GIỏi'
-  // This maps integer scores as: 0-5 Not passed, 6-7 Average, 8 Đạt, 9-10 GIỏi.
+  // Derive a performance label. User requested that score >= 8 => 'Giỏi'.
+  // We'll use a simple, clear mapping:
+  // - score >= 8: 'Giỏi'
+  // - score >= 6 and < 8: 'Đạt'
+  // - score <= 5: 'Không đạt'
   let performanceLabel = 'Không đạt';
-  if (score <= 5) performanceLabel = 'Không đạt';
-  else if (score > 5 && score <= 7) performanceLabel = 'Trung bình';
-  else if (score > 7 && score <= 8) performanceLabel = 'Đạt';
-  else if (score > 8) performanceLabel = 'Giỏi';
+  if (score >= 8) performanceLabel = 'Giỏi';
+  else if (score >= 6) performanceLabel = 'Đạt';
+  else performanceLabel = 'Không đạt';
 
   // Add answer comparison data
   const answerComparison = answers.map(ans => {

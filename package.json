@@ -28,7 +28,7 @@
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "cd stem-project && npm install && npm run build",
     "build:backend": "cd stem-project/backend && npm install",
-    "vercel-build": "npm install && cd stem-project && npm install && npm run build && cd ../ai_engine && pip install -r requirements.txt",
+  "vercel-build": "npm install && cd stem-project && npm install && npm run build && cd .. && cd api && npm install",
     "comment_ai": "=== AI ENGINE SCRIPTS ===",
     "ai:setup": "cd ai_engine && python -m venv venv && .\\venv\\Scripts\\activate && pip install -r requirements.txt && python init_db.py",
     "ai:init": "cd ai_engine && python init_db.py",

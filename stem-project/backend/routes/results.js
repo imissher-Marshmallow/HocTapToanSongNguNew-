@@ -85,6 +85,15 @@ router.post('/', authMiddleware, async (req, res) => {
       const resp = await axios.post(aiEngineUrl, analyzerPayload, { timeout: 15000 });
       aiResult = resp.data;
       console.log('ai_engine responded successfully');
+
+      // If AI returned an error marker (e.g., invalid OPENAI key), merge gracefully
+      if (aiResult && aiResult.error && aiResult.error.code === 401) {
+        console.warn('ai_engine indicated LLM auth error:', aiResult.error.message);
+        // Call local analyzer but preserve ai_result fields where available
+        const local = await analyzeQuiz(analyzerPayload);
+        // Merge without overwriting non-empty fields from local analyzer
+        aiResult = Object.assign({}, local, aiResult);
+      }
     } catch (err) {
       console.warn('ai_engine call failed, falling back to local analyzer:', err && err.message ? err.message : err);
       // Fallback to the local JS analyzer

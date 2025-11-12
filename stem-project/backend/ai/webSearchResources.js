@@ -7,6 +7,7 @@
  */
 
 const OpenAI = require('openai');
+const axios = require('axios');
 require('dotenv').config();
 
 let openai;
@@ -116,8 +117,77 @@ async function getResourcesForTopic(topic, difficulty = 'medium') {
     console.warn('OpenAI search failed, using curated resources:', err && err.message);
   }
 
-  // Fallback to curated resources
-  return CURATED_RESOURCES[cleanTopic] || CURATED_RESOURCES['General'] || [];
+  // Validate URL helper using axios HEAD
+  async function isUrlOk(url, timeout = 3000) {
+    try {
+      const resp = await axios.head(url, { maxRedirects: 5, timeout });
+      return resp.status >= 200 && resp.status < 400;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Filter curated resources by checking link reachability
+  const curated = CURATED_RESOURCES[cleanTopic] || CURATED_RESOURCES['General'] || [];
+  const validList = [];
+  for (const r of curated) {
+    if (r && r.url && typeof r.url === 'string') {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        if (await isUrlOk(r.url)) validList.push(r);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+  if (validList.length > 0) return validList;
+
+  // Try close match keys and validate
+  for (const key of Object.keys(CURATED_RESOURCES)) {
+    if (key.toLowerCase() === cleanTopic.toLowerCase() || key.toLowerCase().includes(cleanTopic.toLowerCase()) || cleanTopic.toLowerCase().includes(key.toLowerCase())) {
+      const arr = CURATED_RESOURCES[key];
+      for (const r of arr) {
+        if (r && r.url && typeof r.url === 'string') {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            if (await isUrlOk(r.url)) validList.push(r);
+          } catch (e) {}
+        }
+      }
+      if (validList.length > 0) return validList;
+    }
+  }
+
+  // Construct safe VietJack slugs for common topics
+  const vkBase = 'https://vietjack.com';
+  const slugMap = {
+    'đa thức': '/toan-7/da-thuc.jsp',
+    'hình học': '/toan-7/hinh-hoc-tam-giac.jsp',
+    'phương trình': '/toan-8/phuong-trinh-bac-nhat-mot-an.jsp',
+    'hằng đẳng thức': '/toan-8/hang-dang-thuc-dang-nho.jsp',
+    'số học': '/toan-6/so-nguyen-phan-so.jsp'
+  };
+  const keyLower = cleanTopic.toLowerCase();
+  for (const k of Object.keys(slugMap)) {
+    if (keyLower.includes(k) || k.includes(keyLower)) {
+      const candidate = vkBase + slugMap[k];
+      if (await isUrlOk(candidate)) return [{ title: `Bài học ${cleanTopic}`, source: 'VietJack', url: candidate, type: 'lesson' }];
+    }
+  }
+
+  // As last resort, return curated General filtered by reachability synchronously (best-effort)
+  const general = CURATED_RESOURCES['General'] || [];
+  for (const r of general) {
+    if (r && r.url && typeof r.url === 'string') {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        if (await isUrlOk(r.url)) validList.push(r);
+      } catch (e) {}
+    }
+  }
+  if (validList.length > 0) return validList;
+
+  return curated;
 }
 
 /**

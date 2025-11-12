@@ -15,6 +15,9 @@ try:
     from supabase import create_client as create_supabase_client
 except Exception:
     create_supabase_client = None
+import sqlalchemy.exc as sa_exc
+import traceback
+import json
 
 # Create tables if they don't exist
 models.Base.metadata.create_all(bind=engine)
@@ -319,8 +322,38 @@ async def analyze_quiz(payload: AnalyzePayload, db: Session = Depends(get_db)):
                 'answers': answers,
                 'performance_metrics': response
             }
-            res = supabase.table('quiz_sessions').insert(insert).execute()
-            saved_record = res.data if hasattr(res, 'data') else None
+            # Supabase Python client sometimes returns a dict or a Response-like object
+            try:
+                res = supabase.table('quiz_sessions').insert(insert).execute()
+                # recent supabase python returns {'data': [...], 'status_code': ...}
+                if isinstance(res, dict) and 'data' in res:
+                    saved_record = res.get('data')
+                elif hasattr(res, 'data'):
+                    saved_record = res.data
+                else:
+                    saved_record = res
+            except Exception as e:
+                # Detect foreign key violation from Supabase (user_id not present)
+                msg = str(e)
+                print('Supabase insert returned error:', msg)
+                auto_create = os.getenv('AUTO_CREATE_USERS', 'false').lower() == 'true'
+                if 'foreign key' in msg.lower() and auto_create and user_id:
+                    try:
+                        # Try to create a simple user record in Supabase and retry
+                        user_payload = {'id': user_id, 'username': f'autocreated_{user_id}'}
+                        supabase.table('users').insert(user_payload).execute()
+                        res = supabase.table('quiz_sessions').insert(insert).execute()
+                        if isinstance(res, dict) and 'data' in res:
+                            saved_record = res.get('data')
+                        elif hasattr(res, 'data'):
+                            saved_record = res.data
+                        else:
+                            saved_record = res
+                    except Exception as e2:
+                        print('Supabase auto-create user failed:', e2)
+                        saved_record = None
+                else:
+                    saved_record = None
         else:
             # Save via SQLAlchemy models to configured DATABASE_URL (works with Supabase connection string)
             db_session = db
@@ -334,12 +367,91 @@ async def analyze_quiz(payload: AnalyzePayload, db: Session = Depends(get_db)):
                 answers=answers,
                 performance_metrics=response
             )
-            db_session.add(qs)
-            db_session.commit()
-            db_session.refresh(qs)
-            saved_record = {'id': qs.id}
+            try:
+                db_session.add(qs)
+                db_session.commit()
+                db_session.refresh(qs)
+                saved_record = {'id': qs.id}
+            except Exception as e:
+                # Handle foreign key / integrity errors gracefully
+                db_session.rollback()
+                msg = str(e)
+                print('DB insert error (will attempt fallback):', msg)
+                # If it's a foreign key violation for user_id, optionally auto-create user or drop user_id
+                auto_create = os.getenv('AUTO_CREATE_USERS', 'false').lower() == 'true'
+                try:
+                    is_fk = False
+                    # Try to detect FK violation via sqlalchemy exception attributes
+                    if isinstance(e, sa_exc.IntegrityError):
+                        # psycopg2 error code for FK violation is '23503'
+                        orig = getattr(e, 'orig', None)
+                        pgcode = getattr(orig, 'pgcode', None)
+                        if pgcode == '23503' or 'foreign key' in str(e).lower():
+                            is_fk = True
+
+                    if is_fk and user_id:
+                        if auto_create:
+                            try:
+                                # Try to create a stub user record with given id (best-effort)
+                                new_user = models.User(id=user_id, username=f'autocreated_{user_id}', email=None)
+                                db_session.add(new_user)
+                                db_session.commit()
+                                print('Auto-created user with id', user_id)
+                                # retry inserting quiz session
+                                qs.user_id = user_id
+                                db_session.add(qs)
+                                db_session.commit()
+                                db_session.refresh(qs)
+                                saved_record = {'id': qs.id}
+                            except Exception as e2:
+                                db_session.rollback()
+                                print('Auto-create user by id failed:', e2)
+                                # Try creating a user without forcing id, and attach session to new id
+                                try:
+                                    new_user2 = models.User(username=f'autocreated_{user_id}', email=None)
+                                    db_session.add(new_user2)
+                                    db_session.commit()
+                                    qs.user_id = new_user2.id
+                                    db_session.add(qs)
+                                    db_session.commit()
+                                    db_session.refresh(qs)
+                                    saved_record = {'id': qs.id}
+                                except Exception as e3:
+                                    db_session.rollback()
+                                    print('Fallback create user failed:', e3)
+                                    # final fallback: insert session without user_id
+                                    try:
+                                        qs.user_id = None
+                                        db_session.add(qs)
+                                        db_session.commit()
+                                        db_session.refresh(qs)
+                                        saved_record = {'id': qs.id}
+                                    except Exception as e4:
+                                        db_session.rollback()
+                                        print('Final fallback failed:', e4)
+                                        saved_record = None
+                        else:
+                            # Auto-create disabled, insert session without user_id
+                            try:
+                                qs.user_id = None
+                                db_session.add(qs)
+                                db_session.commit()
+                                db_session.refresh(qs)
+                                saved_record = {'id': qs.id}
+                            except Exception as e5:
+                                db_session.rollback()
+                                print('Fallback insert without user_id failed:', e5)
+                                saved_record = None
+                    else:
+                        print('DB insert error not foreign-key related:', e)
+                        saved_record = None
+                except Exception as outer:
+                    db_session.rollback()
+                    print('Unexpected error handling DB insert failure:', outer)
+                    saved_record = None
     except Exception as e:
         print('Warning: failed to persist session to Supabase/DB:', e)
+        traceback.print_exc()
 
     response['saved'] = saved_record
     return response
