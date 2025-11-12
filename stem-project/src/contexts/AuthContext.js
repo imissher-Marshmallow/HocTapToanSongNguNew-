@@ -29,10 +29,29 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Build API base url safely. If the app is running from a non-localhost origin (deployed),
+  // require REACT_APP_API_BASE_URL to be set to avoid calling user's localhost from the browser.
+  function getApiBase() {
+    const envBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      const host = window.location.hostname;
+      const isLocalHostOrigin = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+      const envIsLocal = envBase.startsWith('http://localhost') || envBase.startsWith('http://127.0.0.1');
+      if (!isLocalHostOrigin && envIsLocal) {
+        // Frontend is served from a public host but API base points to localhost.
+        // This would cause the browser to attempt connecting to the user's machine and fail (or be a security/privacy issue).
+        console.error('REACT_APP_API_BASE_URL is not set for a deployed frontend. Set REACT_APP_API_BASE_URL in your hosting provider to your backend URL.');
+        return null;
+      }
+    }
+    return envBase;
+  }
+
   const verifyToken = async () => {
     try {
       const decoded = decodeToken(token);
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE = getApiBase();
+      if (!API_BASE) throw new Error('API base not configured for this environment');
       const response = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -52,7 +71,8 @@ export function AuthProvider({ children }) {
     setIsLoading(true);
     setError(null);
     try {
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE = getApiBase();
+      if (!API_BASE) throw new Error('API base not configured for this environment');
       const response = await fetch(`${API_BASE}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,7 +101,8 @@ export function AuthProvider({ children }) {
     setIsLoading(true);
     setError(null);
     try {
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE = getApiBase();
+      if (!API_BASE) throw new Error('API base not configured for this environment');
       const response = await fetch(`${API_BASE}/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
