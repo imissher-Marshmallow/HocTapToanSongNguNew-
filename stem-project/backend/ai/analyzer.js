@@ -229,12 +229,38 @@ function getFallbackSummary(score, performanceLabel, weakAreas) {
 
   const motivation = generateMotivationalFeedback(score, performanceLabel, weakAreas);
 
+  // Build detailed weaknesses list
+  const detailedWeaknesses = weakAreas.slice(0, 5).map(w => {
+    const errorRate = Math.round(w.percentage || 0);
+    if (errorRate >= 75) {
+      return `${w.topic}: ${errorRate}% sai - Cần ôn tập gấp cấp!`;
+    } else if (errorRate >= 50) {
+      return `${w.topic}: ${errorRate}% sai - Cần luyện tập thêm`;
+    } else {
+      return `${w.topic}: ${errorRate}% sai - Ôn lại một vài phần`;
+    }
+  });
+
+  // Build detailed strengths list
+  const allTopics = weakAreas.map(w => w.topic || w.subtopic);
+  const strengths = allTopics.length > 0 
+    ? [`Bạn đã nắm vững ${Math.max(0, 10 - score)} trong 10 câu`]
+    : [`Làm bài với kết quả ${score}/10`];
+
+  // Build learning plan
+  const learningPlan = weakAreas.slice(0, 3).map((w, idx) => {
+    const topic = w.topic || w.subtopic;
+    const dayNum = idx + 1;
+    return `Ngày ${dayNum}: Ôn ${topic} (xem bài giảng + làm bài tập)`;
+  });
+
   return {
     overall,
-    strengths: [],
-    weaknesses: weakAreas.slice(0, 2).map(w => `${w.topic}: ${w.percentage}%`),
-    plan: weakAreas.slice(0, 2).map(w => `Ôn ${w.topic}`),
-    motivationalMessage: motivation.overall_message
+    strengths,
+    weaknesses: detailedWeaknesses,
+    plan: learningPlan.length > 0 ? learningPlan : ['Hãy tiếp tục ôn tập toàn bộ các phần'],
+    motivationalMessage: motivation.overallMessage,
+    detailedFeedback: `Bạn sai ${Math.max(0, 10 - score)} trong 10 câu. Hãy tập trung vào: ${weakAreas.slice(0, 3).map(w => w.topic || w.subtopic).join(', ')}`
   };
 }
 

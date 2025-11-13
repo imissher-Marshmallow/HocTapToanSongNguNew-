@@ -1,21 +1,12 @@
 /**
  * webSearchResources.js
  * 
- * Uses OpenAI's API (with Bing search if available) or curated resource mapping
- * to find real learning links from VietJack, Khan Academy, and other trusted sources
- * for specific math topics and weak areas.
+ * Uses curated resource mapping to find real learning links from VietJack,
+ * Khan Academy, and other trusted sources for specific math topics and weak areas.
  */
 
-const OpenAI = require('openai');
 const axios = require('axios');
 require('dotenv').config();
-
-let openai;
-try {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
-} catch (error) {
-  console.warn('Failed to initialize OpenAI client:', error);
-}
 
 // Curated resource mapping: topic -> array of trusted learning resources
 const CURATED_RESOURCES = {
@@ -65,129 +56,27 @@ const CURATED_RESOURCES = {
 
 /**
  * Get learning resources for a specific topic.
- * First tries OpenAI web search (if available), then falls back to curated resources.
+ * Uses curated resources with fuzzy matching.
  */
 async function getResourcesForTopic(topic, difficulty = 'medium') {
   // Clean topic name for search
   const cleanTopic = (topic || 'General').trim();
   
-  // Try OpenAI search first (if supported)
-  try {
-    if (openai) {
-      // Attempt to use OpenAI with search capability
-      // Note: As of late 2024, OpenAI doesn't natively support web search through the standard API
-      // We'll use a prompt-based approach to suggest where to find resources
-      const prompt = `Tìm ra các bài học trên VietJack hoặc Khan Academy cho chủ đề: "${cleanTopic}" (mức độ: ${difficulty}). 
-      Trả về duy nhất một JSON array không kèm chữ thừa với format:
-      [
-        { "title": "tên bài học", "source": "VietJack hoặc Khan Academy", "url": "link học liệu" },
-        ...tối đa 3 tài liệu
-      ]
-      VD:
-      [
-        { "title": "Đa thức - Khái niệm", "source": "VietJack", "url": "https://vietjack.com/toan-7/da-thuc.jsp" }
-      ]`;
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 400,
-        temperature: 0.3
-      });
-
-      const raw = response.choices[0].message.content.trim();
-      try {
-        const jsonMatch = raw.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to parse OpenAI search result:', e);
-      }
-    }
-  } catch (err) {
-    console.warn('OpenAI search failed, using curated resources:', err && err.message);
+  // Step 1: Try direct key match in curated resources
+  if (CURATED_RESOURCES[cleanTopic]) {
+    return CURATED_RESOURCES[cleanTopic].slice(0, 3);
   }
 
-  // Validate URL helper using axios HEAD
-  async function isUrlOk(url, timeout = 3000) {
-    try {
-      const resp = await axios.head(url, { maxRedirects: 5, timeout });
-      return resp.status >= 200 && resp.status < 400;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Filter curated resources by checking link reachability
-  const curated = CURATED_RESOURCES[cleanTopic] || CURATED_RESOURCES['General'] || [];
-  const validList = [];
-  for (const r of curated) {
-    if (r && r.url && typeof r.url === 'string') {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        if (await isUrlOk(r.url)) validList.push(r);
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
-  if (validList.length > 0) return validList;
-
-  // Try close match keys and validate
+  // Step 2: Try fuzzy matching
+  const lowerTopic = cleanTopic.toLowerCase();
   for (const key of Object.keys(CURATED_RESOURCES)) {
-    if (key.toLowerCase() === cleanTopic.toLowerCase() || key.toLowerCase().includes(cleanTopic.toLowerCase()) || cleanTopic.toLowerCase().includes(key.toLowerCase())) {
-      const arr = CURATED_RESOURCES[key];
-      for (const r of arr) {
-        if (r && r.url && typeof r.url === 'string') {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            if (await isUrlOk(r.url)) validList.push(r);
-          } catch (e) {}
-        }
-      }
-      if (validList.length > 0) return validList;
+    if (key.toLowerCase().includes(lowerTopic) || lowerTopic.includes(key.toLowerCase())) {
+      return CURATED_RESOURCES[key].slice(0, 3);
     }
   }
 
-  // Construct safe VietJack slugs for common topics
-  const vkBase = 'https://vietjack.com';
-  const slugMap = {
-    'đa thức': '/toan-7/da-thuc.jsp',
-    'hình học': '/toan-7/hinh-hoc-tam-giac.jsp',
-    'phương trình': '/toan-8/phuong-trinh-bac-nhat-mot-an.jsp',
-    'hằng đẳng thức': '/toan-8/hang-dang-thuc-dang-nho.jsp',
-    'số học': '/toan-6/so-nguyen-phan-so.jsp'
-  };
-  const keyLower = cleanTopic.toLowerCase();
-  for (const k of Object.keys(slugMap)) {
-    if (keyLower.includes(k) || k.includes(keyLower)) {
-      const candidate = vkBase + slugMap[k];
-      if (await isUrlOk(candidate)) return [{ title: `Bài học ${cleanTopic}`, source: 'VietJack', url: candidate, type: 'lesson' }];
-    }
-  }
-
-  // As last resort, return curated General filtered by reachability synchronously (best-effort)
-  const general = CURATED_RESOURCES['General'] || [];
-  for (const r of general) {
-    if (r && r.url && typeof r.url === 'string') {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        if (await isUrlOk(r.url)) validList.push(r);
-      } catch (e) {}
-    }
-  }
-  if (validList.length > 0) return validList;
-
-  return curated;
+  // Step 3: If still no match, return General resources
+  return CURATED_RESOURCES['General'].slice(0, 3);
 }
 
 /**
