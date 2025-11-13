@@ -59,7 +59,28 @@ router.post('/signup', async (req, res) => {
     });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // If database is read-only (Vercel serverless), generate a token anyway but warn user
+    if (err && err.code === 'SQLITE_READONLY') {
+      console.warn('Database is read-only; generating token without persistence (development/demo mode)');
+      const email = req.body.email;
+      const username = req.body.username;
+      // Use email hash as temporary user ID for demo
+      const demoUserId = Math.abs(email.split('').reduce((a, b) => a + b.charCodeAt(0), 0));
+      const token = generateToken(demoUserId, email);
+      return res.status(201).json({
+        token,
+        user: {
+          id: demoUserId,
+          email: email,
+          username: username
+        },
+        message: 'Account created (demo mode - not persisted)',
+        warning: 'Using read-only database; data will not be saved between sessions'
+      });
+    }
+    
+    res.status(500).json({ error: 'Internal server error', details: err && err.message });
   }
 });
 

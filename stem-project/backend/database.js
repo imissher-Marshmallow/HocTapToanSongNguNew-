@@ -92,8 +92,15 @@ const dbHelpers = {
   getUserByEmail: (email) => {
     return new Promise((resolve, reject) => {
       db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
+        // If read-only error, assume user doesn't exist (demo mode)
+        if (err && err.code === 'SQLITE_READONLY') {
+          console.warn('Database is read-only; user queries will return empty');
+          resolve(null);
+        } else if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
       });
     });
   },
