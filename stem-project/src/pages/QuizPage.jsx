@@ -231,12 +231,14 @@ function QuizPage() {
 
   const submitQuiz = async (finalAnswers) => {
     const userId = getUserId();
+    const isAutoSubmitted = autoSubmittedRef.current; // True if auto-submitted due to cheating
     const payload = {
       userId,
       // Prefer the contest key returned by the questions API so grading uses the same contest
       quizId: selectedContestKey || id || 'random',
       answers: finalAnswers,
-      questions: questions  // Include questions so backend can calculate score and store full context
+      questions: questions,  // Include questions so backend can calculate score and store full context
+      isAutoSubmitted: isAutoSubmitted  // Flag indicating auto-submit due to anti-cheat
     };
     try {
       const apiBaseUrl = getApiBase();

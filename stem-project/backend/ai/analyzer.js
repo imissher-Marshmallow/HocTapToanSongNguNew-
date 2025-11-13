@@ -4,17 +4,35 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const OpenAI = require('openai');
 const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
 
-let openai;
+// Initialize OpenAI clients for different agents (separate to avoid RPM limits)
+// OPENAI_API_KEY_SUMMARY: For generating AI summary and feedback
+// OPENAI_API_KEY_RESOURCES: For web search and resource recommendations
+// OPENAI_API_KEY: Fallback/default API key
+let openaiSummary, openaiResources;
+
 try {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+  const summaryKey = process.env.OPENAI_API_KEY_SUMMARY || process.env.OPENAI_API_KEY || '';
+  openaiSummary = new OpenAI({ apiKey: summaryKey });
 } catch (error) {
-  console.warn('Failed to initialize OpenAI client:', error);
+  console.warn('Failed to initialize OpenAI Summary client:', error);
 }
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY not found in environment. LLM functionality will fall back to built-in responses.');
+try {
+  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
+  openaiResources = new OpenAI({ apiKey: resourcesKey });
+} catch (error) {
+  console.warn('Failed to initialize OpenAI Resources client:', error);
+}
+
+if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES && !process.env.OPENAI_API_KEY) {
+  console.warn('No OpenAI API keys found in environment. LLM functionality will fall back to built-in responses.');
+  console.warn('  Set OPENAI_API_KEY_SUMMARY for AI summary generation');
+  console.warn('  Set OPENAI_API_KEY_RESOURCES for resource recommendations');
+  console.warn('  Or set OPENAI_API_KEY as fallback for both');
 } else {
-  console.log('OPENAI_API_KEY detected in environment.');
+  if (process.env.OPENAI_API_KEY_SUMMARY) console.log('✓ OPENAI_API_KEY_SUMMARY detected');
+  if (process.env.OPENAI_API_KEY_RESOURCES) console.log('✓ OPENAI_API_KEY_RESOURCES detected');
+  if (process.env.OPENAI_API_KEY) console.log('✓ OPENAI_API_KEY (fallback) detected');
 }
 
 // Prefer updated questions file
@@ -170,16 +188,16 @@ function recommendNextQuestions(weakAreas, questions) {
   return recommendations;
 }
 
-// Call LLM to generate summary
+// Call LLM to generate summary (uses OPENAI_API_KEY_SUMMARY or fallback)
 async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }) {
-  if (!openai) return null;
+  if (!openaiSummary) return null;
 
   try {
     const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% lỗi)`).join(', ');
     const prompt = `Bạn là một giáo viên toán tốt bụng. Sinh viên vừa làm bài kiểm tra và được ${score}/10 điểm (${performanceLabel}). Điểm yếu chính: ${weakAreasList}.\n\nHãy viết một thông điệp khuyến khích ngắn gọn (2-3 câu) bằng tiếng Việt, kèm lời khuyên ôn tập.`;
 
     // Use defensive API call in case of invalid key or network error
-    const message = await openai.chat.completions.create({
+    const message = await openaiSummary.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 300
@@ -196,13 +214,14 @@ async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendati
     try {
       const status = error?.status || (error?.response && error.response.status);
       if (status === 401) {
-        console.warn('LLM returned 401 Unauthorized. Check OPENAI_API_KEY.');
+        console.warn('LLM Summary returned 401 Unauthorized. Check OPENAI_API_KEY_SUMMARY or OPENAI_API_KEY.');
         return {
           overall: null,
           strengths: [],
           weaknesses: weakAreas.slice(0, 2).map(w => `${w.topic}: ${w.percentage}% sai`),
           plan: (recommendations || []).slice(0, 2).map(r => `Ôn lại ${r.topic}`),
-          error: { code: 401, message: 'Invalid or missing OPENAI_API_KEY' }
+          error: { code: 401, message: 'Invalid or missing OPENAI_API_KEY_SUMMARY' }
+
         };
       }
     } catch (inner) {
@@ -266,7 +285,7 @@ function getFallbackSummary(score, performanceLabel, weakAreas) {
 
 // Main analyze function
 async function analyzeQuiz(payload) {
-  const { userId, quizId, answers } = payload;
+  const { userId, quizId, answers, isAutoSubmitted } = payload;
   const loadResult = loadQuestionsForQuiz(quizId);
   const questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
   const contestKey = loadResult && loadResult.contestKey ? loadResult.contestKey : quizId;
@@ -276,6 +295,11 @@ async function analyzeQuiz(payload) {
   const topicStats = {};
   const subtopicStats = {};
   const rulesTriggered = [];
+  
+  // Add auto-submit to rules if detected (for anti-cheat flagging)
+  if (isAutoSubmitted) {
+    rulesTriggered.push('auto_submitted');
+  }
 
   for (const ans of answers) {
     const q = questions.find(x => x.id === ans.questionId);
@@ -310,6 +334,20 @@ async function analyzeQuiz(payload) {
   }
 
   const score = answers.length > 0 ? Math.round((correct / answers.length) * 10) : 0;
+  
+  // Detect anti-cheat flags: auto-submit with incomplete answers suggests cheating
+  // If user only answered few questions and got high score, it's suspicious
+  let isFlaggedForCheating = false;
+  let cheatReason = '';
+  
+  if (rulesTriggered.includes('auto_submitted')) {
+    const answeredPercentage = (answers.length / Math.max(10, questions.length)) * 100;
+    if (answeredPercentage < 50) {
+      // Only answered <50% of questions but auto-submitted = likely cheating
+      isFlaggedForCheating = true;
+      cheatReason = `Auto-submitted with only ${answers.length}/${questions.length} answers`;
+    }
+  }
   
   // Correct grade mapping
   let performanceLabel = 'Không đạt';
@@ -389,7 +427,12 @@ async function analyzeQuiz(payload) {
     summary,
     answerComparison,
     motivationalFeedback,
-    resourceLinks
+    resourceLinks,
+    // Anti-cheat flags
+    isFlaggedForCheating,
+    cheatReason: isFlaggedForCheating ? cheatReason : null,
+    isAutoSubmitted: isAutoSubmitted || false
+
   };
 }
 

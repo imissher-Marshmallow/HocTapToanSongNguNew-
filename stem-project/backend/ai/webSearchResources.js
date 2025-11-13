@@ -3,10 +3,28 @@
  * 
  * Uses curated resource mapping to find real learning links from VietJack,
  * Khan Academy, and other trusted sources for specific math topics and weak areas.
+ * 
+ * Supports separate API keys for resource recommendations:
+ * - OPENAI_API_KEY_RESOURCES: Dedicated API key for resource generation (optional, uses OPENAI_API_KEY as fallback)
+ * - OPENAI_API_KEY: Fallback API key if resources key not provided
  */
 
 const axios = require('axios');
+const OpenAI = require('openai');
 require('dotenv').config();
+
+// Initialize OpenAI client for resource generation (separate from summary to avoid RPM limits)
+let openaiResources;
+try {
+  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
+  openaiResources = new OpenAI({ apiKey: resourcesKey });
+} catch (error) {
+  console.warn('Failed to initialize OpenAI Resources client:', error);
+}
+
+if (!process.env.OPENAI_API_KEY_RESOURCES && !process.env.OPENAI_API_KEY) {
+  console.warn('No OpenAI API keys found. Set OPENAI_API_KEY_RESOURCES or OPENAI_API_KEY for resource recommendations.');
+}
 
 // Curated resource mapping: topic -> array of trusted learning resources
 const CURATED_RESOURCES = {
