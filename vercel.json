@@ -21,16 +21,16 @@
   ],
   "rewrites": [
     {
+      "source": "/api/backend/:path*",
+      "destination": "/api/backend/index.js"
+    },
+    {
       "source": "/api/questions/:path*",
       "destination": "/api/questions.js"
     },
     {
       "source": "/api/analyze-quiz/:path*",
       "destination": "/api/analyze-quiz.js"
-    },
-    {
-      "source": "/api/backend/:path*",
-      "destination": "/api/backend"
     },
     {
       "source": "/api/:path*",

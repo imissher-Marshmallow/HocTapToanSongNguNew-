@@ -39,6 +39,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 // Ensure preflight requests are handled for all routes
 app.options('*', cors(corsOptions));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[Express] ${req.method} ${req.path} ${req.query && Object.keys(req.query).length > 0 ? '?' + Object.entries(req.query).map(([k,v]) => `${k}=${v}`).join('&') : ''}`);
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
