@@ -157,3 +157,22 @@ export function useAuth() {
   }
   return context;
 }
+
+// Export getApiBase as a utility for use in components that need the API base URL
+export function getApiBase() {
+  // For deployed frontends prefer relative API path so same origin will be used.
+  // If REACT_APP_API_BASE_URL is set, use it; otherwise use a relative path for production builds.
+  const envBase = process.env.REACT_APP_API_BASE_URL || (typeof window !== 'undefined' && !['localhost','127.0.0.1','::1'].includes(window.location.hostname) ? '/api/backend' : 'http://localhost:5000');
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const host = window.location.hostname;
+    const isLocalHostOrigin = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    const envIsLocal = envBase.startsWith('http://localhost') || envBase.startsWith('http://127.0.0.1');
+    if (!isLocalHostOrigin && envIsLocal) {
+      // Frontend is served from a public host but API base points to localhost.
+      // Instead of blocking, fall back to the serverless backend path and warn.
+      console.warn('REACT_APP_API_BASE_URL points to localhost but the app is running from a non-localhost origin. Falling back to /api/backend. Update REACT_APP_API_BASE_URL in your hosting provider to your backend URL.');
+      return '/api/backend';
+    }
+  }
+  return envBase;
+}

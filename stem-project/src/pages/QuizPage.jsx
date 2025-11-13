@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { quizTranslations } from '../translations/quizTranslations';
 import '../styles/AzotaQuiz.css';
 import classNames from 'classnames';
@@ -51,7 +51,7 @@ function QuizPage() {
     if (!started) return;
     // Request questions for the selected quiz id when provided, otherwise fall back to 'random'
     const quizKey = id || 'random';
-    const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+    const apiBaseUrl = getApiBase();
     const endpoint = `${apiBaseUrl}/api/questions/${quizKey}`;
 
     fetch(endpoint)
@@ -239,7 +239,7 @@ function QuizPage() {
       questions: questions  // Include questions so backend can calculate score and store full context
     };
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const apiBaseUrl = getApiBase();
       const headers = {
         'Content-Type': 'application/json'
       };
