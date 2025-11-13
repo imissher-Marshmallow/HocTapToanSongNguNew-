@@ -11,7 +11,6 @@ module.exports = (req, res) => {
     }
     
     console.log(`[backend] ${req.method} ${originalUrl} -> ${req.url}`);
-    console.log(`[backend] Host: ${req.get('host')}, Origin: ${req.get('origin')}`);
     
     // Call Express app
     return app(req, res);
