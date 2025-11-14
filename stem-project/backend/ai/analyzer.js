@@ -3,6 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const OpenAI = require('openai');
 const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
+const { dbHelpers } = require('../database');
 
 // Initialize OpenAI clients for different agents (separate to avoid RPM limits)
 // OPENAI_API_KEY_SUMMARY: For generating AI summary and feedback
@@ -412,14 +413,27 @@ async function analyzeQuiz(payload) {
     summary = getFallbackSummary(score, performanceLabel, weakAreas);
   }
 
-  // Generate motivational feedback using OpenAI (no external service calls)
-  // ✅ Vercel-ready: Uses OpenAI SDK directly, <4s timeout, graceful fallback
+  // Fetch recent user history (if available) to personalize feedback
+  let historyScores = [];
+  try {
+    if (userId && dbHelpers && typeof dbHelpers.getUserResults === 'function') {
+      const recent = await dbHelpers.getUserResults(userId, 5);
+      if (Array.isArray(recent) && recent.length > 0) {
+        // Extract numeric scores (if stored as string, coerce)
+        historyScores = recent.map(r => (typeof r.score === 'number' ? r.score : parseInt(r.score, 10))).filter(s => !Number.isNaN(s));
+      }
+    }
+  } catch (e) {
+    // ignore history errors
+    historyScores = [];
+  }
+
+  // Generate motivational feedback using OpenAI (personalized with history)
   let motivationalFeedback = null;
   try {
-    motivationalFeedback = await generateMotivationalFeedback(score, performanceLabel, weakAreas);
+    motivationalFeedback = await generateMotivationalFeedback(score, performanceLabel, weakAreas, historyScores);
   } catch (error) {
     console.warn(`[Analyzer] Motivational feedback error: ${error.message}`);
-    // generateMotivationalFeedback has internal fallback, shouldn't reach here
   }
 
   // Generate resource links for weak areas
@@ -429,15 +443,25 @@ async function analyzeQuiz(payload) {
     for (const area of topWeakAreas) {
       const topic = area.topic || area.subtopic;
       try {
-        // getResourcesForTopic is async (performs HEAD checks); await it so resources are populated
+        // find a sample incorrect question for this topic to provide context to the resource search
+        let questionContext = null;
+        const sampleQ = questions.find(q => q.topic === topic && answers.some(a => a.questionId === q.id && q.options.indexOf(a.selectedOption) !== q.answerIndex));
+        if (sampleQ) {
+          const userAns = answers.find(a => a.questionId === sampleQ.id);
+          questionContext = {
+            question: sampleQ.question || sampleQ.english_question || '',
+            correctAnswer: sampleQ.options[sampleQ.answerIndex],
+            userAnswer: userAns ? userAns.selectedOption : ''
+          };
+        }
+
+        // getResourcesForTopic accepts questionContext to craft targeted search queries
         // eslint-disable-next-line no-await-in-loop
-        const resources = await getResourcesForTopic(topic);
+        const resources = await getResourcesForTopic(topic, 'medium', questionContext);
         if (resources && resources.length > 0) {
           resourceLinks.push(...resources);
         }
       } catch (e) {
-        // If reachability checks fail (network or blocked HEAD), fall back to returning an empty set for this topic
-        // The webSearchResources module will itself return curated items as a last resort.
         console.warn(`Resource lookup failed for topic "${topic}":`, e && (e.message || e));
       }
     }

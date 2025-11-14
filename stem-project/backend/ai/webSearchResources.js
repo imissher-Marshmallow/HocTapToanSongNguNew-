@@ -12,6 +12,7 @@
  */
 
 const OpenAI = require('openai');
+const axios = require('axios');
 require('dotenv').config();
 
 // Initialize OpenAI with resources API key
@@ -114,6 +115,8 @@ async function searchForResources(searchQuery) {
     // OpenAI knows about VietJack, Khan Academy, and other popular platforms
     const prompt = `Tìm các tài liệu học tập tốt nhất cho: "${searchQuery}"
 
+Gợi ý các truy vấn tìm kiếm mà bạn có thể dùng (ví dụ) để tìm link thực tế: "${searchQuery} VietJack", "Cách ${searchQuery} VietJack", "${searchQuery} Khan Academy", "${searchQuery} video YouTube".
+
 Yêu cầu:
 1. Trả về ít nhất 2-3 liên kết từ các nguồn đáng tin cậy
 2. Ưu tiên: VietJack, Khan Academy, YouTube videos
@@ -146,18 +149,29 @@ Trả lời CHỈ JSON array, không thêm text khác:`;
       const parsed = JSON.parse(clean);
       
       if (Array.isArray(parsed)) {
+        // Validate each candidate URL by fetching the page and checking for relevance/trusted domain
         for (const item of parsed) {
-          // Filter for trusted domains AND valid URLs
-          if (item.url && 
-              (item.url.startsWith('http://') || item.url.startsWith('https://')) &&
-              isTrustedDomain(item.url)) {
+          if (!item.url || !(item.url.startsWith('http://') || item.url.startsWith('https://'))) continue;
+          const url = item.url;
+
+          // quick domain filter
+          if (!isTrustedDomain(url)) continue;
+
+          try {
+            // Validate the URL is reachable and contains at least one keyword from the search query
+            const valid = await validateUrl(url, searchQuery);
+            if (!valid) continue;
+
             results.push({
               title: item.title || 'Learning Resource',
-              url: item.url,
-              source: item.source || 'Educational Resource',
+              url: url,
+              source: item.source || extractSource(url) || 'Educational Resource',
               description: item.description || '',
               type: 'lesson'
             });
+          } catch (vErr) {
+            // ignore invalid links
+            continue;
           }
         }
       }
@@ -170,6 +184,33 @@ Trả lời CHỈ JSON array, không thêm text khác:`;
   }
 
   return results;
+}
+
+/**
+ * Validate a candidate URL by fetching it and checking for keywords or sufficient content
+ */
+async function validateUrl(url, searchQuery) {
+  try {
+    const resp = await axios.get(url, { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!resp || !resp.status || resp.status >= 400) return false;
+
+    const text = (resp.data || '').toString().toLowerCase();
+    const queryTokens = (searchQuery || '').toLowerCase().split(/\s+/).filter(Boolean);
+
+    // Consider it valid if the page contains at least one meaningful token from the query
+    let matches = 0;
+    for (const t of queryTokens) {
+      if (t.length < 3) continue;
+      if (text.includes(t)) matches++;
+      if (matches >= 1) return true;
+    }
+
+    // also accept if the domain itself is trusted and page has reasonable size
+    if (isTrustedDomain(url) && (resp.data || '').length > 1000) return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
 }
 
 /**
@@ -221,28 +262,22 @@ async function getResourcesForTopic(topic, difficulty = 'medium', questionContex
  * ✅ Real, not templated - each student gets unique message
  * 4-second timeout, falls back to template if AI unavailable
  */
-async function generateMotivationalFeedback(score, performanceLabel, weakAreas) {
+async function generateMotivationalFeedback(score, performanceLabel, weakAreas, userHistory = []) {
   if (!openaiResources) {
     return generateTemplateFeedback(score, performanceLabel, weakAreas);
   }
 
   try {
-    const weakList = weakAreas.slice(0, 2).map(w => w.topic).join(', ');
+    const weakList = (weakAreas || []).slice(0, 2).map(w => w.topic).join(', ');
+    const history = Array.isArray(userHistory) && userHistory.length > 0 ? userHistory.join(', ') : 'none';
     
-    const prompt = `Viết lời động viên NGẮN (2-3 câu) cho học sinh:
-- Điểm: ${score}/10 (${performanceLabel})
-- Yếu ở: ${weakList || 'đang cải thiện'}
-
-Hãy thực tế, ấm áp, cụ thể (không clichéd).
-
-JSON:
-{"opening":"...", "body":"...", "closing":"..."}`;
+    const prompt = `Bạn là một giáo viên tâm lý học + toán. Viết lời động viên NGẮN (2-3 câu) cho học sinh, dựa trên thông tin sau:\n- Điểm hiện tại: ${score}/10 (${performanceLabel})\n- Chủ đề yếu: ${weakList || 'đang cải thiện'}\n- Lịch sử điểm gần đây (nếu có): ${history}\n\nYêu cầu: Hãy cụ thể, thực tế, ấm áp, nêu ngắn gọn nếu học sinh đang 'improve' hoặc 'decline', và kèm 1 hành động nhỏ để làm ngay (ví dụ: "Ôn 10 phút bài X").\nTrả về JSON: {"opening":"...","body":"...","closing":"..."}`;
 
     const response = await Promise.race([
       openaiResources.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 250,
+        max_tokens: 300,
         temperature: 0.7
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000))
