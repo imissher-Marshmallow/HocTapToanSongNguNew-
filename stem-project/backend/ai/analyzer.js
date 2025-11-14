@@ -199,18 +199,32 @@ async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendati
   try {
     const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% sai)`).join(', ');
     
-    // Comprehensive prompt to generate full analysis
-    const prompt = `Bạn là một giáo viên toán giỏi. Học sinh vừa hoàn thành bài kiểm tra với kết quả ${score}/10 (${performanceLabel}). 
+    // Comprehensive prompt to generate full analysis with a clear 5-step plan and start actions
+    const prompt = `Bạn là một giáo viên toán giỏi và huấn luyện viên học tập. Học sinh vừa hoàn thành bài kiểm tra với kết quả ${score}/10 (${performanceLabel}).
 Điểm yếu chính: ${weakAreasList || 'không có'}.
 
-Hãy phân tích kết quả và trả về JSON (không bao quanh bằng markdown code blocks):
+Yêu cầu (rất quan trọng):
+- Trả về JSON duy nhất (không chứa markdown fencing).
+- Bao gồm các trường:
+  - "overall": một thông điệp tổng hợp 1-2 câu bằng tiếng Việt.
+  - "start_here": một câu hướng dẫn rõ ràng để học sinh BẮT ĐẦU ngay (ví dụ: "Ôn 15 phút phần X trên VietJack, sau đó làm 5 bài tập").
+  - "strengths": mảng các điểm mạnh (ngắn gọn).
+  - "weaknesses": mảng các điểm yếu chi tiết (bao gồm % sai nếu có).
+  - "plan": một mảng 5 bước chi tiết, mỗi bước là một object với: {"step": "mô tả hành động cụ thể","duration": "thời lượng (ví dụ: '15 phút')","action":"việc làm cụ thể","resource_suggestion": {"type":"article|video|exercise","name":"tên nguồn (ví dụ: VietJack bài X hoặc YouTube video tiêu đề)"} }.
+  - "priority": mảng short list (1-3) những việc cần làm NGAY.
+  - "motivationalMessage": một lời động viên cụ thể 1-2 câu.
+
+Ví dụ:
 {
-  "overall": "Một thông điệp tổng hợp 1-2 câu bằng tiếng Việt về kết quả.",
-  "strengths": ["Điểm mạnh 1", "Điểm mạnh 2"],
-  "weaknesses": ["Điểm yếu chi tiết 1 với %", "Điểm yếu chi tiết 2"],
-  "plan": ["Ngày 1: Hành động cụ thể", "Ngày 2: Hành động cụ thể", "Ngày 3: Hành động cụ thể"],
-  "motivationalMessage": "Lời động viên chi tiết và ý nghĩa bằng tiếng Việt"
-}`;
+  "overall":"...",
+  "start_here":"Ôn 15 phút phần Đa thức - Bài 2 trên VietJack, sau đó làm 5 bài tập tương tự.",
+  "strengths":["..."],
+  "weaknesses":["..."],
+  "plan":[{"step":"Ôn lại khái niệm...","duration":"15 phút","action":"đọc bài và  làm 3 bài tập","resource_suggestion":{"type":"article","name":"VietJack - Đa thức"}}, ...],
+  "priority":["Ôn phần X", "Làm 5 bài tập"],
+  "motivationalMessage":"..."
+}
+`;
 
     // Create promise with timeout
     const summaryPromise = openaiSummary.chat.completions.create({
@@ -239,11 +253,22 @@ Hãy phân tích kết quả và trả về JSON (không bao quanh bằng markdo
     }
 
     console.log('[Summary] OpenAI generated: overall, strengths, weaknesses, plan');
+    // Normalize plan: if items are objects keep them, otherwise convert strings to {step: string}
+    let planOut = [];
+    if (Array.isArray(parsed.plan) && parsed.plan.length > 0) {
+      planOut = parsed.plan.map(p => {
+        if (typeof p === 'string') return { step: p };
+        return p;
+      });
+    }
+
     return {
       overall: parsed.overall || '',
+      start_here: parsed.start_here || '',
       strengths: Array.isArray(parsed.strengths) && parsed.strengths.length > 0 ? parsed.strengths : [],
       weaknesses: Array.isArray(parsed.weaknesses) && parsed.weaknesses.length > 0 ? parsed.weaknesses : weakAreas.slice(0, 3).map(w => `${w.topic}: ${w.percentage}% sai`),
-      plan: Array.isArray(parsed.plan) && parsed.plan.length > 0 ? parsed.plan : [],
+      plan: planOut,
+      priority: Array.isArray(parsed.priority) ? parsed.priority : [],
       motivationalMessage: parsed.motivationalMessage || ''
     };
   } catch (error) {

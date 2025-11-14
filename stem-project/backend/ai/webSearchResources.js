@@ -113,24 +113,26 @@ async function searchForResources(searchQuery) {
   try {
     // Ask OpenAI to recommend best learning resources for this topic
     // OpenAI knows about VietJack, Khan Academy, and other popular platforms
-    const prompt = `Tìm các tài liệu học tập tốt nhất cho: "${searchQuery}"
+    const prompt = `Tìm các tài liệu học tập phù hợp cho: "${searchQuery}"
 
-Gợi ý các truy vấn tìm kiếm mà bạn có thể dùng (ví dụ) để tìm link thực tế: "${searchQuery} VietJack", "Cách ${searchQuery} VietJack", "${searchQuery} Khan Academy", "${searchQuery} video YouTube".
+Gợi ý các truy vấn tìm kiếm (ví dụ): "${searchQuery} VietJack", "Cách ${searchQuery} VietJack", "${searchQuery} Khan Academy", "${searchQuery} video YouTube".
 
-Yêu cầu:
-1. Trả về ít nhất 2-3 liên kết từ các nguồn đáng tin cậy
-2. Ưu tiên: VietJack, Khan Academy, YouTube videos
-3. Ưu tiên tiếng Việt nếu có
-4. Mỗi link phải LÀ LINK THỰC (không fake)
-5. Định dạng: JSON array
+Yêu cầu (rất quan trọng):
+1) Trả về 2-4 liên kết THỰC từ nguồn đáng tin cậy.
+2) Với mỗi mục, cung cấp các trường: "title", "url", "source", "description", "type".
+   - "type" phải là một trong: "article", "exercise", "video".
+3) Nếu là "video", KHÔNG trả về playlist links; chỉ trả về direct video links (YouTube: contain "watch?v=" or "youtu.be/").
+4) Ưu tiên tiếng Việt (VietJack) và Khan Academy nếu có; nếu không, trả về YouTube video watch links.
+5) Không đề xuất trang 404 hoặc landing/playlist pages.
+6) Định dạng: JSON array duy nhất, không thêm text khác.
 
 Ví dụ:
 [
-  {"title":"...", "url":"https://...", "source":"VietJack|Khan Academy|...", "description":"..."},
-  {"title":"...", "url":"https://...", "source":"...", "description":"..."}
+  {"title":"...", "url":"https://...", "source":"VietJack", "description":"...", "type":"article"},
+  {"title":"...", "url":"https://www.youtube.com/watch?v=...", "source":"YouTube", "description":"...", "type":"video"}
 ]
 
-Trả lời CHỈ JSON array, không thêm text khác:`;
+Trả lời CHỈ JSON array, không thêm text khác.`;
 
     const response = await Promise.race([
       openaiResources.chat.completions.create({
