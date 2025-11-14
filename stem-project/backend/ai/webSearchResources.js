@@ -73,14 +73,56 @@ const CURATED_RESOURCES = {
 };
 
 /**
- * Get learning resources for a specific topic.
- * Uses curated resources with fuzzy matching.
+ * Get learning resources for a specific topic using OpenAI.
+ * Falls back to curated resources if OpenAI is unavailable.
  */
-async function getResourcesForTopic(topic, difficulty = 'medium') {
-  // Clean topic name for search
+async function getResourcesForTopic(topic, difficulty = 'medium', timeoutMs = 8000) {
   const cleanTopic = (topic || 'General').trim();
   
-  // Step 1: Try direct key match in curated resources
+  // Try OpenAI first if client is available
+  if (openaiResources) {
+    try {
+      const prompt = `Bạn là một chuyên gia giáo dục. Cung cấp 3 tài nguyên học tập tốt nhất cho chủ đề "${cleanTopic}" ở mức độ "${difficulty}". 
+Trả về JSON (không có markdown wrapper):
+{
+  "resources": [
+    {"title": "Tên tài nguyên", "source": "Nguồn (VietJack/Khan Academy/v.v.)", "url": "https://...", "type": "lesson|video|exercise"},
+    ...
+  ]
+}`;
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
+      );
+
+      const resourcePromise = openaiResources.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      const message = await Promise.race([resourcePromise, timeoutPromise]);
+      const responseText = message.choices[0]?.message?.content || '{}';
+
+      // Parse JSON (handle markdown wrapping)
+      const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+      const parsed = JSON.parse(cleanedText);
+
+      if (parsed.resources && Array.isArray(parsed.resources)) {
+        return parsed.resources.slice(0, 3);
+      }
+    } catch (error) {
+      const errorMsg = error?.message || String(error);
+      if (!errorMsg.includes('TIMEOUT')) {
+        console.warn(`OpenAI resource generation failed for "${cleanTopic}":`, errorMsg);
+      }
+      // Fall through to curated resources
+    }
+  }
+
+  // Fallback: Use curated resources with fuzzy matching
+  // Step 1: Try direct key match
   if (CURATED_RESOURCES[cleanTopic]) {
     return CURATED_RESOURCES[cleanTopic].slice(0, 3);
   }
@@ -93,7 +135,7 @@ async function getResourcesForTopic(topic, difficulty = 'medium') {
     }
   }
 
-  // Step 3: If still no match, return General resources
+  // Step 3: Return General resources
   return CURATED_RESOURCES['General'].slice(0, 3);
 }
 

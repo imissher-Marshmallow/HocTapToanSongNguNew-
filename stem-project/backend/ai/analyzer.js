@@ -188,47 +188,80 @@ function recommendNextQuestions(weakAreas, questions) {
   return recommendations;
 }
 
-// Call LLM to generate summary (uses OPENAI_API_KEY_SUMMARY or fallback)
-async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }) {
+// Call LLM to generate comprehensive summary with timeout (uses OPENAI_API_KEY_SUMMARY or fallback)
+async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }, timeoutMs = 10000) {
   if (!openaiSummary) return null;
 
   try {
-    const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% lỗi)`).join(', ');
-    const prompt = `Bạn là một giáo viên toán tốt bụng. Sinh viên vừa làm bài kiểm tra và được ${score}/10 điểm (${performanceLabel}). Điểm yếu chính: ${weakAreasList}.\n\nHãy viết một thông điệp khuyến khích ngắn gọn (2-3 câu) bằng tiếng Việt, kèm lời khuyên ôn tập.`;
+    const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% sai)`).join(', ');
+    const correctCount = Math.round((score / 10) * (feedback.length || 1));
+    
+    // Comprehensive prompt to generate full analysis
+    const prompt = `Bạn là một giáo viên toán giỏi. Học sinh vừa hoàn thành bài kiểm tra với kết quả ${score}/10 (${performanceLabel}). 
+Điểm yếu chính: ${weakAreasList || 'không có'}.
 
-    // Use defensive API call in case of invalid key or network error
-    const message = await openaiSummary.chat.completions.create({
+Hãy phân tích kết quả và trả về JSON (không bao quanh bằng markdown code blocks):
+{
+  "overall": "Một thông điệp tổng hợp 1-2 câu bằng tiếng Việt về kết quả.",
+  "strengths": ["Điểm mạnh 1", "Điểm mạnh 2"],
+  "weaknesses": ["Điểm yếu chi tiết 1 với %", "Điểm yếu chi tiết 2"],
+  "plan": ["Ngày 1: Hành động cụ thể", "Ngày 2: Hành động cụ thể", "Ngày 3: Hành động cụ thể"],
+  "motivationalMessage": "Lời động viên chi tiết và ý nghĩa bằng tiếng Việt"
+}`;
+
+    // Create promise with timeout
+    const summaryPromise = openaiSummary.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300
+      max_tokens: 800,
+      temperature: 0.7
     });
 
+    // Race against timeout
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('LLM_TIMEOUT')), timeoutMs)
+    );
+
+    const message = await Promise.race([summaryPromise, timeoutPromise]);
+    const responseText = message.choices[0]?.message?.content || '{}';
+
+    // Parse JSON response (handling cases where LLM adds markdown wrapping)
+    let parsed;
+    try {
+      const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+      parsed = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.warn('Failed to parse LLM JSON response, using fallback:', parseError.message);
+      return null; // Fall back to getFallbackSummary
+    }
+
     return {
-      overall: message.choices[0]?.message?.content || '',
-      strengths: [],
-      weaknesses: weakAreas.slice(0, 2).map(w => `${w.topic}: ${w.percentage}% sai`),
-      plan: (recommendations || []).slice(0, 2).map(r => `Ôn lại ${r.topic}`)
+      overall: parsed.overall || '',
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : weakAreas.slice(0, 3).map(w => `${w.topic}: ${w.percentage}% sai`),
+      plan: Array.isArray(parsed.plan) ? parsed.plan : [],
+      motivationalMessage: parsed.motivationalMessage || ''
     };
   } catch (error) {
-    // Detect invalid/unauthorized (401) errors and attach friendly hint
+    const errorMsg = error && (error.message || String(error));
+    
+    // Detect specific error types
+    if (errorMsg.includes('LLM_TIMEOUT')) {
+      console.warn('LLM Summary call timed out after timeout. Using fallback.');
+      return null;
+    }
+    
     try {
       const status = error?.status || (error?.response && error.response.status);
       if (status === 401) {
         console.warn('LLM Summary returned 401 Unauthorized. Check OPENAI_API_KEY_SUMMARY or OPENAI_API_KEY.');
-        return {
-          overall: null,
-          strengths: [],
-          weaknesses: weakAreas.slice(0, 2).map(w => `${w.topic}: ${w.percentage}% sai`),
-          plan: (recommendations || []).slice(0, 2).map(r => `Ôn lại ${r.topic}`),
-          error: { code: 401, message: 'Invalid or missing OPENAI_API_KEY_SUMMARY' }
-
-        };
+        return null;
       }
     } catch (inner) {
       // ignore
     }
 
-    console.error('LLM error:', error && (error.message || error));
+    console.error('LLM Summary error:', errorMsg);
     return null;
   }
 }

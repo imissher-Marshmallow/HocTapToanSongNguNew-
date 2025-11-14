@@ -146,11 +146,15 @@ export default function ResultPage() {
       {summary && (
         <div className="mb-8">
           {loadingSummary ? (
-            <div className="ai-loading p-4 rounded flex items-center gap-3">
-              <div className="ai-dot" />
-              <div>
-                <div className="font-semibold">{t.aiAnalyzing}</div>
-                <div className="text-sm text-gray-500">{t.aiWait}</div>
+            <div className="ai-loading">
+              <div className="ai-loading-content">
+                <div className="ai-dot" />
+                <div className="ai-dot" />
+                <div className="ai-dot" />
+                <div className="ai-loading-text">
+                  <h3>✨ {t.aiAnalyzing}</h3>
+                  <p>{t.aiWait}</p>
+                </div>
               </div>
             </div>
           ) : showSummary ? (
@@ -158,17 +162,17 @@ export default function ResultPage() {
               <h2 className="text-xl font-semibold mb-3">{t.aiOverview}</h2>
               {summary.overall && <p className="mb-3 summary-overall">{summary.overall}</p>}
               
-                {/* Motivational Feedback Section */}
+                {/* Motivational Feedback Section with Special GUI */}
                 {motivationalFeedback && (motivationalFeedback.opening || motivationalFeedback.body || motivationalFeedback.closing) && (
-                  <div className="motivational-feedback mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 rounded">
+                  <div className="motivational-feedback">
                     {motivationalFeedback.opening && (
-                      <p className="text-lg font-semibold text-purple-700 mb-3">{motivationalFeedback.opening}</p>
+                      <p>{motivationalFeedback.opening}</p>
                     )}
                     {motivationalFeedback.body && (
-                      <p className="text-gray-700 mb-3">{motivationalFeedback.body}</p>
+                      <p>{motivationalFeedback.body}</p>
                     )}
                     {motivationalFeedback.closing && (
-                      <p className="text-purple-700 font-semibold italic">{motivationalFeedback.closing}</p>
+                      <p>{motivationalFeedback.closing}</p>
                     )}
                   </div>
                 )}
