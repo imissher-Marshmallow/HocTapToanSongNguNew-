@@ -208,7 +208,23 @@ export default function ResultPage() {
                     <div className="ai-card-list">
                       {summary.plan.map((p, i) => (
                         <div key={i} className="ai-card p-3 mb-2 ai-plan">
-                          <div className="ai-card-text">{p}</div>
+                          <div className="ai-card-text">
+                            {typeof p === 'string' ? (
+                              p
+                            ) : p && p.step ? (
+                              <div>
+                                <div className="font-semibold">{p.step}</div>
+                                {(p.duration || p.action) && (
+                                  <div className="text-sm text-gray-600">{p.duration ? `${p.duration}` : ''}{p.duration && p.action ? ' · ' : ''}{p.action ? p.action : ''}</div>
+                                )}
+                                {p.resource_suggestion && p.resource_suggestion.name && (
+                                  <div className="text-xs text-gray-500">Resource: {p.resource_suggestion.name} {p.resource_suggestion.type ? `(${p.resource_suggestion.type})` : ''}</div>
+                                )}
+                              </div>
+                            ) : (
+                              JSON.stringify(p)
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -300,7 +316,23 @@ export default function ResultPage() {
                 <div className="ai-card-list">
                   {summary.plan.map((p, i) => (
                     <div key={i} className="ai-card p-3 mb-2 ai-plan">
-                      <div className="ai-card-text">{p}</div>
+                      <div className="ai-card-text">
+                        {typeof p === 'string' ? (
+                          p
+                        ) : p && p.step ? (
+                          <div>
+                            <div className="font-semibold">{p.step}</div>
+                            {(p.duration || p.action) && (
+                              <div className="text-sm text-gray-600">{p.duration ? `${p.duration}` : ''}{p.duration && p.action ? ' · ' : ''}{p.action ? p.action : ''}</div>
+                            )}
+                            {p.resource_suggestion && p.resource_suggestion.name && (
+                              <div className="text-xs text-gray-500">Resource: {p.resource_suggestion.name} {p.resource_suggestion.type ? `(${p.resource_suggestion.type})` : ''}</div>
+                            )}
+                          </div>
+                        ) : (
+                          JSON.stringify(p)
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

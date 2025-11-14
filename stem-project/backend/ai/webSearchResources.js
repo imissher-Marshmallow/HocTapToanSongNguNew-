@@ -49,6 +49,15 @@ function isTrustedDomain(url) {
   return TRUSTED_DOMAINS.some(domain => url.toLowerCase().includes(domain));
 }
 
+// Sanitize search queries (remove parenthesis notes, counts like "- 4 câu", etc.)
+function sanitizeSearchQuery(q) {
+  if (!q || typeof q !== 'string') return q;
+  let s = q.replace(/\([^\)]*\)/g, ''); // remove parentheses
+  s = s.replace(/-\s*\d+\s*câu/gi, '');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
 /**
  * Analyze incorrect question to identify exact math topic and book chapter
  * Returns: { topic, chapter, keywords, difficulty }
@@ -244,6 +253,9 @@ async function getResourcesForTopic(topic, difficulty = 'medium', questionContex
   } else {
     searchQuery = `${cleanTopic} toán học lớp 8`;
   }
+
+  // sanitize before searching to avoid tokens like "- 4 câu" causing poor queries
+  searchQuery = sanitizeSearchQuery(searchQuery);
 
   console.log(`[Resources] Searching: "${searchQuery}"`);
 
