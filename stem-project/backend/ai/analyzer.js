@@ -1,9 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-const axios = require('axios');
 const OpenAI = require('openai');
-const { getResourcesForTopic, generateMotivationalFeedback, AI_ENGINE_URL } = require('./webSearchResources');
+const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
 
 // Initialize OpenAI clients for different agents (separate to avoid RPM limits)
 // OPENAI_API_KEY_SUMMARY: For generating AI summary and feedback
@@ -413,35 +412,14 @@ async function analyzeQuiz(payload) {
     summary = getFallbackSummary(score, performanceLabel, weakAreas);
   }
 
-  // Generate motivational feedback from AI Engine
+  // Generate motivational feedback using OpenAI (no external service calls)
+  // ✅ Vercel-ready: Uses OpenAI SDK directly, <4s timeout, graceful fallback
   let motivationalFeedback = null;
   try {
-    console.log(`[Analyzer] Calling AI Engine for motivational feedback at ${AI_ENGINE_URL}`);
-    const aiEngineResponse = await Promise.race([
-      axios.post(`${AI_ENGINE_URL}/analyze`, {
-        userId: null,
-        quizId: 'feedback',
-        answers: answers.slice(0, 5),  // Send subset for speed
-        questions: questions,
-        preferences: {}
-      }, {
-        timeout: 5000
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('AI_ENGINE_TIMEOUT')), 5000))
-    ]);
-
-    motivationalFeedback = aiEngineResponse.data?.motivationalFeedback;
-    if (motivationalFeedback) {
-      console.log('[Analyzer] AI Engine generated motivational feedback');
-    }
+    motivationalFeedback = await generateMotivationalFeedback(score, performanceLabel, weakAreas);
   } catch (error) {
-    console.warn(`[Analyzer] AI Engine error for motivation (${error.message}). Will use fallback.`);
-  }
-
-  // Fallback motivational feedback if AI Engine unavailable
-  if (!motivationalFeedback) {
-    console.log('[Analyzer] Using fallback motivational feedback');
-    motivationalFeedback = generateMotivationalFeedback(score, performanceLabel, weakAreas);
+    console.warn(`[Analyzer] Motivational feedback error: ${error.message}`);
+    // generateMotivationalFeedback has internal fallback, shouldn't reach here
   }
 
   // Generate resource links for weak areas

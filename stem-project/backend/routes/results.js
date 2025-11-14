@@ -2,7 +2,6 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { dbHelpers } = require('../database');
 const { analyzeQuiz } = require('../ai/analyzer');
-const axios = require('axios');
 
 const router = express.Router();
 
@@ -70,7 +69,8 @@ router.post('/', authMiddleware, async (req, res) => {
       []  // will be filled by AI
     );
 
-    // Call AI analyzer to get detailed feedback
+    // Call AI analyzer (local Node.js - no external service)
+    // ✅ Uses OpenAI directly, Vercel-ready, <5s execution
     const analyzerPayload = {
       userId: finalUserId,
       quizId,
@@ -80,37 +80,21 @@ router.post('/', authMiddleware, async (req, res) => {
 
     let aiResult = null;
     try {
-      // Try external AI engine first (Python FastAPI at port 8000)
-      const aiEngineUrl = process.env.AI_ENGINE_URL || 'http://localhost:8000/analyze';
-      const resp = await axios.post(aiEngineUrl, analyzerPayload, { timeout: 15000 });
-      aiResult = resp.data;
-      console.log('ai_engine responded successfully');
-
-      // If AI returned an error marker (e.g., invalid OPENAI key), merge gracefully
-      if (aiResult && aiResult.error && aiResult.error.code === 401) {
-        console.warn('ai_engine indicated LLM auth error:', aiResult.error.message);
-        // Call local analyzer but preserve ai_result fields where available
-        const local = await analyzeQuiz(analyzerPayload);
-        // Merge without overwriting non-empty fields from local analyzer
-        aiResult = Object.assign({}, local, aiResult);
-      }
+      // ✅ Local analyzer: Now uses OpenAI SDK directly (no Python service)
+      aiResult = await analyzeQuiz(analyzerPayload);
+      console.log('[Results] Local analyzer completed successfully');
     } catch (err) {
-      console.warn('ai_engine call failed, falling back to local analyzer:', err && err.message ? err.message : err);
-      // Fallback to the local JS analyzer
-      try {
-        aiResult = await analyzeQuiz(analyzerPayload);
-      } catch (innerErr) {
-        console.error('local analyzer also failed:', innerErr);
-        aiResult = {
-          score: score,
-          performanceLabel: 'Không xác định',
-          weakAreas: [],
-          feedback: [],
-          recommendations: [],
-          summary: null,
-          motivationalFeedback: null
-        };
-      }
+      console.error('[Results] Local analyzer failed:', err.message);
+      // Fallback response
+      aiResult = {
+        score: score,
+        performanceLabel: 'Không xác định',
+        weakAreas: [],
+        feedback: [],
+        recommendations: [],
+        summary: null,
+        motivationalFeedback: null
+      };
     }
 
     // Save AI analysis back to database

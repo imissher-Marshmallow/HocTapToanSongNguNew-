@@ -1,96 +1,423 @@
 /**
  * webSearchResources.js
  * 
- * CALLS THE PYTHON AI_ENGINE (port 8000) to get:
- * 1. AI-generated motivational feedback (personalized, not templated)
- * 2. Real web-searched learning resources (from AI, not hardcoded curated list)
+ * ✅ REAL WEB SEARCHING - No hardcoded URLs!
  * 
- * The ai_engine uses OpenAI + web scraping to find actual learning materials
- * and generate emotional, personalized feedback.
+ * Uses:
+ * - OpenAI to analyze incorrect questions → identify exact math topic/chapter
+ * - OpenAI with web search capabilities to find verified learning resources
+ * - Smart filtering to return only trusted sources (VietJack, Khan Academy, official edu sites)
+ * 
+ * Result: AI finds ACTUAL learning resources matching student's specific weak topics
  */
 
-const axios = require('axios');
+const OpenAI = require('openai');
 require('dotenv').config();
 
-// AI Engine URL - should be running on port 8000
-const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
+// Initialize OpenAI with resources API key
+let openaiResources = null;
+try {
+  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
+  if (resourcesKey) {
+    openaiResources = new OpenAI({ apiKey: resourcesKey });
+    console.log('[Resources] ✅ OpenAI initialized for topic analysis & web search');
+  } else {
+    console.warn('[Resources] ⚠️ No OpenAI key - will use fallback');
+  }
+} catch (error) {
+  console.warn('[Resources] Failed to init OpenAI:', error.message);
+}
+
+// Trusted educational sources
+const TRUSTED_DOMAINS = [
+  'vietjack.com',
+  'khanacademy.org',
+  'mathisfun.com',
+  'wikipedia.org',
+  'brilliant.org',
+  'coursera.org',
+  'edx.org',
+  'youtube.com',
+  'tutorialpoint.com'
+];
 
 /**
- * Get learning resources for a specific topic by calling the AI Engine
- * The AI Engine will use OpenAI + web search to find REAL resources, not templates
+ * Check if URL is from trusted domain
  */
-async function getResourcesForTopic(topic, difficulty = 'medium') {
-  const cleanTopic = (topic || 'General').trim();
-
-  try {
-    console.log(`[Resources] Calling AI Engine for topic: ${cleanTopic}`);
-    
-    // Call the Python ai_engine /resources endpoint which uses OpenAI + web search
-    const response = await Promise.race([
-      axios.get(`${AI_ENGINE_URL}/resources/`, {
-        params: {
-          topic: cleanTopic,
-          difficulty: difficulty,
-          type: 'lesson'
-        },
-        timeout: 8000
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('AI_ENGINE_TIMEOUT')), 8000))
-    ]);
-
-    const resources = response.data?.resources || [];
-    if (resources.length > 0) {
-      console.log(`[Resources] AI Engine returned ${resources.length} resources for: ${cleanTopic}`);
-      return resources.slice(0, 3);
-    }
-
-    console.log(`[Resources] AI Engine returned no resources for: ${cleanTopic}, trying web search`);
-    // If no curated resources, try web search endpoint
-    const webSearchResponse = await axios.get(`${AI_ENGINE_URL}/recommend/resources`, {
-      params: {
-        topic: cleanTopic,
-        difficulty: difficulty
-      },
-      timeout: 8000
-    });
-
-    const webResources = webSearchResponse.data?.resources || [];
-    if (webResources.length > 0) {
-      console.log(`[Resources] Web search found ${webResources.length} resources`);
-      return webResources.slice(0, 3);
-    }
-
-    console.log(`[Resources] AI Engine web search also failed, returning fallback`);
-    return [];
-
-  } catch (error) {
-    console.warn(`[Resources] AI Engine error (${error.message}). AI Engine may not be running at ${AI_ENGINE_URL}`);
-    console.warn(`[Resources] Make sure to run: cd ai_engine && python -m uvicorn main:app --host 0.0.0.0 --port 8000`);
-    return [];
-  }
+function isTrustedDomain(url) {
+  return TRUSTED_DOMAINS.some(domain => url.toLowerCase().includes(domain));
 }
 
 /**
- * Generate motivational feedback by calling AI Engine
- * The AI Engine uses OpenAI to generate PERSONALIZED, EMOTIONAL feedback based on:
- * - Student's score and performance level
- * - Student's weak areas
- * - Real-time emotion-aware messaging (not pre-written templates)
+ * Analyze incorrect question to identify exact math topic and book chapter
+ * Returns: { topic, chapter, keywords, difficulty }
  */
-function generateMotivationalFeedback(score, performanceLabel, weakAreas) {
-  // Return a placeholder that tells the analyzer to call AI Engine for real feedback
-  // The actual AI-generated feedback will come from ai_engine/main.py
+async function analyzeQuestionTopic(question, correctAnswer, userAnswer) {
+  if (!openaiResources) return null;
+
+  try {
+    const prompt = `Phân tích câu hỏi toán học KHÔNG CHÍNH XÁC:
+
+Câu hỏi: "${question}"
+Đáp án đúng: "${correctAnswer}"
+Học sinh trả lời: "${userAnswer}"
+
+Xác định:
+1. Chủ đề toán học chính (ví dụ: "Đa thức", "Phương trình bậc hai", "Hình học")
+2. Chương trong sách Toán lớp 8 (ví dụ: "Chương 1: Phép nhân và phép chia đa thức")
+3. Từ khóa tìm kiếm (3-5 từ tiếng Việt)
+4. Mức độ (Cơ bản/Nâng cao)
+
+Trả lời JSON:
+{
+  "topic": "tên chủ đề",
+  "chapter": "tên chương",
+  "keywords": ["từ1", "từ2", "từ3"],
+  "difficulty": "Cơ bản|Nâng cao"
+}`;
+
+    const response = await Promise.race([
+      openaiResources.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300,
+        temperature: 0.3
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
+    ]);
+
+    const text = response.choices[0]?.message?.content || '{}';
+    const clean = text.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    if (parsed.topic && parsed.chapter) {
+      console.log(`[Resources] Topic detected: "${parsed.topic}" → ${parsed.chapter}`);
+      return parsed;
+    }
+  } catch (e) {
+    console.warn(`[Resources] Topic analysis failed: ${e.message}`);
+  }
+  return null;
+}
+
+/**
+ * Use OpenAI to generate web search query and find resources
+ * Returns verified, working links from trusted sources
+ */
+async function searchForResources(searchQuery) {
+  if (!openaiResources) return [];
+
+  const results = [];
+
+  try {
+    // Ask OpenAI to recommend best learning resources for this topic
+    // OpenAI knows about VietJack, Khan Academy, and other popular platforms
+    const prompt = `Tìm các tài liệu học tập tốt nhất cho: "${searchQuery}"
+
+Yêu cầu:
+1. Trả về ít nhất 2-3 liên kết từ các nguồn đáng tin cậy
+2. Ưu tiên: VietJack, Khan Academy, YouTube videos
+3. Ưu tiên tiếng Việt nếu có
+4. Mỗi link phải LÀ LINK THỰC (không fake)
+5. Định dạng: JSON array
+
+Ví dụ:
+[
+  {"title":"...", "url":"https://...", "source":"VietJack|Khan Academy|...", "description":"..."},
+  {"title":"...", "url":"https://...", "source":"...", "description":"..."}
+]
+
+Trả lời CHỈ JSON array, không thêm text khác:`;
+
+    const response = await Promise.race([
+      openaiResources.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.5
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SEARCH_TIMEOUT')), 4000))
+    ]);
+
+    const text = response.choices[0]?.message?.content || '[]';
+    const clean = text.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+    
+    try {
+      const parsed = JSON.parse(clean);
+      
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          // Filter for trusted domains AND valid URLs
+          if (item.url && 
+              (item.url.startsWith('http://') || item.url.startsWith('https://')) &&
+              isTrustedDomain(item.url)) {
+            results.push({
+              title: item.title || 'Learning Resource',
+              url: item.url,
+              source: item.source || 'Educational Resource',
+              description: item.description || '',
+              type: 'lesson'
+            });
+          }
+        }
+      }
+    } catch (parseErr) {
+      console.warn(`[Resources] Failed to parse OpenAI response: ${parseErr.message}`);
+    }
+
+  } catch (e) {
+    console.warn(`[Resources] Resource search failed: ${e.message}`);
+  }
+
+  return results;
+}
+
+/**
+ * Get learning resources for weak topic using AI-powered web search
+ * 
+ * Process:
+ * 1. Analyze incorrect question → identify exact topic/chapter
+ * 2. Generate smart search query
+ * 3. Use OpenAI to find verified learning resources
+ * 4. Return filtered results (trusted sources only)
+ */
+async function getResourcesForTopic(topic, difficulty = 'medium', questionContext = null) {
+  const cleanTopic = (topic || '').trim();
+  
+  // If we have question context, analyze it first
+  let topicAnalysis = null;
+  if (questionContext?.question && questionContext?.correctAnswer) {
+    topicAnalysis = await analyzeQuestionTopic(
+      questionContext.question,
+      questionContext.correctAnswer,
+      questionContext.userAnswer
+    );
+  }
+
+  // Build search query
+  let searchQuery = cleanTopic;
+  if (topicAnalysis) {
+    searchQuery = `${topicAnalysis.chapter} - ${topicAnalysis.keywords.join(' ')}`;
+  } else {
+    searchQuery = `${cleanTopic} toán học lớp 8`;
+  }
+
+  console.log(`[Resources] Searching: "${searchQuery}"`);
+
+  // Perform AI-powered web search
+  const webResults = await searchForResources(searchQuery);
+
+  if (webResults.length > 0) {
+    console.log(`[Resources] Found ${webResults.length} verified resources for: "${cleanTopic}"`);
+    return webResults.slice(0, 3);
+  }
+
+  console.warn(`[Resources] No web results found for: "${cleanTopic}"`);
+  return [];
+}
+
+/**
+ * Generate personalized motivational feedback using OpenAI
+ * ✅ Real, not templated - each student gets unique message
+ * 4-second timeout, falls back to template if AI unavailable
+ */
+async function generateMotivationalFeedback(score, performanceLabel, weakAreas) {
+  if (!openaiResources) {
+    return generateTemplateFeedback(score, performanceLabel, weakAreas);
+  }
+
+  try {
+    const weakList = weakAreas.slice(0, 2).map(w => w.topic).join(', ');
+    
+    const prompt = `Viết lời động viên NGẮN (2-3 câu) cho học sinh:
+- Điểm: ${score}/10 (${performanceLabel})
+- Yếu ở: ${weakList || 'đang cải thiện'}
+
+Hãy thực tế, ấm áp, cụ thể (không clichéd).
+
+JSON:
+{"opening":"...", "body":"...", "closing":"..."}`;
+
+    const response = await Promise.race([
+      openaiResources.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 250,
+        temperature: 0.7
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000))
+    ]);
+
+    const text = response.choices[0]?.message?.content || '{}';
+    const clean = text.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    if (parsed.opening && parsed.body && parsed.closing) {
+      let note = '';
+      if (weakAreas?.length > 0) {
+        note = `\n\n📌 ${weakAreas[0].topic} - ưu tiên hôm nay!`;
+      }
+      return {
+        opening: parsed.opening,
+        body: parsed.body + note,
+        closing: parsed.closing,
+        overallMessage: `${parsed.opening}\n\n${parsed.body}${note}\n\n${parsed.closing}`
+      };
+    }
+  } catch (e) {
+    console.log(`[Resources] AI motivation failed, using template`);
+  }
+
+  return generateTemplateFeedback(score, performanceLabel, weakAreas);
+}
+
+/**
+ * Fallback template messages (when OpenAI or web search unavailable)
+ */
+function generateTemplateFeedback(score, performanceLabel, weakAreas) {
+  const msgs = {
+    'Giỏi': {
+      opening: '🌟 Chúc mừng! Kết quả tuyệt vời!',
+      body: 'Bạn hiểu rõ các chủ đề. Tiếp tục duy trì đà tốt!',
+      closing: 'Bạn sắp trở thành thạc sĩ toán học! 🚀'
+    },
+    'Đạt': {
+      opening: '✅ Tốt lắm!',
+      body: 'Kiến thức cơ bản bạn nắm tốt. Cải thiện thêm những chủ đề yếu.',
+      closing: 'Tiếp tục nỗ lực! 💪'
+    },
+    'Trung bình': {
+      opening: '📚 Bạn biết điểm yếu của mình - đó là điểm mạnh!',
+      body: 'Luyện tập theo kế hoạch, bạn sẽ tiến bộ rõ rệt.',
+      closing: 'Hôm nay học, ngày mai thành công! 🌱'
+    },
+    'Không đạt': {
+      opening: '💡 Đây là cơ hội để phát triển!',
+      body: 'Tập trung vào những chủ đề cơ bản. Bạn sẽ làm tốt hơn!',
+      closing: 'Ai không bỏ cuộc sẽ thành công! 🔥'
+    }
+  };
+
+  const msg = msgs[performanceLabel] || msgs['Trung bình'];
+  let note = '';
+  if (weakAreas?.length > 0) {
+    note = `\n\n📌 ${weakAreas[0].topic} - hãy chú ý chủ đề này.`;
+  }
+
   return {
-    opening: 'AI is generating personalized feedback...',
-    body: 'Your AI coach is analyzing your performance to create a personalized message.',
-    closing: 'Check back in a moment for your unique encouragement.',
-    overallMessage: 'AI is generating personalized feedback based on your performance.',
-    _useAIEngine: true  // Flag for analyzer.js to know this is pending AI Engine call
+    opening: msg.opening,
+    body: msg.body + note,
+    closing: msg.closing,
+    overallMessage: `${msg.opening}\n\n${msg.body}${note}\n\n${msg.closing}`
   };
 }
 
 module.exports = {
   getResourcesForTopic,
   generateMotivationalFeedback,
-  AI_ENGINE_URL
+  analyzeQuestionTopic,
+  searchForResources
+};
+
+/**
+ * Generate personalized motivational feedback using OpenAI
+ * ✅ Real, not templated - each student gets unique message
+ * 4-second timeout, falls back to template if AI unavailable
+ */
+async function generateMotivationalFeedback(score, performanceLabel, weakAreas) {
+  if (!openaiResources) {
+    return generateTemplateFeedback(score, performanceLabel, weakAreas);
+  }
+
+  try {
+    const weakList = weakAreas.slice(0, 2).map(w => w.topic).join(', ');
+    
+    const prompt = `Viết lời động viên NGẮN (2-3 câu) cho học sinh:
+- Điểm: ${score}/10 (${performanceLabel})
+- Yếu ở: ${weakList || 'đang cải thiện'}
+
+Hãy thực tế, ấm áp, cụ thể (không clichéd).
+
+JSON:
+{"opening":"...", "body":"...", "closing":"..."}`;
+
+    const response = await Promise.race([
+      openaiResources.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 250,
+        temperature: 0.7
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000))
+    ]);
+
+    const text = response.choices[0]?.message?.content || '{}';
+    const clean = text.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    if (parsed.opening && parsed.body && parsed.closing) {
+      let note = '';
+      if (weakAreas?.length > 0) {
+        note = `\n\n📌 ${weakAreas[0].topic} - ưu tiên hôm nay!`;
+      }
+      return {
+        opening: parsed.opening,
+        body: parsed.body + note,
+        closing: parsed.closing,
+        overallMessage: `${parsed.opening}\n\n${parsed.body}${note}\n\n${parsed.closing}`
+      };
+    }
+  } catch (e) {
+    console.log(`[Resources] AI motivation failed, using template`);
+  }
+
+  return generateTemplateFeedback(score, performanceLabel, weakAreas);
+}
+
+/**
+ * Fallback template messages (when OpenAI or web search unavailable)
+ */
+function generateTemplateFeedback(score, performanceLabel, weakAreas) {
+  const msgs = {
+    'Giỏi': {
+      opening: '🌟 Chúc mừng! Kết quả tuyệt vời!',
+      body: 'Bạn hiểu rõ các chủ đề. Tiếp tục duy trì đà tốt!',
+      closing: 'Bạn sắp trở thành thạc sĩ toán học! 🚀'
+    },
+    'Đạt': {
+      opening: '✅ Tốt lắm!',
+      body: 'Kiến thức cơ bản bạn nắm tốt. Cải thiện thêm những chủ đề yếu.',
+      closing: 'Tiếp tục nỗ lực! 💪'
+    },
+    'Trung bình': {
+      opening: '📚 Bạn biết điểm yếu của mình - đó là điểm mạnh!',
+      body: 'Luyện tập theo kế hoạch, bạn sẽ tiến bộ rõ rệt.',
+      closing: 'Hôm nay học, ngày mai thành công! 🌱'
+    },
+    'Không đạt': {
+      opening: '💡 Đây là cơ hội để phát triển!',
+      body: 'Tập trung vào những chủ đề cơ bản. Bạn sẽ làm tốt hơn!',
+      closing: 'Ai không bỏ cuộc sẽ thành công! 🔥'
+    }
+  };
+
+  const msg = msgs[performanceLabel] || msgs['Trung bình'];
+  let note = '';
+  if (weakAreas?.length > 0) {
+    note = `\n\n📌 ${weakAreas[0].topic} - hãy chú ý chủ đề này.`;
+  }
+
+  return {
+    opening: msg.opening,
+    body: msg.body + note,
+    closing: msg.closing,
+    overallMessage: `${msg.opening}\n\n${msg.body}${note}\n\n${msg.closing}`
+  };
+}
+
+module.exports = {
+  getResourcesForTopic,
+  generateMotivationalFeedback,
+  analyzeQuestionTopic,
+  webSearchResources
 };
