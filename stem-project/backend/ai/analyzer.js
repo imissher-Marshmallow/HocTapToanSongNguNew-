@@ -189,12 +189,14 @@ function recommendNextQuestions(weakAreas, questions) {
 }
 
 // Call LLM to generate comprehensive summary with timeout (uses OPENAI_API_KEY_SUMMARY or fallback)
-async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }, timeoutMs = 10000) {
-  if (!openaiSummary) return null;
+async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }, timeoutMs = 8000) {
+  if (!openaiSummary) {
+    console.log('[Summary] OpenAI Summary client not initialized. Using fallback.');
+    return null;
+  }
 
   try {
     const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% sai)`).join(', ');
-    const correctCount = Math.round((score / 10) * (feedback.length || 1));
     
     // Comprehensive prompt to generate full analysis
     const prompt = `Bạn là một giáo viên toán giỏi. Học sinh vừa hoàn thành bài kiểm tra với kết quả ${score}/10 (${performanceLabel}). 
@@ -231,37 +233,21 @@ Hãy phân tích kết quả và trả về JSON (không bao quanh bằng markdo
       const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
       parsed = JSON.parse(cleanedText);
     } catch (parseError) {
-      console.warn('Failed to parse LLM JSON response, using fallback:', parseError.message);
-      return null; // Fall back to getFallbackSummary
+      console.warn('[Summary] Failed to parse LLM JSON response, using fallback:', parseError.message);
+      return null;
     }
 
+    console.log('[Summary] OpenAI generated: overall, strengths, weaknesses, plan');
     return {
       overall: parsed.overall || '',
-      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : weakAreas.slice(0, 3).map(w => `${w.topic}: ${w.percentage}% sai`),
-      plan: Array.isArray(parsed.plan) ? parsed.plan : [],
+      strengths: Array.isArray(parsed.strengths) && parsed.strengths.length > 0 ? parsed.strengths : [],
+      weaknesses: Array.isArray(parsed.weaknesses) && parsed.weaknesses.length > 0 ? parsed.weaknesses : weakAreas.slice(0, 3).map(w => `${w.topic}: ${w.percentage}% sai`),
+      plan: Array.isArray(parsed.plan) && parsed.plan.length > 0 ? parsed.plan : [],
       motivationalMessage: parsed.motivationalMessage || ''
     };
   } catch (error) {
     const errorMsg = error && (error.message || String(error));
-    
-    // Detect specific error types
-    if (errorMsg.includes('LLM_TIMEOUT')) {
-      console.warn('LLM Summary call timed out after timeout. Using fallback.');
-      return null;
-    }
-    
-    try {
-      const status = error?.status || (error?.response && error.response.status);
-      if (status === 401) {
-        console.warn('LLM Summary returned 401 Unauthorized. Check OPENAI_API_KEY_SUMMARY or OPENAI_API_KEY.');
-        return null;
-      }
-    } catch (inner) {
-      // ignore
-    }
-
-    console.error('LLM Summary error:', errorMsg);
+    console.warn(`[Summary] OpenAI failed (${errorMsg}). Using fallback.`);
     return null;
   }
 }

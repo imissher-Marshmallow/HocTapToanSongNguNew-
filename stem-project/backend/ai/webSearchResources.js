@@ -14,16 +14,18 @@ const OpenAI = require('openai');
 require('dotenv').config();
 
 // Initialize OpenAI client for resource generation (separate from summary to avoid RPM limits)
-let openaiResources;
-try {
-  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
-  openaiResources = new OpenAI({ apiKey: resourcesKey });
-} catch (error) {
-  console.warn('Failed to initialize OpenAI Resources client:', error);
-}
+// NOTE: Disabled by default to reduce API costs. Resources now use curated links only.
+let openaiResources = null; // Set to null to disable OpenAI resource generation
+// Uncomment below to enable OpenAI if you want to:
+// try {
+//   const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
+//   openaiResources = new OpenAI({ apiKey: resourcesKey });
+// } catch (error) {
+//   console.warn('Failed to initialize OpenAI Resources client:', error);
+// }
 
 if (!process.env.OPENAI_API_KEY_RESOURCES && !process.env.OPENAI_API_KEY) {
-  console.warn('No OpenAI API keys found. Set OPENAI_API_KEY_RESOURCES or OPENAI_API_KEY for resource recommendations.');
+  console.log('[Resources] OpenAI disabled (API cost control). Using curated resources only.');
 }
 
 // Curated resource mapping: topic -> array of trusted learning resources
@@ -73,57 +75,15 @@ const CURATED_RESOURCES = {
 };
 
 /**
- * Get learning resources for a specific topic using OpenAI.
- * Falls back to curated resources if OpenAI is unavailable.
+ * Get learning resources for a specific topic.
+ * Uses curated resources only (NO API CALLS - cost control).
  */
-async function getResourcesForTopic(topic, difficulty = 'medium', timeoutMs = 8000) {
+async function getResourcesForTopic(topic, difficulty = 'medium') {
   const cleanTopic = (topic || 'General').trim();
   
-  // Try OpenAI first if client is available
-  if (openaiResources) {
-    try {
-      const prompt = `Bạn là một chuyên gia giáo dục. Cung cấp 3 tài nguyên học tập tốt nhất cho chủ đề "${cleanTopic}" ở mức độ "${difficulty}". 
-Trả về JSON (không có markdown wrapper):
-{
-  "resources": [
-    {"title": "Tên tài nguyên", "source": "Nguồn (VietJack/Khan Academy/v.v.)", "url": "https://...", "type": "lesson|video|exercise"},
-    ...
-  ]
-}`;
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
-      );
-
-      const resourcePromise = openaiResources.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 500,
-        temperature: 0.7
-      });
-
-      const message = await Promise.race([resourcePromise, timeoutPromise]);
-      const responseText = message.choices[0]?.message?.content || '{}';
-
-      // Parse JSON (handle markdown wrapping)
-      const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-
-      if (parsed.resources && Array.isArray(parsed.resources)) {
-        return parsed.resources.slice(0, 3);
-      }
-    } catch (error) {
-      const errorMsg = error?.message || String(error);
-      if (!errorMsg.includes('TIMEOUT')) {
-        console.warn(`OpenAI resource generation failed for "${cleanTopic}":`, errorMsg);
-      }
-      // Fall through to curated resources
-    }
-  }
-
-  // Fallback: Use curated resources with fuzzy matching
-  // Step 1: Try direct key match
+  // Step 1: Try direct key match in curated resources
   if (CURATED_RESOURCES[cleanTopic]) {
+    console.log(`[Resources] Curated: ${cleanTopic}`);
     return CURATED_RESOURCES[cleanTopic].slice(0, 3);
   }
 
@@ -131,11 +91,13 @@ Trả về JSON (không có markdown wrapper):
   const lowerTopic = cleanTopic.toLowerCase();
   for (const key of Object.keys(CURATED_RESOURCES)) {
     if (key.toLowerCase().includes(lowerTopic) || lowerTopic.includes(key.toLowerCase())) {
+      console.log(`[Resources] Fuzzy: ${cleanTopic} → ${key}`);
       return CURATED_RESOURCES[key].slice(0, 3);
     }
   }
 
   // Step 3: Return General resources
+  console.log(`[Resources] Fallback: ${cleanTopic}`);
   return CURATED_RESOURCES['General'].slice(0, 3);
 }
 
