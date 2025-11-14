@@ -279,11 +279,24 @@ function getFallbackSummary(score, performanceLabel, weakAreas) {
     }
   });
 
-  // Build detailed strengths list
-  const allTopics = weakAreas.map(w => w.topic || w.subtopic);
-  const strengths = allTopics.length > 0 
-    ? [`Bạn đã nắm vững ${Math.max(0, 10 - score)} trong 10 câu`]
-    : [`Làm bài với kết quả ${score}/10`];
+  // Build detailed strengths list based on performance
+  // Always generate meaningful strengths even if student has weak areas
+  let strengths = [];
+  if (score >= 8) {
+    strengths = ['Khả năng hiểu bài toán rất tốt', 'Nắm vững kiến thức cơ bản'];
+  } else if (score >= 6) {
+    const topicsCorrect = Math.floor(score * 0.6); // estimate topics with correct answers
+    strengths = [`Làm đúng ${topicsCorrect} chủ đề`, 'Hiểu được các phần kiến thức chính'];
+  } else if (score >= 4) {
+    strengths = ['Đã nắm được một số kiến thức cơ bản', 'Khả năng giải quyết vấn đề đang phát triển'];
+  } else {
+    strengths = ['Bạn đã cố gắng hoàn thành bài kiểm tra', 'Đây là điểm khởi đầu cho sự cải thiện'];
+  }
+
+  // Ensure strengths is never empty
+  if (!strengths || strengths.length === 0) {
+    strengths = ['Bạn đã hoàn thành bài kiểm tra'];
+  }
 
   // Build learning plan
   const learningPlan = weakAreas.slice(0, 3).map((w, idx) => {
@@ -294,7 +307,7 @@ function getFallbackSummary(score, performanceLabel, weakAreas) {
 
   return {
     overall,
-    strengths,
+    strengths, // Now guaranteed to have at least 1 element
     weaknesses: detailedWeaknesses,
     plan: learningPlan.length > 0 ? learningPlan : ['Hãy tiếp tục ôn tập toàn bộ các phần'],
     motivationalMessage: motivation.overallMessage,

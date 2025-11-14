@@ -1,7 +1,7 @@
 /**
  * webSearchResources.js
  * 
- * Uses curated resource mapping to find real learning links from VietJack,
+ * Uses intelligent AI + curated resources to find real learning links from VietJack,
  * Khan Academy, and other trusted sources for specific math topics and weak areas.
  * 
  * Supports separate API keys for resource recommendations:
@@ -14,18 +14,15 @@ const OpenAI = require('openai');
 require('dotenv').config();
 
 // Initialize OpenAI client for resource generation (separate from summary to avoid RPM limits)
-// NOTE: Disabled by default to reduce API costs. Resources now use curated links only.
-let openaiResources = null; // Set to null to disable OpenAI resource generation
-// Uncomment below to enable OpenAI if you want to:
-// try {
-//   const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
-//   openaiResources = new OpenAI({ apiKey: resourcesKey });
-// } catch (error) {
-//   console.warn('Failed to initialize OpenAI Resources client:', error);
-// }
-
-if (!process.env.OPENAI_API_KEY_RESOURCES && !process.env.OPENAI_API_KEY) {
-  console.log('[Resources] OpenAI disabled (API cost control). Using curated resources only.');
+let openaiResources = null;
+try {
+  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
+  if (resourcesKey) {
+    openaiResources = new OpenAI({ apiKey: resourcesKey });
+    console.log('[Resources] OpenAI Resources client initialized.');
+  }
+} catch (error) {
+  console.warn('Failed to initialize OpenAI Resources client:', error);
 }
 
 // Curated resource mapping: topic -> array of trusted learning resources
@@ -34,6 +31,15 @@ const CURATED_RESOURCES = {
     { title: 'Đa thức - Khái niệm và Phép Toán', source: 'VietJack', url: 'https://vietjack.com/toan-7/da-thuc.jsp', type: 'lesson' },
     { title: 'Các phép toán với đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-cong-tru-da-thuc.jsp', type: 'exercise' },
     { title: 'Hằng đẳng thức đáng nhớ', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/algebra/polynomial-arithmetic', type: 'video' }
+  ],
+  'Bậc của đa thức': [
+    { title: 'Bậc của đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/bac-cua-da-thuc.jsp', type: 'lesson' },
+    { title: 'Hệ số trong đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/he-so-da-thuc.jsp', type: 'exercise' },
+    { title: 'Polynomials Degree', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/algebra/polynomial-degree', type: 'video' }
+  ],
+  'Đồng dạng': [
+    { title: 'Đơn thức đồng dạng', source: 'VietJack', url: 'https://vietjack.com/toan-7/don-thuc-dong-dang.jsp', type: 'lesson' },
+    { title: 'Cộng trừ các đơn thức đồng dạng', source: 'VietJack', url: 'https://vietjack.com/toan-7/cong-tru-don-thuc-dong-dang.jsp', type: 'exercise' }
   ],
   'Hình học': [
     { title: 'Hình học cơ bản - Tam giác', source: 'VietJack', url: 'https://vietjack.com/toan-7/hinh-hoc-tam-giac.jsp', type: 'lesson' },
@@ -54,6 +60,20 @@ const CURATED_RESOURCES = {
     { title: 'Phép toán cơ bản', source: 'VietJack', url: 'https://vietjack.com/toan-6/phep-cong-phep-tru.jsp', type: 'lesson' },
     { title: 'Phép nhân và chia', source: 'VietJack', url: 'https://vietjack.com/toan-6/phep-nhan-phep-chia.jsp', type: 'exercise' },
     { title: 'Basic Arithmetic', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic', type: 'video' }
+  ],
+  'Phép cộng': [
+    { title: 'Phép cộng các số', source: 'VietJack', url: 'https://vietjack.com/toan-6/phep-cong-phep-tru.jsp', type: 'lesson' },
+    { title: 'Addition Basics', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic/addition', type: 'video' }
+  ],
+  'Phép nhân': [
+    { title: 'Phép nhân các đơn thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-nhan-don-thuc.jsp', type: 'lesson' },
+    { title: 'Phép nhân đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-nhan-da-thuc.jsp', type: 'exercise' },
+    { title: 'Multiplication', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic/multiplication', type: 'video' }
+  ],
+  'Phép chia': [
+    { title: 'Phép chia đơn thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-chia-don-thuc.jsp', type: 'lesson' },
+    { title: 'Phép chia đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-8/phep-chia-da-thuc.jsp', type: 'exercise' },
+    { title: 'Division', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic/division', type: 'video' }
   ],
   'Tối ưu / Giá trị cực trị': [
     { title: 'Giá trị lớn nhất, giá trị nhỏ nhất', source: 'VietJack', url: 'https://vietjack.com/toan-9/gia-tri-lon-nhat-nho-nhat.jsp', type: 'lesson' },
@@ -76,29 +96,75 @@ const CURATED_RESOURCES = {
 
 /**
  * Get learning resources for a specific topic.
- * Uses curated resources only (NO API CALLS - cost control).
+ * Uses AI-assisted matching combined with curated resources to ensure relevance.
+ * Fallback to curated resources if AI unavailable.
  */
 async function getResourcesForTopic(topic, difficulty = 'medium') {
   const cleanTopic = (topic || 'General').trim();
-  
+
+  // Try curated resources first (always available, reliable)
+  let resources = null;
+
   // Step 1: Try direct key match in curated resources
   if (CURATED_RESOURCES[cleanTopic]) {
-    console.log(`[Resources] Curated: ${cleanTopic}`);
-    return CURATED_RESOURCES[cleanTopic].slice(0, 3);
+    console.log(`[Resources] Curated (exact): ${cleanTopic}`);
+    resources = CURATED_RESOURCES[cleanTopic].slice(0, 3);
   }
 
   // Step 2: Try fuzzy matching
-  const lowerTopic = cleanTopic.toLowerCase();
-  for (const key of Object.keys(CURATED_RESOURCES)) {
-    if (key.toLowerCase().includes(lowerTopic) || lowerTopic.includes(key.toLowerCase())) {
-      console.log(`[Resources] Fuzzy: ${cleanTopic} → ${key}`);
-      return CURATED_RESOURCES[key].slice(0, 3);
+  if (!resources) {
+    const lowerTopic = cleanTopic.toLowerCase();
+    for (const key of Object.keys(CURATED_RESOURCES)) {
+      if (key.toLowerCase().includes(lowerTopic) || lowerTopic.includes(key.toLowerCase())) {
+        console.log(`[Resources] Curated (fuzzy): ${cleanTopic} → ${key}`);
+        resources = CURATED_RESOURCES[key].slice(0, 3);
+        break;
+      }
     }
   }
 
-  // Step 3: Return General resources
-  console.log(`[Resources] Fallback: ${cleanTopic}`);
-  return CURATED_RESOURCES['General'].slice(0, 3);
+  // Step 3: Use AI to intelligently match the topic to best resources (optional enhancement)
+  if (!resources && openaiResources) {
+    try {
+      const aiPrompt = `Bạn là chuyên gia giáo dục toán học. Học sinh yếu ở chủ đề: "${cleanTopic}".
+      
+Từ các chủ đề toán học sau, chọn chủ đề LÀ SIMILAR NHẤT để tìm tài liệu học:
+${Object.keys(CURATED_RESOURCES).filter(k => k !== 'General').join(', ')}
+
+Trả lời JSON (không bao quanh markdown):
+{ "bestMatch": "tên chủ đề từ danh sách trên" }`;
+
+      const aiResponse = await Promise.race([
+        openaiResources.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [{ role: 'user', content: aiPrompt }],
+          max_tokens: 100,
+          temperature: 0.5
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
+      ]);
+
+      const responseText = aiResponse.choices[0]?.message?.content || '{}';
+      const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+      const parsed = JSON.parse(cleanedText);
+      const bestMatch = parsed.bestMatch;
+
+      if (CURATED_RESOURCES[bestMatch]) {
+        console.log(`[Resources] AI-matched: ${cleanTopic} → ${bestMatch}`);
+        resources = CURATED_RESOURCES[bestMatch].slice(0, 3);
+      }
+    } catch (aiError) {
+      console.log(`[Resources] AI matching failed (${aiError.message}), using fallback`);
+    }
+  }
+
+  // Step 4: Return General resources as fallback
+  if (!resources) {
+    console.log(`[Resources] Fallback (General): ${cleanTopic}`);
+    resources = CURATED_RESOURCES['General'].slice(0, 3);
+  }
+
+  return resources;
 }
 
 /**
