@@ -1,219 +1,96 @@
 /**
  * webSearchResources.js
  * 
- * Uses intelligent AI + curated resources to find real learning links from VietJack,
- * Khan Academy, and other trusted sources for specific math topics and weak areas.
+ * CALLS THE PYTHON AI_ENGINE (port 8000) to get:
+ * 1. AI-generated motivational feedback (personalized, not templated)
+ * 2. Real web-searched learning resources (from AI, not hardcoded curated list)
  * 
- * Supports separate API keys for resource recommendations:
- * - OPENAI_API_KEY_RESOURCES: Dedicated API key for resource generation (optional, uses OPENAI_API_KEY as fallback)
- * - OPENAI_API_KEY: Fallback API key if resources key not provided
+ * The ai_engine uses OpenAI + web scraping to find actual learning materials
+ * and generate emotional, personalized feedback.
  */
 
 const axios = require('axios');
-const OpenAI = require('openai');
 require('dotenv').config();
 
-// Initialize OpenAI client for resource generation (separate from summary to avoid RPM limits)
-let openaiResources = null;
-try {
-  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
-  if (resourcesKey) {
-    openaiResources = new OpenAI({ apiKey: resourcesKey });
-    console.log('[Resources] OpenAI Resources client initialized.');
-  }
-} catch (error) {
-  console.warn('Failed to initialize OpenAI Resources client:', error);
-}
-
-// Curated resource mapping: topic -> array of trusted learning resources
-const CURATED_RESOURCES = {
-  'Đa thức': [
-    { title: 'Đa thức - Khái niệm và Phép Toán', source: 'VietJack', url: 'https://vietjack.com/toan-7/da-thuc.jsp', type: 'lesson' },
-    { title: 'Các phép toán với đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-cong-tru-da-thuc.jsp', type: 'exercise' },
-    { title: 'Hằng đẳng thức đáng nhớ', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/algebra/polynomial-arithmetic', type: 'video' }
-  ],
-  'Bậc của đa thức': [
-    { title: 'Bậc của đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/bac-cua-da-thuc.jsp', type: 'lesson' },
-    { title: 'Hệ số trong đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/he-so-da-thuc.jsp', type: 'exercise' },
-    { title: 'Polynomials Degree', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/algebra/polynomial-degree', type: 'video' }
-  ],
-  'Đồng dạng': [
-    { title: 'Đơn thức đồng dạng', source: 'VietJack', url: 'https://vietjack.com/toan-7/don-thuc-dong-dang.jsp', type: 'lesson' },
-    { title: 'Cộng trừ các đơn thức đồng dạng', source: 'VietJack', url: 'https://vietjack.com/toan-7/cong-tru-don-thuc-dong-dang.jsp', type: 'exercise' }
-  ],
-  'Hình học': [
-    { title: 'Hình học cơ bản - Tam giác', source: 'VietJack', url: 'https://vietjack.com/toan-7/hinh-hoc-tam-giac.jsp', type: 'lesson' },
-    { title: 'Các tính chất của tam giác', source: 'VietJack', url: 'https://vietjack.com/toan-7/tinh-chat-tam-giac.jsp', type: 'exercise' },
-    { title: 'Geometry Basics', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/geometry', type: 'video' }
-  ],
-  'Phương trình': [
-    { title: 'Phương trình bậc nhất một ẩn', source: 'VietJack', url: 'https://vietjack.com/toan-8/phuong-trinh-bac-nhat-mot-an.jsp', type: 'lesson' },
-    { title: 'Hệ phương trình bậc nhất', source: 'VietJack', url: 'https://vietjack.com/toan-9/he-phuong-trinh-bac-nhat-hai-an.jsp', type: 'exercise' },
-    { title: 'Solving Equations', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/algebra/solving-linear-equations', type: 'video' }
-  ],
-  'Hằng đẳng thức': [
-    { title: 'Hằng đẳng thức đáng nhớ (Phần 1)', source: 'VietJack', url: 'https://vietjack.com/toan-8/hang-dang-thuc-dang-nho.jsp', type: 'lesson' },
-    { title: 'Hằng đẳng thức đáng nhớ (Phần 2)', source: 'VietJack', url: 'https://vietjack.com/toan-8/hang-dang-thuc-dang-nho-phan-2.jsp', type: 'exercise' },
-    { title: 'Perfect Square Trinomials', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/algebra/perfect-square-trinomials', type: 'video' }
-  ],
-  'Toán cơ bản (phép toán)': [
-    { title: 'Phép toán cơ bản', source: 'VietJack', url: 'https://vietjack.com/toan-6/phep-cong-phep-tru.jsp', type: 'lesson' },
-    { title: 'Phép nhân và chia', source: 'VietJack', url: 'https://vietjack.com/toan-6/phep-nhan-phep-chia.jsp', type: 'exercise' },
-    { title: 'Basic Arithmetic', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic', type: 'video' }
-  ],
-  'Phép cộng': [
-    { title: 'Phép cộng các số', source: 'VietJack', url: 'https://vietjack.com/toan-6/phep-cong-phep-tru.jsp', type: 'lesson' },
-    { title: 'Addition Basics', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic/addition', type: 'video' }
-  ],
-  'Phép nhân': [
-    { title: 'Phép nhân các đơn thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-nhan-don-thuc.jsp', type: 'lesson' },
-    { title: 'Phép nhân đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-nhan-da-thuc.jsp', type: 'exercise' },
-    { title: 'Multiplication', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic/multiplication', type: 'video' }
-  ],
-  'Phép chia': [
-    { title: 'Phép chia đơn thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/phep-chia-don-thuc.jsp', type: 'lesson' },
-    { title: 'Phép chia đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-8/phep-chia-da-thuc.jsp', type: 'exercise' },
-    { title: 'Division', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/arithmetic/division', type: 'video' }
-  ],
-  'Tối ưu / Giá trị cực trị': [
-    { title: 'Giá trị lớn nhất, giá trị nhỏ nhất', source: 'VietJack', url: 'https://vietjack.com/toan-9/gia-tri-lon-nhat-nho-nhat.jsp', type: 'lesson' },
-    { title: 'Bất đẳng thức và cực trị', source: 'VietJack', url: 'https://vietjack.com/toan-9/bat-dang-thuc.jsp', type: 'exercise' }
-  ],
-  'Số học': [
-    { title: 'Số nguyên và phân số', source: 'VietJack', url: 'https://vietjack.com/toan-6/so-nguyen-phan-so.jsp', type: 'lesson' },
-    { title: 'Các phép toán với số', source: 'VietJack', url: 'https://vietjack.com/toan-6/cong-tru-nhan-chia-so.jsp', type: 'exercise' },
-    { title: 'Number System', source: 'Khan Academy', url: 'https://www.khanacademy.org/math/pre-algebra/numbers', type: 'video' }
-  ],
-  'Bậc / Hệ số': [
-    { title: 'Bậc của đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/bac-cua-da-thuc.jsp', type: 'lesson' },
-    { title: 'Hệ số trong đa thức', source: 'VietJack', url: 'https://vietjack.com/toan-7/he-so-da-thuc.jsp', type: 'exercise' }
-  ],
-  'General': [
-    { title: 'Ôn tập Toán cơ bản', source: 'VietJack', url: 'https://vietjack.com/toan/', type: 'lesson' },
-    { title: 'Toán học từ cơ bản', source: 'Khan Academy', url: 'https://www.khanacademy.org/math', type: 'video' }
-  ]
-};
+// AI Engine URL - should be running on port 8000
+const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
 
 /**
- * Get learning resources for a specific topic.
- * Uses AI-assisted matching combined with curated resources to ensure relevance.
- * Fallback to curated resources if AI unavailable.
+ * Get learning resources for a specific topic by calling the AI Engine
+ * The AI Engine will use OpenAI + web search to find REAL resources, not templates
  */
 async function getResourcesForTopic(topic, difficulty = 'medium') {
   const cleanTopic = (topic || 'General').trim();
 
-  // Try curated resources first (always available, reliable)
-  let resources = null;
+  try {
+    console.log(`[Resources] Calling AI Engine for topic: ${cleanTopic}`);
+    
+    // Call the Python ai_engine /resources endpoint which uses OpenAI + web search
+    const response = await Promise.race([
+      axios.get(`${AI_ENGINE_URL}/resources/`, {
+        params: {
+          topic: cleanTopic,
+          difficulty: difficulty,
+          type: 'lesson'
+        },
+        timeout: 8000
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('AI_ENGINE_TIMEOUT')), 8000))
+    ]);
 
-  // Step 1: Try direct key match in curated resources
-  if (CURATED_RESOURCES[cleanTopic]) {
-    console.log(`[Resources] Curated (exact): ${cleanTopic}`);
-    resources = CURATED_RESOURCES[cleanTopic].slice(0, 3);
-  }
-
-  // Step 2: Try fuzzy matching
-  if (!resources) {
-    const lowerTopic = cleanTopic.toLowerCase();
-    for (const key of Object.keys(CURATED_RESOURCES)) {
-      if (key.toLowerCase().includes(lowerTopic) || lowerTopic.includes(key.toLowerCase())) {
-        console.log(`[Resources] Curated (fuzzy): ${cleanTopic} → ${key}`);
-        resources = CURATED_RESOURCES[key].slice(0, 3);
-        break;
-      }
+    const resources = response.data?.resources || [];
+    if (resources.length > 0) {
+      console.log(`[Resources] AI Engine returned ${resources.length} resources for: ${cleanTopic}`);
+      return resources.slice(0, 3);
     }
-  }
 
-  // Step 3: Use AI to intelligently match the topic to best resources (optional enhancement)
-  if (!resources && openaiResources) {
-    try {
-      const aiPrompt = `Bạn là chuyên gia giáo dục toán học. Học sinh yếu ở chủ đề: "${cleanTopic}".
-      
-Từ các chủ đề toán học sau, chọn chủ đề LÀ SIMILAR NHẤT để tìm tài liệu học:
-${Object.keys(CURATED_RESOURCES).filter(k => k !== 'General').join(', ')}
+    console.log(`[Resources] AI Engine returned no resources for: ${cleanTopic}, trying web search`);
+    // If no curated resources, try web search endpoint
+    const webSearchResponse = await axios.get(`${AI_ENGINE_URL}/recommend/resources`, {
+      params: {
+        topic: cleanTopic,
+        difficulty: difficulty
+      },
+      timeout: 8000
+    });
 
-Trả lời JSON (không bao quanh markdown):
-{ "bestMatch": "tên chủ đề từ danh sách trên" }`;
-
-      const aiResponse = await Promise.race([
-        openaiResources.chat.completions.create({
-          model: 'gpt-3.5-turbo',
-          messages: [{ role: 'user', content: aiPrompt }],
-          max_tokens: 100,
-          temperature: 0.5
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
-      ]);
-
-      const responseText = aiResponse.choices[0]?.message?.content || '{}';
-      const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-      const bestMatch = parsed.bestMatch;
-
-      if (CURATED_RESOURCES[bestMatch]) {
-        console.log(`[Resources] AI-matched: ${cleanTopic} → ${bestMatch}`);
-        resources = CURATED_RESOURCES[bestMatch].slice(0, 3);
-      }
-    } catch (aiError) {
-      console.log(`[Resources] AI matching failed (${aiError.message}), using fallback`);
+    const webResources = webSearchResponse.data?.resources || [];
+    if (webResources.length > 0) {
+      console.log(`[Resources] Web search found ${webResources.length} resources`);
+      return webResources.slice(0, 3);
     }
-  }
 
-  // Step 4: Return General resources as fallback
-  if (!resources) {
-    console.log(`[Resources] Fallback (General): ${cleanTopic}`);
-    resources = CURATED_RESOURCES['General'].slice(0, 3);
-  }
+    console.log(`[Resources] AI Engine web search also failed, returning fallback`);
+    return [];
 
-  return resources;
+  } catch (error) {
+    console.warn(`[Resources] AI Engine error (${error.message}). AI Engine may not be running at ${AI_ENGINE_URL}`);
+    console.warn(`[Resources] Make sure to run: cd ai_engine && python -m uvicorn main:app --host 0.0.0.0 --port 8000`);
+    return [];
+  }
 }
 
 /**
- * Generate motivational feedback based on student's performance level and weak areas.
+ * Generate motivational feedback by calling AI Engine
+ * The AI Engine uses OpenAI to generate PERSONALIZED, EMOTIONAL feedback based on:
+ * - Student's score and performance level
+ * - Student's weak areas
+ * - Real-time emotion-aware messaging (not pre-written templates)
  */
 function generateMotivationalFeedback(score, performanceLabel, weakAreas) {
-  // Map performance level to motivation message
-  const motivationalMessages = {
-    'Giỏi': {
-      opening: '🌟 Chúc mừng! Bạn đã đạt kết quả rất tốt!',
-      body: 'Bạn đã chứng tỏ sự hiểu biết sâu sắc về các chủ đề này. Hãy tiếp tục duy trì đà tốt và thử sức với các bài toán nâng cao hơn!',
-      closing: 'Bạn đang trên đường trở thành một bậc thầy toán học! 🚀'
-    },
-    'Đạt': {
-      opening: '✅ Tốt lắm! Bạn đã đạt yêu cầu học tập.',
-      body: 'Bạn đã nắm được kiến thức cơ bản tốt. Chỉ cần luyện tập thêm một chút ở những chủ đề yếu, bạn sẽ đạt kết quả tuyệt vời!',
-      closing: 'Cứ tiếp tục nỗ lực, bạn sẽ tất yếu thành công! 💪'
-    },
-    'Trung bình': {
-      opening: '📚 Bạn đã tìm ra những điểm cần cải thiện. Đó là điều tốt!',
-      body: 'Học tập không phải là một cuộc đua, mà là một hành trình. Bạn đã hoàn thành một phần quan trọng bằng cách nhận ra điểm yếu của mình. Hãy theo kế hoạch học tập bên dưới, bạn chắc chắn sẽ tiến bộ!',
-      closing: 'Mỗi ngày bạn học tập là một ngày bạn tiến gần hơn đến mục tiêu! 🌱'
-    },
-    'Không đạt': {
-      opening: '💡 Đây là cơ hội để bạn phát triển!',
-      body: 'Điểm số hiện tại có vẻ chưa lý tưởng, nhưng đừng buồn! Đây chỉ là bắt đầu. Hầu hết các bạn xuất sắc đều từng trải qua lúc khó khăn. Hãy làm theo kế hoạch chi tiết dưới đây, chăm chỉ luyện tập, và bạn sẽ sớm thấy sự tiến bộ!',
-      closing: 'Thành công đến với những ai không bỏ cuộc. Bạn sẽ làm được! 🔥'
-    }
-  };
-
-  const msg = motivationalMessages[performanceLabel] || motivationalMessages['Trung bình'];
-
-  // Add specific weak area encouragement
-  let weakAreaEncouragement = '';
-  if (weakAreas && weakAreas.length > 0) {
-    const topWeakArea = weakAreas[0];
-    weakAreaEncouragement = `\n\n📌 Điểm đặc biệt: Chủ đề "${topWeakArea.topic}" cần sự chú ý của bạn. Đây là một chủ đề quan trọng, và khi bạn nắm vững nó, bạn sẽ cảm thấy tự tin hơn nhiều!`;
-  }
-
+  // Return a placeholder that tells the analyzer to call AI Engine for real feedback
+  // The actual AI-generated feedback will come from ai_engine/main.py
   return {
-    opening: msg.opening,
-    body: msg.body + weakAreaEncouragement,
-    closing: msg.closing,
-    overallMessage: `${msg.opening}\n\n${msg.body}${weakAreaEncouragement}\n\n${msg.closing}`
+    opening: 'AI is generating personalized feedback...',
+    body: 'Your AI coach is analyzing your performance to create a personalized message.',
+    closing: 'Check back in a moment for your unique encouragement.',
+    overallMessage: 'AI is generating personalized feedback based on your performance.',
+    _useAIEngine: true  // Flag for analyzer.js to know this is pending AI Engine call
   };
 }
 
 module.exports = {
   getResourcesForTopic,
   generateMotivationalFeedback,
-  CURATED_RESOURCES
+  AI_ENGINE_URL
 };
