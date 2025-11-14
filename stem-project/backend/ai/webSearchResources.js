@@ -312,112 +312,13 @@ function generateTemplateFeedback(score, performanceLabel, weakAreas) {
   };
 }
 
+// Export the main functions. Provide both names for compatibility
 module.exports = {
   getResourcesForTopic,
   generateMotivationalFeedback,
   analyzeQuestionTopic,
-  searchForResources
-};
-
-/**
- * Generate personalized motivational feedback using OpenAI
- * ✅ Real, not templated - each student gets unique message
- * 4-second timeout, falls back to template if AI unavailable
- */
-async function generateMotivationalFeedback(score, performanceLabel, weakAreas) {
-  if (!openaiResources) {
-    return generateTemplateFeedback(score, performanceLabel, weakAreas);
-  }
-
-  try {
-    const weakList = weakAreas.slice(0, 2).map(w => w.topic).join(', ');
-    
-    const prompt = `Viết lời động viên NGẮN (2-3 câu) cho học sinh:
-- Điểm: ${score}/10 (${performanceLabel})
-- Yếu ở: ${weakList || 'đang cải thiện'}
-
-Hãy thực tế, ấm áp, cụ thể (không clichéd).
-
-JSON:
-{"opening":"...", "body":"...", "closing":"..."}`;
-
-    const response = await Promise.race([
-      openaiResources.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 250,
-        temperature: 0.7
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 4000))
-    ]);
-
-    const text = response.choices[0]?.message?.content || '{}';
-    const clean = text.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
-    const parsed = JSON.parse(clean);
-
-    if (parsed.opening && parsed.body && parsed.closing) {
-      let note = '';
-      if (weakAreas?.length > 0) {
-        note = `\n\n📌 ${weakAreas[0].topic} - ưu tiên hôm nay!`;
-      }
-      return {
-        opening: parsed.opening,
-        body: parsed.body + note,
-        closing: parsed.closing,
-        overallMessage: `${parsed.opening}\n\n${parsed.body}${note}\n\n${parsed.closing}`
-      };
-    }
-  } catch (e) {
-    console.log(`[Resources] AI motivation failed, using template`);
-  }
-
-  return generateTemplateFeedback(score, performanceLabel, weakAreas);
-}
-
-/**
- * Fallback template messages (when OpenAI or web search unavailable)
- */
-function generateTemplateFeedback(score, performanceLabel, weakAreas) {
-  const msgs = {
-    'Giỏi': {
-      opening: '🌟 Chúc mừng! Kết quả tuyệt vời!',
-      body: 'Bạn hiểu rõ các chủ đề. Tiếp tục duy trì đà tốt!',
-      closing: 'Bạn sắp trở thành thạc sĩ toán học! 🚀'
-    },
-    'Đạt': {
-      opening: '✅ Tốt lắm!',
-      body: 'Kiến thức cơ bản bạn nắm tốt. Cải thiện thêm những chủ đề yếu.',
-      closing: 'Tiếp tục nỗ lực! 💪'
-    },
-    'Trung bình': {
-      opening: '📚 Bạn biết điểm yếu của mình - đó là điểm mạnh!',
-      body: 'Luyện tập theo kế hoạch, bạn sẽ tiến bộ rõ rệt.',
-      closing: 'Hôm nay học, ngày mai thành công! 🌱'
-    },
-    'Không đạt': {
-      opening: '💡 Đây là cơ hội để phát triển!',
-      body: 'Tập trung vào những chủ đề cơ bản. Bạn sẽ làm tốt hơn!',
-      closing: 'Ai không bỏ cuộc sẽ thành công! 🔥'
-    }
-  };
-
-  const msg = msgs[performanceLabel] || msgs['Trung bình'];
-  let note = '';
-  if (weakAreas?.length > 0) {
-    note = `\n\n📌 ${weakAreas[0].topic} - hãy chú ý chủ đề này.`;
-  }
-
-  return {
-    opening: msg.opening,
-    body: msg.body + note,
-    closing: msg.closing,
-    overallMessage: `${msg.opening}\n\n${msg.body}${note}\n\n${msg.closing}`
-  };
-}
-
-module.exports = {
-  getResourcesForTopic,
-  generateMotivationalFeedback,
-  analyzeQuestionTopic,
-  webSearchResources
+  // primary function name used internally
+  searchForResources,
+  // backward-compat alias used elsewhere
+  webSearchResources: searchForResources
 };
