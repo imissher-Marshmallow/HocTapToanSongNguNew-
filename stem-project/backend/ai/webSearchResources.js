@@ -49,6 +49,27 @@ function isTrustedDomain(url) {
   return TRUSTED_DOMAINS.some(domain => url.toLowerCase().includes(domain));
 }
 
+function isYouTubeUrl(url) {
+  return /youtu(be\.com|\.be)/i.test(url);
+}
+
+function isKhanAcademyUrl(url) {
+  return /khanacademy\.org/i.test(url);
+}
+
+function extractSource(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./i, '');
+    if (/khanacademy\.org/i.test(host)) return 'Khan Academy';
+    if (/vietjack\.com/i.test(host)) return 'VietJack';
+    if (/youtube\.com|youtu\.be/i.test(host)) return 'YouTube';
+    return host;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Sanitize search queries (remove parenthesis notes, counts like "- 4 câu", etc.)
 function sanitizeSearchQuery(q) {
   if (!q || typeof q !== 'string') return q;
@@ -170,7 +191,31 @@ Trả lời CHỈ JSON array, không thêm text khác.`;
 
           try {
             // Validate the URL is reachable and contains at least one keyword from the search query
-            const valid = await validateUrl(url, searchQuery);
+            let valid = await validateUrl(url, searchQuery);
+
+            // If not valid, try to get replacements (one retry) via LLM
+            if (!valid) {
+              const replacements = await requestReplacementLinks(searchQuery, [url]);
+              if (Array.isArray(replacements) && replacements.length > 0) {
+                for (const rep of replacements) {
+                  if (!rep.url) continue;
+                  if (!isTrustedDomain(rep.url)) continue;
+                  const repValid = await validateUrl(rep.url, searchQuery);
+                  if (repValid) {
+                    results.push({
+                      title: rep.title || item.title || 'Learning Resource',
+                      url: rep.url,
+                      source: rep.source || extractSource(rep.url) || extractSource(url) || 'Educational Resource',
+                      description: rep.description || item.description || '',
+                      type: 'lesson'
+                    });
+                    valid = true;
+                    break;
+                  }
+                }
+              }
+            }
+
             if (!valid) continue;
 
             results.push({
@@ -202,11 +247,35 @@ Trả lời CHỈ JSON array, không thêm text khác.`;
  */
 async function validateUrl(url, searchQuery) {
   try {
-    const resp = await axios.get(url, { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    // Special handling for YouTube videos: use oEmbed to detect removed/unavailable videos
+    if (isYouTubeUrl(url)) {
+      try {
+        const oembed = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        const r = await axios.get(oembed, { timeout: 4000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (r && r.status === 200) return true;
+        return false;
+      } catch (yErr) {
+        return false;
+      }
+    }
+
+    const resp = await axios.get(url, { timeout: 6000, headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!resp || !resp.status || resp.status >= 400) return false;
 
     const text = (resp.data || '').toString().toLowerCase();
     const queryTokens = (searchQuery || '').toLowerCase().split(/\s+/).filter(Boolean);
+
+    // Quick checks for common 'not found' phrases
+    if (/404|page not found|sorry,? we|couldn't find|không tìm thấy|trang này không tồn tại/.test(text)) return false;
+
+    // Khan Academy specific check: ensure the page contains lesson/exercise/video markers or query tokens
+    if (isKhanAcademyUrl(url)) {
+      const khanMarkers = ['exercise', 'practice', 'video', 'lesson', 'khanacademy.org'];
+      const hasMarker = khanMarkers.some(m => text.includes(m));
+      const tokenMatch = queryTokens.some(t => t.length >= 3 && text.includes(t));
+      if (hasMarker || tokenMatch) return true;
+      return false;
+    }
 
     // Consider it valid if the page contains at least one meaningful token from the query
     let matches = 0;
@@ -217,11 +286,41 @@ async function validateUrl(url, searchQuery) {
     }
 
     // also accept if the domain itself is trusted and page has reasonable size
-    if (isTrustedDomain(url) && (resp.data || '').length > 1000) return true;
+    if (isTrustedDomain(url) && (resp.data || '').length > 1500) return true;
     return false;
   } catch (e) {
     return false;
   }
+}
+
+/**
+ * Ask the LLM to return 1-2 replacement links for the same query excluding some URLs
+ */
+async function requestReplacementLinks(searchQuery, excludedUrls = []) {
+  if (!openaiResources) return [];
+
+  try {
+    const excluded = (excludedUrls || []).slice(0, 5).map(u => `- ${u}`).join('\n');
+    const prompt = `Tìm 1-2 liên kết thay thế cho truy vấn: "${searchQuery}"\nYêu cầu:\n- Trả về 1-2 liên kết thực tế từ nguồn giáo dục (Khan Academy, VietJack, YouTube watch links)\n- Loại trừ các URL sau (nếu có):\n${excluded}\n- Trả về CHỈ JSON array với các item {"title","url","source","description","type"}.`; 
+
+    const response = await Promise.race([
+      openaiResources.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300,
+        temperature: 0.6
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('REPLACE_TIMEOUT')), 3500))
+    ]);
+
+    const text = response.choices[0]?.message?.content || '[]';
+    const clean = text.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    console.warn('[Resources] Replacement link request failed:', e.message);
+  }
+  return [];
 }
 
 /**

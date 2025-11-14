@@ -206,13 +206,13 @@ async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendati
 Yêu cầu (rất quan trọng):
 - Trả về JSON duy nhất (không chứa markdown fencing).
 - Bao gồm các trường:
-  - "overall": một thông điệp tổng hợp 1-2 câu bằng tiếng Việt.
+  - "overall": một thông điệp tổng hợp 1-4 câu bằng tiếng Việt chi tiết.
   - "start_here": một câu hướng dẫn rõ ràng để học sinh BẮT ĐẦU ngay (ví dụ: "Ôn 15 phút phần X trên VietJack, sau đó làm 5 bài tập").
   - "strengths": mảng các điểm mạnh (ngắn gọn).
   - "weaknesses": mảng các điểm yếu chi tiết (bao gồm % sai nếu có).
   - "plan": một mảng 5 bước chi tiết, mỗi bước là một object với: {"step": "mô tả hành động cụ thể","duration": "thời lượng (ví dụ: '15 phút')","action":"việc làm cụ thể","resource_suggestion": {"type":"article|video|exercise","name":"tên nguồn (ví dụ: VietJack bài X hoặc YouTube video tiêu đề)"} }.
   - "priority": mảng short list (1-3) những việc cần làm NGAY.
-  - "motivationalMessage": một lời động viên cụ thể 1-2 câu.
+  - "motivationalMessage": một lời động viên cụ thể 3 câu theo cảm nhận cá nhân về học sinh này.
 
 Ví dụ:
 {
