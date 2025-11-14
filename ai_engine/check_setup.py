@@ -26,14 +26,14 @@ def check_env_file():
     has_api_key = 'OPENAI_API_KEY=' in content
     
     if not has_db_url:
-        print("⚠️  DATABASE_URL not found or invalid in .env")
+        print("  DATABASE_URL not found or invalid in .env")
     else:
-        print("✓ DATABASE_URL configured")
+        print(" DATABASE_URL configured")
         
     if not has_api_key:
-        print("⚠️  OPENAI_API_KEY not found in .env (optional, needed for AI features)")
+        print("  OPENAI_API_KEY not found in .env (optional, needed for AI features)")
     else:
-        print("✓ OPENAI_API_KEY configured")
+        print(" OPENAI_API_KEY configured")
     
     return has_db_url
 

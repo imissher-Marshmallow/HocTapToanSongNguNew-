@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { quizTranslations } from '../translations/quizTranslations';
+import { trackQuizAttempt } from '../helpers/learningHomeIntegration';
 import '../styles/AzotaQuiz.css';
 import classNames from 'classnames';
 
@@ -258,6 +259,22 @@ function QuizPage() {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       const result = await res.json();
+      
+      // Track quiz attempt for learning home (automatically updates weak areas, daily stats, etc.)
+      if (userId && result.percentage !== undefined) {
+        const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+        await trackQuizAttempt(
+          userId,
+          selectedContestKey || id || 'random',
+          result.score || 0,
+          result.percentage / 100,
+          timeTaken,
+          finalAnswers,
+          questions,
+          apiBaseUrl
+        );
+      }
+      
       // pass result object directly in location.state (not nested) for ResultPage
       navigate('/result', { state: result });
     } catch (err) {
