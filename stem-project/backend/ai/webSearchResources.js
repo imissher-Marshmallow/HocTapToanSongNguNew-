@@ -6,7 +6,8 @@
  * Uses:
  * - OpenAI to analyze incorrect questions → identify exact math topic/chapter
  * - OpenAI with web search capabilities to find verified learning resources
- * - Smart filtering to return only trusted sources (VietJack, Khan Academy, official edu sites)
+ * - Google Custom Search Engine (CSE) as fallback for real search results
+ * - Smart filtering to return only trusted sources (VietJack, Wikipedia, official edu sites)
  * 
  * Result: AI finds ACTUAL learning resources matching student's specific weak topics
  */
@@ -33,6 +34,10 @@ try {
 const SEARCH_TIMEOUT_MS = parseInt(process.env.OPENAI_SEARCH_TIMEOUT_MS, 10) || 10000; // default 10s
 const REPLACE_TIMEOUT_MS = parseInt(process.env.OPENAI_REPLACE_TIMEOUT_MS, 10) || 10000; // default 7s
 const TOPIC_ANALYSIS_TIMEOUT_MS = parseInt(process.env.OPENAI_TOPIC_TIMEOUT_MS, 10) || 10000; // default 5s
+
+// Google Custom Search Engine configuration
+const GOOGLE_CSE_CX = process.env.GOOGLE_CSE_CX || '76259ba63322945d5'; // Custom Search Engine ID
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || 'AIzaSyAjz-9jRZ3Xc9tuyqSZb5I0vQrNn2OnXtQ'; // Google API key
 
 // Trusted educational sources
 const TRUSTED_DOMAINS = [
@@ -117,6 +122,31 @@ function sanitizeSearchQuery(q) {
   return s;
 }
 
+/**
+ * Build a short, simple search query from the student's question and detected topic.
+ * This is used for the Google CSE fallback to keep searches concise and effective.
+ */
+function buildSimpleSearchQuery(question, topicAnalysis) {
+  const q = sanitizeSearchQuery(question || '').toLowerCase();
+  const topic = (topicAnalysis && topicAnalysis.topic) ? normalizeTopicKey(topicAnalysis.topic) : '';
+
+  // If question explicitly mentions multiplication and topic is polynomials/đa thức
+  if ((q.includes('nhân') || q.includes('phép nhân')) && topic.includes('đa thức')) {
+    return 'phép nhân đa thức một biến';
+  }
+
+  // If topic is clear, return a concise phrase
+  if (topic) {
+    // prefer short 'cách làm' searches for the topic
+    return `${topic} cách làm ví dụ`;
+  }
+
+  // Fallback: use first meaningful tokens from the question
+  const tokens = q.split(/\s+/).filter(t => t.length >= 3);
+  if (tokens.length === 0) return q || '';
+  return tokens.slice(0, 4).join(' ');
+}
+
 // Detect common assessment label strings that are not useful as search queries
 const ASSESSMENT_LABELS = ['nhận biết', 'thông hiểu', 'vận dụng', 'nhận biết (knowledge)', 'thông hiểu (comprehension)', 'vận dụng thấp', 'vận dụng cao'];
 function isAssessmentLabel(s) {
@@ -181,7 +211,8 @@ Trả lời JSON:
 
 /**
  * Use OpenAI to generate web search query and find resources
- * Returns verified, working links from trusted sources
+ * Returns verified, working links from trusted sources (VietJack, Wikipedia, etc.)
+ * AVOID YouTube and Khan Academy due to hallucinations
  */
 async function searchForResources(searchQuery) {
   if (!openaiResources) return [];
@@ -189,25 +220,26 @@ async function searchForResources(searchQuery) {
   const results = [];
 
   try {
-    // Ask OpenAI to recommend best learning resources for this topic
-    // OpenAI knows about VietJack, Khan Academy, and other popular platforms
+    // Ask OpenAI to recommend ONLY from verifiable, real sources (VietJack, Wikipedia)
+    // Avoid YouTube and Khan Academy which are frequently hallucinated
     const prompt = `Tìm các tài liệu học tập phù hợp cho: "${searchQuery}"
 
-Gợi ý các truy vấn tìm kiếm (ví dụ): "${searchQuery} VietJack", "Cách ${searchQuery} VietJack", "${searchQuery} Khan Academy", "${searchQuery} video YouTube".
+CHỈ tìm từ các nguồn THỰC VÀ XÁC NHẬN:
+- VietJack (vietjack.com)
+- Wikipedia tiếng Việt (vi.wikipedia.org)
+- Các trang giáo dục chính thức
 
-Yêu cầu (rất quan trọng):
-1) Trả về 2-4 liên kết THỰC từ nguồn đáng tin cậy.
-2) Với mỗi mục, cung cấp các trường: "title", "url", "source", "description", "type".
-   - "type" phải là một trong: "article", "exercise", "video".
-3) Nếu là "video", KHÔNG trả về playlist links; chỉ trả về direct video links (YouTube: contain "watch?v=" or "youtu.be/").
-4) Ưu tiên tiếng Việt (VietJack) và Khan Academy nếu có; nếu không, trả về YouTube video watch links.
-5) Không đề xuất trang 404 hoặc landing/playlist pages.
-6) Định dạng: JSON array duy nhất, không thêm text khác.
+Yêu cầu (RẤT QUAN TRỌNG):
+1) Trả về 2-4 liên kết THỰC TỪ CÁC TRANG CÓ SẴN - không phát minh URL.
+2) Với mỗi mục: "title", "url", "source", "description", "type" (phải là "article" hoặc "exercise").
+3) KHÔNG trả về YouTube hay Khan Academy - chỉ VietJack, Wikipedia, hoặc các trang edu đã xác nhận tồn tại.
+4) Mỗi URL phải là liên kết thực tế, có thể truy cập, và chứa nội dung về chủ đề.
+5) Định dạng: JSON array duy nhất, không thêm text khác.
 
-Ví dụ:
+Ví dụ ĐÚNG:
 [
-  {"title":"...", "url":"https://...", "source":"VietJack", "description":"...", "type":"article"},
-  {"title":"...", "url":"https://www.youtube.com/watch?v=...", "source":"YouTube", "description":"...", "type":"video"}
+  {"title":"Đa thức - VietJack", "url":"https://vietjack.com/toan-hoc/da-thuc", "source":"VietJack", "description":"Bài giảng về đa thức", "type":"article"},
+  {"title":"Đa thức - Wikipedia", "url":"https://vi.wikipedia.org/wiki/Đa_thức", "source":"Wikipedia", "description":"Khái niệm đa thức", "type":"article"}
 ]
 
 Trả lời CHỈ JSON array, không thêm text khác.`;
@@ -234,7 +266,13 @@ Trả lời CHỈ JSON array, không thêm text khác.`;
           if (!item.url || !(item.url.startsWith('http://') || item.url.startsWith('https://'))) continue;
           const url = item.url;
 
-          // quick domain filter
+          // REJECT YouTube and Khan Academy to avoid hallucinated links
+          if (isYouTubeUrl(url) || isKhanAcademyUrl(url)) {
+            console.log(`[Resources] Skipping unreliable source: ${url}`);
+            continue;
+          }
+
+          // quick domain filter - only allow VietJack, Wikipedia, and other edu sources
           if (!isTrustedDomain(url)) continue;
 
           try {
@@ -247,6 +285,8 @@ Trả lời CHỈ JSON array, không thêm text khác.`;
               if (Array.isArray(replacements) && replacements.length > 0) {
                 for (const rep of replacements) {
                   if (!rep.url) continue;
+                  // Reject YouTube/Khan Academy here too
+                  if (isYouTubeUrl(rep.url) || isKhanAcademyUrl(rep.url)) continue;
                   if (!isTrustedDomain(rep.url)) continue;
                   const repValid = await validateUrl(rep.url, searchQuery);
                   if (repValid) {
@@ -303,40 +343,83 @@ async function validateUrl(url, searchQuery) {
         if (r && r.status === 200) return true;
         return false;
       } catch (yErr) {
+        console.warn(`[Resources] YouTube validation failed for ${url}: ${yErr.message}`);
         return false;
       }
     }
 
-    const resp = await axios.get(url, { timeout: 6000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!resp || !resp.status || resp.status >= 400) return false;
-
-    const text = (resp.data || '').toString().toLowerCase();
-    const queryTokens = (searchQuery || '').toLowerCase().split(/\s+/).filter(Boolean);
-
-    // Quick checks for common 'not found' phrases
-    if (/404|page not found|sorry,? we|couldn't find|không tìm thấy|trang này không tồn tại/.test(text)) return false;
-
-    // Khan Academy specific check: ensure the page contains lesson/exercise/video markers or query tokens
-    if (isKhanAcademyUrl(url)) {
-      const khanMarkers = ['exercise', 'practice', 'video', 'lesson', 'khanacademy.org'];
-      const hasMarker = khanMarkers.some(m => text.includes(m));
-      const tokenMatch = queryTokens.some(t => t.length >= 3 && text.includes(t));
-      if (hasMarker || tokenMatch) return true;
+    let resp;
+    try {
+      resp = await axios.get(url, { timeout: 6000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    } catch (fetchErr) {
+      console.warn(`[Resources] Failed to fetch ${url}: ${fetchErr.message}`);
       return false;
     }
 
-    // Consider it valid if the page contains at least one meaningful token from the query
-    let matches = 0;
-    for (const t of queryTokens) {
-      if (t.length < 3) continue;
-      if (text.includes(t)) matches++;
-      if (matches >= 1) return true;
+    if (!resp || !resp.status) {
+      console.warn(`[Resources] No response from ${url}`);
+      return false;
     }
 
-    // also accept if the domain itself is trusted and page has reasonable size
-    if (isTrustedDomain(url) && (resp.data || '').length > 1500) return true;
-    return false;
+    if (resp.status >= 400) {
+      console.warn(`[Resources] ${url} returned status ${resp.status}`);
+      return false;
+    }
+
+    const text = (resp.data || '').toString().toLowerCase();
+
+    // Quick checks for common 'not found' phrases (including Vietnamese)
+    if (/404|page not found|sorry,? we|couldn't find|không tìm thấy|trang này không tồn tại|not found/.test(text)) {
+      console.warn(`[Resources] ${url} contains 404/not-found markers`);
+      return false;
+    }
+
+    // Extract meaningful tokens from search query (3+ chars, not stopwords)
+    const queryTokens = (searchQuery || '').toLowerCase().split(/\s+/).filter(t => t.length >= 3);
+    if (queryTokens.length === 0) {
+      console.warn(`[Resources] No meaningful tokens to validate in query: "${searchQuery}"`);
+      return false;
+    }
+
+    // Khan Academy specific check: ensure the page contains lesson/exercise/video markers or query tokens
+    if (isKhanAcademyUrl(url)) {
+      const khanMarkers = ['exercise', 'practice', 'video', 'lesson'];
+      const hasMarker = khanMarkers.some(m => text.includes(m));
+      const tokenMatch = queryTokens.some(t => text.includes(t));
+      if (!hasMarker && !tokenMatch) {
+        console.warn(`[Resources] Khan Academy URL ${url} has no lesson markers or matching tokens`);
+        return false;
+      }
+      return true;
+    }
+
+    // VietJack: must contain at least one meaningful token from query
+    if (url.includes('vietjack.com')) {
+      const matches = queryTokens.filter(t => text.includes(t)).length;
+      if (matches === 0) {
+        console.warn(`[Resources] VietJack URL ${url} has no matching tokens for query: "${searchQuery}"`);
+        return false;
+      }
+      return true;
+    }
+
+    // General validation: must contain at least one meaningful token from the query
+    const matches = queryTokens.filter(t => text.includes(t)).length;
+    if (matches === 0) {
+      console.warn(`[Resources] URL ${url} has no matching tokens for query: "${searchQuery}"`);
+      return false;
+    }
+
+    // Also check page has reasonable content (>500 bytes is safer than 1500)
+    if ((resp.data || '').length < 500) {
+      console.warn(`[Resources] URL ${url} has too little content (${(resp.data || '').length} bytes)`);
+      return false;
+    }
+
+    console.log(`[Resources] ✅ URL validated: ${url}`);
+    return true;
   } catch (e) {
+    console.warn(`[Resources] Validation error for ${url}: ${e.message}`);
     return false;
   }
 }
@@ -372,13 +455,84 @@ async function requestReplacementLinks(searchQuery, excludedUrls = []) {
 }
 
 /**
+ * Search using Google Custom Search Engine (real search results)
+ * Fallback when LLM search returns no results
+ */
+async function googleSearchResources(searchQuery, limit = 3) {
+  if (!GOOGLE_CSE_CX || !GOOGLE_API_KEY) {
+    console.warn('[Resources] Google CSE not configured (missing GOOGLE_CSE_CX or GOOGLE_API_KEY)');
+    return [];
+  }
+
+  try {
+    console.log(`[Resources] Google CSE search: "${searchQuery}"`);
+    const url = 'https://www.googleapis.com/customsearch/v1';
+    const params = {
+      q: searchQuery,
+      cx: GOOGLE_CSE_CX,
+      key: GOOGLE_API_KEY,
+      num: Math.min(limit * 2, 10), // fetch extra to filter trusted domains
+    };
+
+    const response = await axios.get(url, { params, timeout: 8000 });
+    const items = response.data.items || [];
+    const results = [];
+
+    for (const item of items) {
+      if (!item.link) continue;
+
+      // Only accept trusted educational domains
+      if (!isTrustedDomain(item.link)) continue;
+
+      // Reject YouTube/Khan Academy
+      if (isYouTubeUrl(item.link) || isKhanAcademyUrl(item.link)) continue;
+
+      // Stronger validation: use the same validateUrl logic to ensure
+      // the page contains relevant content and is not a hallucinatory/404 page.
+      try {
+        const ok = await validateUrl(item.link, searchQuery);
+        if (!ok) {
+          console.warn(`[Resources] Google result ${item.link} failed content validation`);
+          continue;
+        }
+      } catch (e) {
+        console.warn(`[Resources] Google result ${item.link} validation error: ${e.message}`);
+        continue;
+      }
+
+      results.push({
+        title: item.title,
+        url: item.link,
+        source: extractSource(item.link) || 'Educational Resource',
+        description: item.snippet || '',
+        type: 'article'
+      });
+
+      if (results.length >= limit) break;
+    }
+
+    if (results.length > 0) {
+      console.log(`[Resources] Google CSE found ${results.length} verified resources`);
+    } else {
+      console.warn(`[Resources] Google CSE returned ${items.length} results but none were valid`);
+    }
+
+    return results;
+  } catch (e) {
+    console.warn(`[Resources] Google CSE search failed: ${e.message}`);
+    return [];
+  }
+}
+
+/**
  * Get learning resources for weak topic using AI-powered web search
  * 
  * Process:
  * 1. Analyze incorrect question → identify exact topic/chapter
  * 2. Generate smart search query
  * 3. Use OpenAI to find verified learning resources
- * 4. Return filtered results (trusted sources only)
+ * 4. Fallback: Use Google CSE for real search results
+ * 5. Return filtered results (trusted sources only)
  */
 async function getResourcesForTopic(topic, difficulty = 'medium', questionContext = null) {
   const cleanTopic = (topic || '').trim();
@@ -454,6 +608,27 @@ async function getResourcesForTopic(topic, difficulty = 'medium', questionContex
   if (webResults.length > 0) {
     console.log(`[Resources] Found ${webResults.length} verified resources for: "${cleanTopic}"`);
     return webResults.slice(0, 3);
+  }
+
+  // Fallback: Try Google Custom Search Engine for real search results
+  if (GOOGLE_CSE_CX && GOOGLE_API_KEY) {
+    const actualTopic = topicAnalysis?.topic || cleanTopic;
+
+    // First try a short, focused query derived from the question/topic
+    const simpleQuery = buildSimpleSearchQuery(questionContext?.question, topicAnalysis) || `${actualTopic} cách làm`;
+    console.log(`[Resources] Trying Google CSE as fallback (simpleQuery): "${simpleQuery}"`);
+    let googleResults = await googleSearchResources(simpleQuery, 3);
+    if (googleResults && googleResults.length > 0) {
+      return googleResults;
+    }
+
+    // If simple query fails, fall back to a more generic topic-based query
+    const googleQuery = `${actualTopic} cách làm toán học tiếng Việt`;
+    console.log(`[Resources] Trying Google CSE fallback (topicQuery): "${googleQuery}"`);
+    googleResults = await googleSearchResources(googleQuery, 3);
+    if (googleResults && googleResults.length > 0) {
+      return googleResults;
+    }
   }
 
   // If no AI/web results, try curated fallback for this topic (guaranteed working links)
