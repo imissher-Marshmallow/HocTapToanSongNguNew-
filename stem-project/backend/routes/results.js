@@ -102,8 +102,16 @@ router.post('/', authMiddleware, async (req, res) => {
     // Update result with AI-generated score and analysis
     if (resultId && aiResult) {
       try {
-        // Save AI analysis first
-        await dbHelpers.saveAIAnalysis(resultId, aiResult);
+        // Merge all important AI summary fields into ai_analysis
+        const aiAnalysisToSave = {
+          ...aiResult,
+          strengths: summary?.strengths || [],
+          weaknesses: summary?.weaknesses || [],
+          plan: summary?.plan || [],
+          motivationalFeedback: aiResult.motivationalFeedback || summary?.motivationalFeedback || null,
+          resourceLinks: aiResult.resourceLinks || summary?.resourceLinks || [],
+        };
+        await dbHelpers.saveAIAnalysis(resultId, aiAnalysisToSave);
         console.log(`[Results] Saved AI analysis for result ${resultId}`);
 
         // Update score and weak_areas in results table using dbHelpers.updateResult
@@ -126,7 +134,6 @@ router.post('/', authMiddleware, async (req, res) => {
               const planItem = summary.plan[dayNum - 1];
               const topics = (planItem && planItem.step) ? [planItem.step] : [];
               const exercises = (planItem && planItem.action) ? [planItem.action] : [];
-              
               await dbHelpers.saveLearningPlan(resultId, finalUserId, dayNum, topics, exercises);
             }
             console.log(`[Results] Saved ${Math.min(summary.plan.length, 5)} learning plan days for result ${resultId}`);
