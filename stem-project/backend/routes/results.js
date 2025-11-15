@@ -35,8 +35,16 @@ router.post('/', authMiddleware, async (req, res) => {
       middlewareUserId: req.userId,
       finalUserId,
       quizId,
-      answersLength: answers?.length
+      answersLength: answers?.length,
+      questionsLength: questions?.length
     });
+
+    // Require a valid numeric user id to save results (prevent anonymous inserts)
+    const numericUserId = finalUserId && finalUserId !== 'anonymous' ? Number(finalUserId) : null;
+    if (!numericUserId || Number.isNaN(numericUserId)) {
+      console.warn('[Results] Invalid or missing userId, rejecting save. finalUserId=', finalUserId);
+      return res.status(400).json({ error: 'Invalid or missing userId (must be authenticated)' });
+    }
 
     if (!quizId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'Missing required fields: quizId, answers' });
@@ -49,7 +57,7 @@ router.post('/', authMiddleware, async (req, res) => {
     
     try {
       resultId = await dbHelpers.saveResult(
-        finalUserId,
+        numericUserId,
         quizId,
         placeholderScore,
         totalQuestions,
@@ -58,10 +66,11 @@ router.post('/', authMiddleware, async (req, res) => {
         {}, // will be filled by AI
         {}  // will be filled by AI
       );
-      console.log(`[Results] Saved placeholder result ${resultId} with finalUserId:`, finalUserId);
+      console.log(`[Results] Saved placeholder result ${resultId} for user ${numericUserId}`);
     } catch (dbErr) {
-      console.error('[Results] Failed to save initial result:', dbErr.message);
-      // Continue anyway - we'll still analyze and return result
+      console.error('[Results] Failed to save initial result:', dbErr && dbErr.message ? dbErr.message : dbErr);
+      // Return a 500 here — if we can't insert the placeholder, further updates will fail.
+      return res.status(500).json({ error: 'Failed to create result record', details: dbErr && dbErr.message });
     }
 
     // Call AI analyzer (local Node.js - no external service)
@@ -123,17 +132,17 @@ router.post('/', authMiddleware, async (req, res) => {
         console.log(`[Results] Saved AI analysis for result ${resultId}`);
 
         // Update score and weak_areas in results table using dbHelpers.updateResult
-        try {
-          await dbHelpers.updateResult(resultId, {
-            score: actualScore,
-            weakAreas,
-            feedback: summary,
-            recommendations: aiResult.recommendations || []
-          });
-          console.log(`[Results] Updated result ${resultId} with score ${actualScore}`);
-        } catch (updErr) {
-          console.warn('[Results] Failed to update score via dbHelpers.updateResult:', updErr.message);
-        }
+          try {
+            await dbHelpers.updateResult(resultId, {
+              score: actualScore,
+              weakAreas,
+              feedback: summary,
+              recommendations: aiResult.recommendations || []
+            });
+            console.log(`[Results] Updated result ${resultId} with score ${actualScore}`);
+          } catch (updErr) {
+            console.warn('[Results] Failed to update score via dbHelpers.updateResult:', updErr && updErr.message ? updErr.message : updErr);
+          }
 
         // Generate and save learning plan from the AI summary
         if (summary && summary.plan && Array.isArray(summary.plan) && summary.plan.length > 0) {

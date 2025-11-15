@@ -232,24 +232,23 @@ function QuizPage() {
 
   const submitQuiz = async (finalAnswers) => {
     const userId = getUserId();
-    const isAutoSubmitted = autoSubmittedRef.current; // True if auto-submitted due to cheating
+    const isAutoSubmitted = autoSubmittedRef.current;
     const payload = {
       userId,
-      // Prefer the contest key returned by the questions API so grading uses the same contest
       quizId: selectedContestKey || id || 'random',
       answers: finalAnswers,
-      questions: questions,  // Include questions so backend can calculate score and store full context
-      isAutoSubmitted: isAutoSubmitted  // Flag indicating auto-submit due to anti-cheat
+      questions: questions,
+      isAutoSubmitted: isAutoSubmitted
     };
     try {
       const apiBaseUrl = getApiBase();
       const headers = {
         'Content-Type': 'application/json'
       };
-      // Include authorization token if available
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
+      // 1. Analyze quiz for AI feedback
       const res = await fetch(`${apiBaseUrl}/api/analyze-quiz`, {
         method: 'POST',
         headers,
@@ -259,7 +258,28 @@ function QuizPage() {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       const result = await res.json();
-      
+
+      // 2. Save result to /api/results so it appears in history
+      const savePayload = {
+        userId,
+        quizId: selectedContestKey || id || 'random',
+        answers: finalAnswers,
+        questions: questions,
+        score: result.score || 0,
+        percentage: result.percentage || 0,
+        ai_analysis: result,
+        isAutoSubmitted: isAutoSubmitted
+      };
+      const saveRes = await fetch(`${apiBaseUrl}/api/results`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(savePayload),
+      });
+      if (!saveRes.ok) {
+        throw new Error(`Failed to save result! status: ${saveRes.status}`);
+      }
+      const savedResult = await saveRes.json();
+
       // Track quiz attempt for learning home (automatically updates weak areas, daily stats, etc.)
       if (userId && result.percentage !== undefined) {
         const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
@@ -274,8 +294,8 @@ function QuizPage() {
           apiBaseUrl
         );
       }
-      
-      // pass result object directly in location.state (not nested) for ResultPage
+
+      // Pass result object directly in location.state for ResultPage
       navigate('/result', { state: result });
     } catch (err) {
       console.error('Error submitting quiz:', err);
