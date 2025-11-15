@@ -7,6 +7,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 const router = express.Router();
 
+// Lightweight rate limiter for analyze endpoint (avoid rapid duplicate analysis)
+const lastAnalyzeAt = new Map();
+const ANALYZE_WINDOW_MS = 1000;
+
 // GET /api/questions/:quizId
 router.get('/questions/:quizId', (req, res) => {
   try {
@@ -51,11 +55,27 @@ router.post('/analyze-quiz', async (req, res) => {
     const payload = req.body;
     console.log('Received quiz analysis request:', payload);
 
+    // Basic rate-limit to avoid duplicate analysis from rapid retries
+    try {
+      const key = String(payload.userId || 'anon');
+      const now = Date.now();
+      const last = lastAnalyzeAt.get(key) || 0;
+      if (now - last < ANALYZE_WINDOW_MS) {
+        console.warn('[AnalyzeQuiz] Rate limit triggered for', key);
+        // continue but avoid saving; still run analyzer for freshness
+      }
+      lastAnalyzeAt.set(key, now);
+    } catch (e) {}
+
     const result = await analyzeQuiz(payload);
 
     console.log('Analysis result:', result);
     // If a userId is present in the payload or Authorization header, save the result to DB
     try {
+      // If client requested to skip saving from analyze-quiz (frontend will POST to /api/results), obey that.
+      if (payload && payload.skipSave) {
+        console.log('[AnalyzeQuiz] skipSave flag detected — not persisting to DB from analyze-quiz');
+      } else {
       // Determine userId: prefer payload.userId, else JWT token
       let finalUserId = payload.userId;
       if (!finalUserId) {
@@ -80,6 +100,34 @@ router.post('/analyze-quiz', async (req, res) => {
 
         console.log('[AnalyzeQuiz] Saving result for userId=', numericUserId, 'quizId=', quizId);
 
+        // If client supplied a submissionId, check idempotency before inserting
+        const submissionId = payload.submissionId || null;
+        if (submissionId) {
+          try {
+            const existing = await dbHelpers.getResultBySubmissionId(submissionId);
+            if (existing) {
+              console.log('[AnalyzeQuiz] Existing result found for submissionId, skipping duplicate save id=', existing.id);
+              // Save AI analysis in case it is missing
+              try {
+                const aiAnalysisToSave = result || {};
+                await dbHelpers.saveAIAnalysis(existing.id, aiAnalysisToSave);
+              } catch (e) {}
+              // Update score as well
+              try {
+                await dbHelpers.updateResult(existing.id, {
+                  score: Number(result.score) || 0,
+                  weakAreas: result.weakAreas || [],
+                  feedback: result.summary || {},
+                  recommendations: result.recommendations || []
+                });
+              } catch (e) {}
+              // Return the analysis result to caller
+            }
+          } catch (e) {
+            console.warn('[AnalyzeQuiz] Idempotency check failed:', e && e.message ? e.message : e);
+          }
+        }
+
         const placeholderId = await dbHelpers.saveResult(
           numericUserId,
           quizId,
@@ -88,7 +136,8 @@ router.post('/analyze-quiz', async (req, res) => {
           answers,
           [],
           {},
-          {}
+          {},
+          submissionId
         );
         console.log(`[AnalyzeQuiz] Saved placeholder result ${placeholderId}`);
 
@@ -117,6 +166,7 @@ router.post('/analyze-quiz', async (req, res) => {
         }
       } else {
         console.log('[AnalyzeQuiz] No authenticated userId available; skipping DB save');
+      }
       }
     } catch (saveErr) {
       console.error('[AnalyzeQuiz] Error while saving analysis result:', saveErr && saveErr.message ? saveErr.message : saveErr);

@@ -279,6 +279,7 @@ function initializePostgreSQL(pool) {
       "id SERIAL PRIMARY KEY," +
       "user_id INTEGER NOT NULL," +
       "quiz_id TEXT NOT NULL," +
+      "submission_id TEXT UNIQUE," +
       "score INTEGER NOT NULL," +
       "total_questions INTEGER NOT NULL," +
       "answers JSONB NOT NULL DEFAULT '[]'::jsonb," +
@@ -290,6 +291,9 @@ function initializePostgreSQL(pool) {
       "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE" +
       ")"
     ).catch(err => console.warn('[DB] Results table:', err.message));
+
+    // Ensure submission_id column exists for idempotency (safe to run repeatedly)
+    pool.query("ALTER TABLE results ADD COLUMN IF NOT EXISTS submission_id TEXT;" ).catch(() => {});
 
     pool.query(
       "CREATE TABLE IF NOT EXISTS learning_plans (" +
@@ -306,6 +310,7 @@ function initializePostgreSQL(pool) {
     ).catch(err => console.warn('[DB] Learning plans table:', err.message));
 
     pool.query('CREATE INDEX IF NOT EXISTS idx_results_user_id ON results(user_id)').catch(() => {});
+    pool.query('CREATE INDEX IF NOT EXISTS idx_results_submission_id ON results(submission_id)').catch(() => {});
     pool.query('CREATE INDEX IF NOT EXISTS idx_results_created ON results(created_at DESC)').catch(() => {});
     pool.query('CREATE INDEX IF NOT EXISTS idx_plans_user_id ON learning_plans(user_id)').catch(() => {});
   } catch (e) {
@@ -359,6 +364,7 @@ if (!USE_POSTGRES || !dbHelpers) {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
           quiz_id TEXT NOT NULL,
+          submission_id TEXT UNIQUE,
           score INTEGER NOT NULL,
           total_questions INTEGER NOT NULL,
           answers TEXT NOT NULL,
@@ -409,7 +415,6 @@ if (!USE_POSTGRES || !dbHelpers) {
     getUserByEmail: (email) => {
       return new Promise((resolve, reject) => {
         db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
-          // If read-only error, assume user doesn't exist (demo mode)
           if (err && err.code === 'SQLITE_READONLY') {
             console.warn('Database is read-only; user queries will return empty');
             resolve(null);
@@ -435,28 +440,71 @@ if (!USE_POSTGRES || !dbHelpers) {
       });
     },
 
-    // Result operations
-    saveResult: (userId, quizId, score, totalQuestions, answers, weakAreas, feedback, recommendations) => {
+    // Support idempotent saves by looking up submission_id
+    getResultBySubmissionId: (submissionId) => {
       return new Promise((resolve, reject) => {
-        db.run(
-          `INSERT INTO results 
-           (user_id, quiz_id, score, total_questions, answers, weak_areas, feedback, recommendations)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            userId,
-            quizId,
-            score,
-            totalQuestions,
-            JSON.stringify(answers),
-            JSON.stringify(weakAreas),
-            JSON.stringify(feedback),
-            JSON.stringify(recommendations)
-          ],
-          function(err) {
-            if (err) reject(err);
-            else resolve(this.lastID);
+        db.get('SELECT * FROM results WHERE submission_id = ?', [submissionId], (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        });
+      });
+    },
+
+    // Result operations (supports optional submissionId for idempotency)
+    saveResult: (userId, quizId, score, totalQuestions, answers, weakAreas, feedback, recommendations, submissionId = null) => {
+      return new Promise(async (resolve, reject) => {
+        try {
+          if (submissionId) {
+            // check existing record
+            db.get('SELECT id FROM results WHERE submission_id = ?', [submissionId], (err, row) => {
+              if (err) return reject(err);
+              if (row && row.id) return resolve(row.id);
+              // otherwise insert
+              db.run(
+                `INSERT INTO results 
+                 (user_id, quiz_id, submission_id, score, total_questions, answers, weak_areas, feedback, recommendations)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  userId,
+                  quizId,
+                  submissionId,
+                  score,
+                  totalQuestions,
+                  JSON.stringify(answers),
+                  JSON.stringify(weakAreas || []),
+                  JSON.stringify(feedback || {}),
+                  JSON.stringify(recommendations || [])
+                ],
+                function(err) {
+                  if (err) return reject(err);
+                  return resolve(this.lastID);
+                }
+              );
+            });
+          } else {
+            db.run(
+              `INSERT INTO results 
+               (user_id, quiz_id, score, total_questions, answers, weak_areas, feedback, recommendations)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                userId,
+                quizId,
+                score,
+                totalQuestions,
+                JSON.stringify(answers),
+                JSON.stringify(weakAreas || []),
+                JSON.stringify(feedback || {}),
+                JSON.stringify(recommendations || [])
+              ],
+              function(err) {
+                if (err) reject(err);
+                else resolve(this.lastID);
+              }
+            );
           }
-        );
+        } catch (e) {
+          reject(e);
+        }
       });
     },
 

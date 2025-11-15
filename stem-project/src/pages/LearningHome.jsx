@@ -238,7 +238,7 @@ function LearningHome() {
             transition={{ delay: 0.5, duration: 0.5 }}
           >
             <div className="section-header">
-              <h2>{language === 'vi' ? '⚡ Hành Động Nhanh' : '⚡ Quick Actions'}</h2>
+              <h2>{language === 'vi' ? '⚡ hÀNH Đống nhénh' : '⚡ Quick Actions'}</h2>
             </div>
 
             <div className="quick-actions-grid">

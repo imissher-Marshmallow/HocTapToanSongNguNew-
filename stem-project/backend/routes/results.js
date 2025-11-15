@@ -24,10 +24,30 @@ const authMiddleware = (req, res, next) => {
   next();
 };
 
-// POST /api/results - Store exam result and trigger AI analysis
-router.post('/', authMiddleware, async (req, res) => {
+// Lightweight per-user in-memory rate limiter for submissions (short window)
+const lastSubmissionAt = new Map();
+const SUBMIT_WINDOW_MS = 2000; // 2 seconds
+const rateLimitSubmission = (req, res, next) => {
+  const user = req.userId || req.body.userId || 'anonymous';
   try {
-    const { userId, quizId, answers, questions } = req.body;
+    const key = String(user);
+    const now = Date.now();
+    const last = lastSubmissionAt.get(key) || 0;
+    if (now - last < SUBMIT_WINDOW_MS) {
+      console.warn('[Results] Rate limit triggered for', key);
+      return res.status(429).json({ error: 'Too many submissions, please wait a moment' });
+    }
+    lastSubmissionAt.set(key, now);
+    next();
+  } catch (e) {
+    next();
+  }
+};
+
+// POST /api/results - Store exam result and trigger AI analysis
+router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
+  try {
+    const { userId, quizId, quizName, answers, questions, ai_analysis, timeTaken, submissionId } = req.body;
     const finalUserId = userId || req.userId || 'anonymous';
 
     console.log('[Results] POST /api/results received:', {
@@ -54,7 +74,41 @@ router.post('/', authMiddleware, async (req, res) => {
     const totalQuestions = answers.length;
     let resultId = null;
     let placeholderScore = 0; // placeholder - will be updated after analyzer runs
-    
+
+    // Idempotency: if submissionId provided, check existing result first
+    if (submissionId) {
+      try {
+        const existing = await dbHelpers.getResultBySubmissionId(submissionId);
+        if (existing) {
+          console.log('[Results] Existing result found for submissionId, returning existing result id=', existing.id);
+          // Parse stored fields and return consistent shape
+          const safeParse = (v, fallback) => {
+            if (v === null || typeof v === 'undefined') return fallback;
+            if (typeof v === 'string') {
+              try { return JSON.parse(v); } catch (e) { return fallback; }
+            }
+            return v;
+          };
+          const storedAi = safeParse(existing.ai_analysis, {});
+          const parsedAnswers = safeParse(existing.answers, []);
+          const totalQ = existing.total_questions || (Array.isArray(parsedAnswers) ? parsedAnswers.length : 0);
+          const actualScore = Number(existing.score) || 0;
+          const fullResult = {
+            resultId: existing.id,
+            score: actualScore,
+            totalQuestions: totalQ,
+            percentage: totalQ > 0 ? Math.round((actualScore / totalQ) * 100) : 0,
+            answers: parsedAnswers,
+            ...storedAi
+          };
+          return res.json(fullResult);
+        }
+      } catch (e) {
+        console.warn('[Results] Idempotency check failed:', e && e.message ? e.message : e);
+        // continue and attempt insert
+      }
+    }
+
     try {
       resultId = await dbHelpers.saveResult(
         numericUserId,
@@ -64,41 +118,36 @@ router.post('/', authMiddleware, async (req, res) => {
         answers,
         [], // will be filled by AI
         {}, // will be filled by AI
-        {}  // will be filled by AI
+        {}, // will be filled by AI
+        submissionId || null
       );
-      console.log(`[Results] Saved placeholder result ${resultId} for user ${numericUserId}`);
+      console.log(`[Results] Saved placeholder result ${resultId} for user ${numericUserId} submissionId=${submissionId}`);
     } catch (dbErr) {
       console.error('[Results] Failed to save initial result:', dbErr && dbErr.message ? dbErr.message : dbErr);
       // Return a 500 here — if we can't insert the placeholder, further updates will fail.
       return res.status(500).json({ error: 'Failed to create result record', details: dbErr && dbErr.message });
     }
 
-    // Call AI analyzer (local Node.js - no external service)
-    // ✅ Uses OpenAI directly, Vercel-ready, <5s execution
-    const analyzerPayload = {
-      userId: finalUserId,
-      quizId,
-      answers,
-      questions: questions || []
-    };
-
+    // If ai_analysis is provided by caller (frontend already analyzed), use it and skip double analysis
     let aiResult = null;
-    try {
-      // ✅ Local analyzer: Now uses OpenAI SDK directly (no Python service)
-      aiResult = await analyzeQuiz(analyzerPayload);
-      console.log('[Results] Local analyzer completed successfully');
-    } catch (err) {
-      console.error('[Results] Local analyzer failed:', err.message);
-      // Fallback response
-      aiResult = {
-        score: 0,
-        performanceLabel: 'Không xác định',
-        weakAreas: [],
-        feedback: [],
-        recommendations: [],
-        summary: null,
-        motivationalFeedback: null
+    if (ai_analysis) {
+      aiResult = ai_analysis;
+      console.log('[Results] Using ai_analysis provided in request body (skipping analyzer)');
+    } else {
+      // Call AI analyzer (local Node.js - no external service)
+      const analyzerPayload = {
+        userId: finalUserId,
+        quizId,
+        answers,
+        questions: questions || []
       };
+      try {
+        aiResult = await analyzeQuiz(analyzerPayload);
+        console.log('[Results] Local analyzer completed successfully');
+      } catch (err) {
+        console.error('[Results] Local analyzer failed:', err && err.message ? err.message : err);
+        aiResult = { score: 0, weakAreas: [], recommendations: [], summary: null };
+      }
     }
 
     // Extract actual score from AI analyzer (coerce to number)
@@ -143,6 +192,11 @@ router.post('/', authMiddleware, async (req, res) => {
           } catch (updErr) {
             console.warn('[Results] Failed to update score via dbHelpers.updateResult:', updErr && updErr.message ? updErr.message : updErr);
           }
+
+        // If timeTaken was provided, save it into ai_analysis as well
+        if (typeof timeTaken !== 'undefined' && timeTaken !== null) {
+          aiAnalysisToSave.timeTaken = timeTaken;
+        }
 
         // Generate and save learning plan from the AI summary
         if (summary && summary.plan && Array.isArray(summary.plan) && summary.plan.length > 0) {
@@ -231,13 +285,20 @@ router.get('/', authMiddleware, async (req, res) => {
     const results = await dbHelpers.getUserResults(userId, limit);
     
     // Parse JSON fields for each result
+    const safeParse = (v, fallback) => {
+      if (v === null || typeof v === 'undefined') return fallback;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch (e) { return fallback; }
+      }
+      return v;
+    };
     const parsedResults = results.map(r => ({
       ...r,
-      answers: JSON.parse(r.answers || '[]'),
-      weak_areas: JSON.parse(r.weak_areas || '[]'),
-      feedback: JSON.parse(r.feedback || '[]'),
-      recommendations: JSON.parse(r.recommendations || '[]'),
-      ai_analysis: JSON.parse(r.ai_analysis || '{}')
+      answers: safeParse(r.answers, []),
+      weak_areas: safeParse(r.weak_areas, []),
+      feedback: safeParse(r.feedback, {}),
+      recommendations: safeParse(r.recommendations, []),
+      ai_analysis: safeParse(r.ai_analysis, {})
     }));
 
     res.json(parsedResults);

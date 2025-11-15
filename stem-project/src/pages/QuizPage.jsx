@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
+import Spinner from '../components/Spinner';
+import Toast from '../components/Toast';
 import { quizTranslations } from '../translations/quizTranslations';
 import { trackQuizAttempt } from '../helpers/learningHomeIntegration';
 import '../styles/AzotaQuiz.css';
@@ -37,8 +39,12 @@ function QuizPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [quizStartAt, setQuizStartAt] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const lastSubmitAtRef = React.useRef(0);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const containerRef = React.useRef(null);
 
@@ -159,6 +165,7 @@ function QuizPage() {
       console.warn('Failed to enter fullscreen:', e);
     }
     setStarted(true);
+    setQuizStartAt(Date.now());
   };
   useEffect(() => {
     if (!started) return;
@@ -231,6 +238,18 @@ function QuizPage() {
   };
 
   const submitQuiz = async (finalAnswers) => {
+    if (isSubmitting) {
+      console.warn('Submission already in progress — skipping duplicate submit');
+      return;
+    }
+    // client-side debounce (2s)
+    const now = Date.now();
+    if (now - lastSubmitAtRef.current < 2000) {
+      console.warn('Debounced duplicate submit');
+      return;
+    }
+    lastSubmitAtRef.current = now;
+    setIsSubmitting(true);
     const userId = getUserId();
     const isAutoSubmitted = autoSubmittedRef.current;
     const payload = {
@@ -249,27 +268,37 @@ function QuizPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
       // 1. Analyze quiz for AI feedback
-      const res = await fetch(`${apiBaseUrl}/api/analyze-quiz`, {
+      // Mark analyze request as skipSave so backend will not persist here (we'll persist once below)
+      // generate a submissionId to make server-side saves idempotent
+      const submissionId = (window && window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : `sid-${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+      const analyzePayload = { ...payload, skipSave: true, submissionId };
+    const res = await fetch(`${apiBaseUrl}/api/analyze-quiz`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify(analyzePayload),
       });
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       const result = await res.json();
 
+        <Toast message={toastMessage} onClose={() => setToastMessage('')} />
       // 2. Save result to /api/results so it appears in history
+      const timeTaken = quizStartAt ? Math.floor((Date.now() - quizStartAt) / 1000) : Math.floor((Date.now() - questionStartTime) / 1000);
       const savePayload = {
         userId,
         quizId: selectedContestKey || id || 'random',
+        quizName: selectedContestKey || id || 'random',
         answers: finalAnswers,
         questions: questions,
         score: result.score || 0,
         percentage: result.percentage || 0,
         ai_analysis: result,
+        timeTaken,
         isAutoSubmitted: isAutoSubmitted
       };
+      // attach submissionId so server can dedupe
+      savePayload.submissionId = submissionId;
       const saveRes = await fetch(`${apiBaseUrl}/api/results`, {
         method: 'POST',
         headers,
@@ -296,9 +325,13 @@ function QuizPage() {
       }
 
       // Pass result object directly in location.state for ResultPage
+      setToastMessage('Submitted successfully');
       navigate('/result', { state: result });
+      return;
     } catch (err) {
       console.error('Error submitting quiz:', err);
+      setIsSubmitting(false);
+      setToastMessage('Submission failed. Please try again.');
     }
   };
 
@@ -459,9 +492,10 @@ function QuizPage() {
           </button>
           <button
             className="nav-button submit"
-            onClick={() => setShowSubmitDialog(true)}
+            onClick={() => !isSubmitting && setShowSubmitDialog(true)}
+            disabled={isSubmitting}
           >
-            {t.submit}
+            {isSubmitting ? (<><Spinner size={14} color="#fff" />&nbsp;{t.submitting || 'Submitting'}</>) : t.submit}
           </button>
           <button
             className="nav-button"
@@ -496,9 +530,10 @@ function QuizPage() {
                 </button>
                 <button
                   className="submit-button"
-                  onClick={() => submitQuiz(answers)}
+                  onClick={() => { if (!isSubmitting) submitQuiz(answers); }}
+                  disabled={isSubmitting}
                 >
-                  {t.confirmSubmit}
+                  {isSubmitting ? (<><Spinner size={16} color="#fff" />&nbsp;{t.submitting || 'Submitting...'}</>) : t.confirmSubmit}
                 </button>
                 <button
                   className="cancel-button"

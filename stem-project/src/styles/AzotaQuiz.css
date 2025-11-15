@@ -366,3 +366,20 @@
   background: #3b82f6;
   color: white;
 }
+
+/* Responsive tweaks for mobile / tablet */
+@media (max-width: 900px) {
+  .quiz-container { padding: 1rem; }
+  .question-nav { position: static; width: 100%; margin-top: 1rem; transform: none; }
+  .question-grid { grid-template-columns: repeat(6, 1fr); }
+  .nav-controls { flex-direction: column; }
+  .nav-button { width: 100%; }
+  .submit-dialog { width: 95%; max-width: 420px; }
+}
+
+@media (max-width: 480px) {
+  .question-text { font-size: 1rem; }
+  .option-button { padding: 0.8rem; }
+  .question-grid { grid-template-columns: repeat(4, 1fr); }
+  .nav-controls { gap: 0.5rem; }
+}
