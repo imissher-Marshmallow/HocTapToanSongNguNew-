@@ -84,10 +84,20 @@ router.post('/', authMiddleware, async (req, res) => {
       };
     }
 
-    // Extract actual score from AI analyzer
-    const actualScore = aiResult.score || 0;
+    // Extract actual score from AI analyzer (coerce to number)
+    const actualScore = Number(aiResult.score) || 0;
     const weakAreas = aiResult.weakAreas || [];
     const summary = aiResult.summary || {};
+
+    // Debug logging: show values we'll save
+    console.log('[Results] debug values:', {
+      finalUserId,
+      quizId,
+      answersLength: Array.isArray(answers) ? answers.length : 0,
+      resultId,
+      placeholderScore,
+      aiScore: aiResult && typeof aiResult.score !== 'undefined' ? aiResult.score : null
+    });
 
     // Update result with AI-generated score and analysis
     if (resultId && aiResult) {
@@ -96,28 +106,18 @@ router.post('/', authMiddleware, async (req, res) => {
         await dbHelpers.saveAIAnalysis(resultId, aiResult);
         console.log(`[Results] Saved AI analysis for result ${resultId}`);
 
-        // Update score and weak_areas in results table
-        await new Promise((resolve, reject) => {
-          const db = require('../database').db;
-          db.run(
-            'UPDATE results SET score = ?, weak_areas = ?, feedback = ?, recommendations = ? WHERE id = ?',
-            [
-              actualScore,
-              JSON.stringify(weakAreas),
-              JSON.stringify(summary),
-              JSON.stringify(aiResult.recommendations || []),
-              resultId
-            ],
-            (err) => {
-              if (err) {
-                console.warn('[Results] Failed to update score:', err.message);
-              } else {
-                console.log(`[Results] Updated result ${resultId} with score ${actualScore}`);
-              }
-              resolve();
-            }
-          );
-        });
+        // Update score and weak_areas in results table using dbHelpers.updateResult
+        try {
+          await dbHelpers.updateResult(resultId, {
+            score: actualScore,
+            weakAreas,
+            feedback: summary,
+            recommendations: aiResult.recommendations || []
+          });
+          console.log(`[Results] Updated result ${resultId} with score ${actualScore}`);
+        } catch (updErr) {
+          console.warn('[Results] Failed to update score via dbHelpers.updateResult:', updErr.message);
+        }
 
         // Generate and save learning plan from the AI summary
         if (summary && summary.plan && Array.isArray(summary.plan) && summary.plan.length > 0) {

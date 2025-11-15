@@ -35,6 +35,32 @@ if (USE_POSTGRES) {
       console.error('[DB] Unexpected Postgres client error (pool):', err && err.message ? err.message : err);
     });
 
+    // Extra lifecycle logging (helps debug serverless connection churn)
+    pool.on('connect', (client) => {
+      console.log('[DB] Postgres client connected (pool).');
+    });
+    pool.on('remove', (client) => {
+      console.log('[DB] Postgres client removed (pool).');
+    });
+
+    // Wrap pool.query to add a single retry for transient network/timeout terminations
+    const originalQuery = pool.query.bind(pool);
+    pool.query = async (text, params) => {
+      try {
+        return await originalQuery(text, params);
+      } catch (err) {
+        const msg = (err && err.message) ? err.message.toLowerCase() : '';
+        const transient = msg.includes('terminat') || msg.includes('timeout') || msg.includes('econnreset') || msg.includes('connection reset');
+        if (transient) {
+          console.warn('[DB] Transient error detected, retrying query once:', err && err.message ? err.message : err);
+          // small delay
+          await new Promise(r => setTimeout(r, 200));
+          return originalQuery(text, params);
+        }
+        throw err;
+      }
+    };
+
     // Test connection
     pool.connect((err, client, release) => {
       if (err) {
@@ -117,6 +143,25 @@ if (USE_POSTGRES) {
           );
         } catch (err) {
           console.error('saveAIAnalysis error:', err.message);
+          throw err;
+        }
+      },
+
+      // Update result fields (score, weak_areas, feedback, recommendations)
+      updateResult: async (resultId, { score, weakAreas, feedback, recommendations }) => {
+        try {
+          await pool.query(
+            'UPDATE results SET score = $1, weak_areas = $2, feedback = $3, recommendations = $4 WHERE id = $5',
+            [
+              score,
+              JSON.stringify(weakAreas || []),
+              JSON.stringify(feedback || {}),
+              JSON.stringify(recommendations || []),
+              resultId
+            ]
+          );
+        } catch (err) {
+          console.error('updateResult error:', err.message);
           throw err;
         }
       },
@@ -401,8 +446,12 @@ if (!USE_POSTGRES || !dbHelpers) {
             JSON.stringify(recommendations)
           ],
           function(err) {
-            if (err) reject(err);
-            else resolve(this.lastID);
+              if (err) {
+                reject(err);
+              } else {
+                console.log('[DB] saveResult inserted id=', this.lastID, 'userId=', userId, 'score=', score, 'totalQuestions=', totalQuestions);
+                resolve(this.lastID);
+              }
           }
         );
       });
@@ -413,6 +462,26 @@ if (!USE_POSTGRES || !dbHelpers) {
         db.run(
           'UPDATE results SET ai_analysis = ? WHERE id = ?',
           [JSON.stringify(aiAnalysis), resultId],
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    },
+
+    // Update result fields (score, weak_areas, feedback, recommendations)
+    updateResult: (resultId, { score, weakAreas, feedback, recommendations }) => {
+      return new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE results SET score = ?, weak_areas = ?, feedback = ?, recommendations = ? WHERE id = ?',
+          [
+            score,
+            JSON.stringify(weakAreas || []),
+            JSON.stringify(feedback || {}),
+            JSON.stringify(recommendations || []),
+            resultId
+          ],
           (err) => {
             if (err) reject(err);
             else resolve();
