@@ -59,7 +59,8 @@ function loadQuestionsForQuiz(quizId) {
     if (Array.isArray(parsed.contests)) {
       let idx = 0;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        idx = Math.floor(Math.random() * parsed.contests.length);
+        // Use crypto.randomInt when available for more robust randomness
+        idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
       } else {
         const parsedId = parseInt(quizId, 10);
         if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) {
@@ -100,7 +101,13 @@ function loadQuestionsForQuiz(quizId) {
       const contest = parsed.contests[chosenKey] || [];
       const shuffled = shuffleArray([...contest]);
       const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
-      return { questions: trimmed, contestKey: chosenKey };
+      // Ensure english fields present for frontend (fallback to original fields)
+      const normalized = trimmed.map(q => ({
+        ...q,
+        english_question: q.english_question || q.question,
+        english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
+      }));
+      return { questions: normalized, contestKey: chosenKey };
     }
   }
   return { questions: [], contestKey: 'none' };

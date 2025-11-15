@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 const OpenAI = require('openai');
+const crypto = require('crypto');
 
 let openai;
 try {
@@ -140,7 +141,8 @@ function loadQuestionsForQuiz(quizId) {
       let chosenKey;
       // treat several forms of 'random' as a request to pick a random contest
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        const idx = Math.floor(Math.random() * keys.length);
+        // Use crypto-backed randomInt to avoid predictable Math.random behavior across environments
+        const idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, keys.length) : Math.floor(Math.random() * keys.length);
         chosenKey = keys[idx];
         console.log(`loadQuestionsForQuiz: selected random named contest "${chosenKey}"`);
       } else if (parsed.contests.hasOwnProperty(quizId)) {
@@ -159,7 +161,13 @@ function loadQuestionsForQuiz(quizId) {
       const contest = parsed.contests[chosenKey] || [];
       const shuffled = shuffleArray([...contest]);
       const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
-      return { questions: trimmed, contestKey: chosenKey };
+      // Ensure English fields exist so frontend can reliably show English version
+      const normalized = trimmed.map(q => ({
+        ...q,
+        english_question: q.english_question || q.question,
+        english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
+      }));
+      return { questions: normalized, contestKey: chosenKey };
     }
   }
   // backwards compatibility: if file is a plain array of questions
