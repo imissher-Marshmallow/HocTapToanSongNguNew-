@@ -13,19 +13,244 @@
 require('dotenv').config();
 
 // Determine which database to use
-const USE_POSTGRES = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+let USE_POSTGRES = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
 let dbHelpers, db;
 
 if (USE_POSTGRES) {
   console.log('[DB] Using PostgreSQL (cloud database)');
   try {
-    const pgModule = require('./database-postgres');
-    dbHelpers = pgModule.dbHelpers;
-    db = pgModule.pool;
+    // Try importing pg module
+    const { Pool } = require('pg');
+    
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    // Test connection
+    pool.connect((err, client, release) => {
+      if (err) {
+        console.warn('[DB] PostgreSQL connection test failed:', err.message);
+        // Will fall back to SQLite below
+      } else {
+        console.log('[DB] ✅ PostgreSQL connected');
+        release();
+      }
+    });
+
+    // Initialize PostgreSQL schema
+    initializePostgreSQL(pool);
+
+    // Create helpers for PostgreSQL
+    dbHelpers = {
+      getUserById: async (userId) => {
+        try {
+          const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+          return result.rows[0] || null;
+        } catch (err) {
+          console.error('getUserById error:', err.message);
+          throw err;
+        }
+      },
+
+      getUserByEmail: async (email) => {
+        try {
+          const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+          return result.rows[0] || null;
+        } catch (err) {
+          console.error('getUserByEmail error:', err.message);
+          throw err;
+        }
+      },
+
+      createUser: async (email, username, passwordHash) => {
+        try {
+          const result = await pool.query(
+            'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username',
+            [email, username, passwordHash]
+          );
+          return result.rows[0];
+        } catch (err) {
+          console.error('createUser error:', err.message);
+          throw err;
+        }
+      },
+
+      saveResult: async (userId, quizId, score, totalQuestions, answers, weakAreas, feedback, recommendations) => {
+        try {
+          const result = await pool.query(
+            `INSERT INTO results 
+             (user_id, quiz_id, score, total_questions, answers, weak_areas, feedback, recommendations)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id`,
+            [
+              userId,
+              quizId,
+              score,
+              totalQuestions,
+              JSON.stringify(answers || []),
+              JSON.stringify(weakAreas || []),
+              JSON.stringify(feedback || {}),
+              JSON.stringify(recommendations || [])
+            ]
+          );
+          return result.rows[0]?.id;
+        } catch (err) {
+          console.error('saveResult error:', err.message);
+          throw err;
+        }
+      },
+
+      saveAIAnalysis: async (resultId, aiAnalysis) => {
+        try {
+          await pool.query(
+            'UPDATE results SET ai_analysis = $1 WHERE id = $2',
+            [JSON.stringify(aiAnalysis || {}), resultId]
+          );
+        } catch (err) {
+          console.error('saveAIAnalysis error:', err.message);
+          throw err;
+        }
+      },
+
+      getUserResults: async (userId, limit = 10) => {
+        try {
+          const result = await pool.query(
+            'SELECT * FROM results WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
+            [userId, limit]
+          );
+          return result.rows || [];
+        } catch (err) {
+          console.error('getUserResults error:', err.message);
+          throw err;
+        }
+      },
+
+      getResultById: async (resultId) => {
+        try {
+          const result = await pool.query(
+            'SELECT * FROM results WHERE id = $1',
+            [resultId]
+          );
+          return result.rows[0] || null;
+        } catch (err) {
+          console.error('getResultById error:', err.message);
+          throw err;
+        }
+      },
+
+      saveLearningPlan: async (resultId, userId, day, topics, exercises) => {
+        try {
+          const result = await pool.query(
+            `INSERT INTO learning_plans (result_id, user_id, day, topics, exercises)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id`,
+            [resultId, userId, day, JSON.stringify(topics || []), JSON.stringify(exercises || [])]
+          );
+          return result.rows[0]?.id;
+        } catch (err) {
+          console.error('saveLearningPlan error:', err.message);
+          throw err;
+        }
+      },
+
+      getLearningPlans: async (userId, limit = 10) => {
+        try {
+          const result = await pool.query(
+            'SELECT * FROM learning_plans WHERE user_id = $1 ORDER BY created_at DESC, day ASC LIMIT $2',
+            [userId, limit]
+          );
+          return result.rows || [];
+        } catch (err) {
+          console.error('getLearningPlans error:', err.message);
+          throw err;
+        }
+      },
+
+      getAllUsers: async () => {
+        try {
+          const result = await pool.query('SELECT id, email, username, created_at FROM users ORDER BY created_at DESC');
+          return result.rows || [];
+        } catch (err) {
+          console.error('getAllUsers error:', err.message);
+          throw err;
+        }
+      },
+
+      getAllResults: async () => {
+        try {
+          const result = await pool.query(
+            `SELECT r.*, u.email, u.username FROM results r
+             LEFT JOIN users u ON r.user_id = u.id
+             ORDER BY r.created_at DESC`
+          );
+          return result.rows || [];
+        } catch (err) {
+          console.error('getAllResults error:', err.message);
+          throw err;
+        }
+      }
+    };
+
+    db = pool;
+
   } catch (err) {
     console.warn('[DB] PostgreSQL not available, falling back to SQLite:', err.message);
-    // Fallback to SQLite below
+    // Fall through to SQLite setup below
+    USE_POSTGRES = false;
+  }
+}
+
+// Initialize PostgreSQL schema
+function initializePostgreSQL(pool) {
+  try {
+    pool.query(
+      "CREATE TABLE IF NOT EXISTS users (" +
+      "id SERIAL PRIMARY KEY," +
+      "email TEXT UNIQUE NOT NULL," +
+      "username TEXT UNIQUE NOT NULL," +
+      "password_hash TEXT NOT NULL," +
+      "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+      ")"
+    ).catch(err => console.warn('[DB] Users table:', err.message));
+
+    pool.query(
+      "CREATE TABLE IF NOT EXISTS results (" +
+      "id SERIAL PRIMARY KEY," +
+      "user_id INTEGER NOT NULL," +
+      "quiz_id TEXT NOT NULL," +
+      "score INTEGER NOT NULL," +
+      "total_questions INTEGER NOT NULL," +
+      "answers JSONB NOT NULL DEFAULT '[]'::jsonb," +
+      "weak_areas JSONB DEFAULT '[]'::jsonb," +
+      "feedback JSONB DEFAULT '{}'::jsonb," +
+      "recommendations JSONB DEFAULT '[]'::jsonb," +
+      "ai_analysis JSONB DEFAULT '{}'::jsonb," +
+      "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+      "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE" +
+      ")"
+    ).catch(err => console.warn('[DB] Results table:', err.message));
+
+    pool.query(
+      "CREATE TABLE IF NOT EXISTS learning_plans (" +
+      "id SERIAL PRIMARY KEY," +
+      "result_id INTEGER NOT NULL," +
+      "user_id INTEGER NOT NULL," +
+      "day INTEGER NOT NULL," +
+      "topics JSONB DEFAULT '[]'::jsonb," +
+      "exercises JSONB DEFAULT '[]'::jsonb," +
+      "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+      "FOREIGN KEY (result_id) REFERENCES results(id) ON DELETE CASCADE," +
+      "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE" +
+      ")"
+    ).catch(err => console.warn('[DB] Learning plans table:', err.message));
+
+    pool.query('CREATE INDEX IF NOT EXISTS idx_results_user_id ON results(user_id)').catch(() => {});
+    pool.query('CREATE INDEX IF NOT EXISTS idx_results_created ON results(created_at DESC)').catch(() => {});
+    pool.query('CREATE INDEX IF NOT EXISTS idx_plans_user_id ON learning_plans(user_id)').catch(() => {});
+  } catch (e) {
+    console.warn('[DB] Schema initialization skipped:', e.message);
   }
 }
 
