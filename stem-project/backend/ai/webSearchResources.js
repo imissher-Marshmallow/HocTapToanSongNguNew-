@@ -47,6 +47,39 @@ const TRUSTED_DOMAINS = [
   'tutorialpoint.com'
 ];
 
+// Small curated fallback resources for high-frequency topics. These are guarantees
+// used when AI search returns no valid results. Add more topics as needed.
+const CURATED_RESOURCES = {
+  'đa thức': [
+    {
+      title: 'Đa thức - VietJack',
+      url: 'https://vietjack.com/toan-hoc/da-thuc',
+      source: 'VietJack',
+      description: 'Bài giảng và ví dụ về đa thức: phép cộng, nhân, rút gọn.',
+      type: 'article'
+    },
+    {
+      title: 'Polynomials (Khan Academy)',
+      url: 'https://vi.khanacademy.org/math/algebra/polynomial-factorization',
+      source: 'Khan Academy',
+      description: 'Bài học Khan Academy về các phép toán trên đa thức (phiên bản tiếng Việt).',
+      type: 'article'
+    },
+    {
+      title: 'Multiply Polynomials - YouTube',
+      url: 'https://www.youtube.com/watch?v=E0m6wq3gQZk',
+      source: 'YouTube',
+      description: 'Ví dụ video: nhân đa thức từng bước.',
+      type: 'video'
+    }
+  ]
+};
+
+function normalizeTopicKey(s) {
+  if (!s || typeof s !== 'string') return '';
+  return s.toLowerCase().replace(/[^a-z0-9\u00C0-\u017F]+/gi, ' ').trim();
+}
+
 /**
  * Check if URL is from trusted domain
  */
@@ -401,11 +434,13 @@ async function getResourcesForTopic(topic, difficulty = 'medium', questionContex
   let webResults = await searchForResources(searchQuery);
 
   // If we found nothing, try a couple of targeted fallbacks: site-specific queries
-  if ((!webResults || webResults.length === 0) && cleanTopic) {
-    const topicOnly = sanitizeSearchQuery(topicAnalysis?.topic || cleanTopic || '');
+  // Use the actual topic (e.g., "Đa thức") not the assessment label (e.g., "Thông hiểu")
+  if ((!webResults || webResults.length === 0) && (topicAnalysis?.topic || cleanTopic)) {
+    const actualTopic = topicAnalysis?.topic || cleanTopic;
+    const topicOnly = sanitizeSearchQuery(actualTopic || '');
     const fallbacks = [
       `site:vietjack.com ${topicOnly} cách làm`,
-      `site:khanacademy.org ${topicOnly} lesson ${topicOnly}`,
+      `site:khanacademy.org ${topicOnly} lesson`,
       `${topicOnly} cách giải ví dụ`,
     ];
 
@@ -419,6 +454,17 @@ async function getResourcesForTopic(topic, difficulty = 'medium', questionContex
   if (webResults.length > 0) {
     console.log(`[Resources] Found ${webResults.length} verified resources for: "${cleanTopic}"`);
     return webResults.slice(0, 3);
+  }
+
+  // If no AI/web results, try curated fallback for this topic (guaranteed working links)
+  try {
+    const key = normalizeTopicKey(topicAnalysis?.topic || cleanTopic || '');
+    if (key && CURATED_RESOURCES[key] && CURATED_RESOURCES[key].length > 0) {
+      console.log(`[Resources] Using curated fallback for topic: "${key}"`);
+      return CURATED_RESOURCES[key].slice(0, 3);
+    }
+  } catch (e) {
+    // ignore
   }
 
   console.warn(`[Resources] No web results found for: "${cleanTopic}"`);
