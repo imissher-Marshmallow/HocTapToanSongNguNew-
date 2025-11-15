@@ -55,11 +55,11 @@ app.get('/', (req, res) => {
   res.json({ message: 'Quiz API Server', status: 'running', features: ['Quiz', 'Auth', 'ML'] });
 });
 
-// Routes
+// Routes - Order matters! More specific routes first
 app.use('/auth', authRoutes);
+app.use('/api/history', historyRoutes);  // Must come BEFORE /api for /summary to work
 app.use('/api', quizRoutes);
 app.use('/api/results', resultsRoutes);
-app.use('/api/history', historyRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

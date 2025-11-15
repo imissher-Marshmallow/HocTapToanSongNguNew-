@@ -9,8 +9,10 @@ router.get('/', async (req, res) => {
     if (!userId) {
       return res.status(400).json({ success: false, error: 'Missing userId' });
     }
+    console.log('[History] Fetching results for userId:', userId);
     // Fetch latest 20 results for user
     const results = await dbHelpers.getUserResults(userId, 20);
+    console.log('[History] Found', results.length, 'results for userId', userId);
     // Format for frontend
     const formatted = results.map(r => ({
       id: r.id,
@@ -41,7 +43,9 @@ router.get('/summary', async (req, res) => {
     if (!userId) {
       return res.status(400).json({ success: false, error: 'Missing userId' });
     }
+    console.log('[History/Summary] Fetching summary for userId:', userId);
     const results = await dbHelpers.getUserResults(userId, 100);
+    console.log('[History/Summary] Found', results.length, 'results for userId', userId);
     // Calculate chart data, weakness, strength
     let totalScore = 0, totalAttempts = 0, weakAreas = {}, strengthAreas = {};
     const chart = [];
