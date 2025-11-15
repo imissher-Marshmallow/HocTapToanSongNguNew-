@@ -25,7 +25,17 @@ if (USE_POSTGRES) {
     
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
+      // Limit clients for serverless environments and set sensible timeouts
+      max: parseInt(process.env.PG_MAX_CLIENTS || '6', 10),
+      idleTimeoutMillis: parseInt(process.env.PG_IDLE_TIMEOUT_MS || '30000', 10),
+      connectionTimeoutMillis: parseInt(process.env.PG_CONN_TIMEOUT_MS || '5000', 10),
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    // Attach an error handler to the pool to avoid uncaught exceptions
+    pool.on('error', (err) => {
+      console.error('[DB] Unexpected Postgres client error (pool):', err && err.message ? err.message : err);
+      // Do not rethrow here; just log. Pool will create new clients for future requests.
     });
 
     // Test connection
