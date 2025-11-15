@@ -34,40 +34,27 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: quizId, answers' });
     }
 
-    // Calculate score (number of correct answers)
-    let score = 0;
-    const answerComparison = [];
-    
-    answers.forEach((answer) => {
-      const question = questions?.find(q => q.id === answer.questionId);
-      if (question) {
-        const selectedIndex = question.options.indexOf(answer.selectedOption);
-        const isCorrect = selectedIndex === question.answerIndex;
-        if (isCorrect) score++;
-        
-        answerComparison.push({
-          questionId: answer.questionId,
-          question: question.content,
-          userAnswer: answer.selectedOption,
-          correctAnswer: question.options[question.answerIndex],
-          isCorrect,
-          explanation: question.explanation || ''
-        });
-      }
-    });
-
-    // Save initial result to database
+    // Initialize result save with placeholder score (will be updated with AI analysis)
     const totalQuestions = answers.length;
-    const resultId = await dbHelpers.saveResult(
-      finalUserId,
-      quizId,
-      score,
-      totalQuestions,
-      answers,
-      [], // will be filled by AI
-      [], // will be filled by AI
-      []  // will be filled by AI
-    );
+    let resultId = null;
+    let placeholderScore = 0; // placeholder - will be updated after analyzer runs
+    
+    try {
+      resultId = await dbHelpers.saveResult(
+        finalUserId,
+        quizId,
+        placeholderScore,
+        totalQuestions,
+        answers,
+        [], // will be filled by AI
+        {}, // will be filled by AI
+        {}  // will be filled by AI
+      );
+      console.log(`[Results] Saved placeholder result ${resultId}`);
+    } catch (dbErr) {
+      console.warn('[Results] Failed to save initial result:', dbErr.message);
+      // Continue anyway - we'll still analyze and return result
+    }
 
     // Call AI analyzer (local Node.js - no external service)
     // ✅ Uses OpenAI directly, Vercel-ready, <5s execution
@@ -87,7 +74,7 @@ router.post('/', authMiddleware, async (req, res) => {
       console.error('[Results] Local analyzer failed:', err.message);
       // Fallback response
       aiResult = {
-        score: score,
+        score: 0,
         performanceLabel: 'Không xác định',
         weakAreas: [],
         feedback: [],
@@ -97,15 +84,82 @@ router.post('/', authMiddleware, async (req, res) => {
       };
     }
 
-    // Save AI analysis back to database
-    await dbHelpers.saveAIAnalysis(resultId, aiResult);
+    // Extract actual score from AI analyzer
+    const actualScore = aiResult.score || 0;
+    const weakAreas = aiResult.weakAreas || [];
+    const summary = aiResult.summary || {};
+
+    // Update result with AI-generated score and analysis
+    if (resultId && aiResult) {
+      try {
+        // Save AI analysis first
+        await dbHelpers.saveAIAnalysis(resultId, aiResult);
+        console.log(`[Results] Saved AI analysis for result ${resultId}`);
+
+        // Update score and weak_areas in results table
+        await new Promise((resolve, reject) => {
+          const db = require('../database').db;
+          db.run(
+            'UPDATE results SET score = ?, weak_areas = ?, feedback = ?, recommendations = ? WHERE id = ?',
+            [
+              actualScore,
+              JSON.stringify(weakAreas),
+              JSON.stringify(summary),
+              JSON.stringify(aiResult.recommendations || []),
+              resultId
+            ],
+            (err) => {
+              if (err) {
+                console.warn('[Results] Failed to update score:', err.message);
+              } else {
+                console.log(`[Results] Updated result ${resultId} with score ${actualScore}`);
+              }
+              resolve();
+            }
+          );
+        });
+
+        // Generate and save learning plan from the AI summary
+        if (summary && summary.plan && Array.isArray(summary.plan) && summary.plan.length > 0) {
+          try {
+            for (let dayNum = 1; dayNum <= Math.min(summary.plan.length, 5); dayNum++) {
+              const planItem = summary.plan[dayNum - 1];
+              const topics = (planItem && planItem.step) ? [planItem.step] : [];
+              const exercises = (planItem && planItem.action) ? [planItem.action] : [];
+              
+              await dbHelpers.saveLearningPlan(resultId, finalUserId, dayNum, topics, exercises);
+            }
+            console.log(`[Results] Saved ${Math.min(summary.plan.length, 5)} learning plan days for result ${resultId}`);
+          } catch (planErr) {
+            console.warn('[Results] Failed to save learning plan:', planErr.message);
+          }
+        }
+
+      } catch (updateErr) {
+        console.error('[Results] Failed to update result with AI data:', updateErr.message);
+      }
+    }
+
+    // Build answer comparison from questions
+    const answerComparison = answers.map((answer) => {
+      const question = questions?.find(q => q.id === answer.questionId);
+      if (!question) return null;
+      return {
+        questionId: answer.questionId,
+        question: question.content || question.question,
+        userAnswer: answer.selectedOption,
+        correctAnswer: question.options[question.answerIndex],
+        isCorrect: question.options.indexOf(answer.selectedOption) === question.answerIndex,
+        explanation: question.explanation || ''
+      };
+    }).filter(x => x !== null);
 
     // Return comprehensive result to frontend
     const fullResult = {
       resultId,
-      score,
+      score: actualScore,
       totalQuestions,
-      percentage: Math.round((score / totalQuestions) * 100),
+      percentage: totalQuestions > 0 ? Math.round((actualScore / totalQuestions) * 100) : 0,
       answerComparison,
       ...aiResult // includes summary, feedback, recommendations, weakAreas
     };
