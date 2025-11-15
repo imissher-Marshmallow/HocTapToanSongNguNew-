@@ -29,6 +29,11 @@ try {
   console.warn('[Resources] Failed to init OpenAI:', error.message);
 }
 
+// Timeouts (ms) - make configurable via env
+const SEARCH_TIMEOUT_MS = parseInt(process.env.OPENAI_SEARCH_TIMEOUT_MS, 10) || 10000; // default 10s
+const REPLACE_TIMEOUT_MS = parseInt(process.env.OPENAI_REPLACE_TIMEOUT_MS, 10) || 7000; // default 7s
+const TOPIC_ANALYSIS_TIMEOUT_MS = parseInt(process.env.OPENAI_TOPIC_TIMEOUT_MS, 10) || 5000; // default 5s
+
 // Trusted educational sources
 const TRUSTED_DOMAINS = [
   'vietjack.com',
@@ -97,7 +102,9 @@ Xác định:
 1. Chủ đề toán học chính (ví dụ: "Đa thức", "Phương trình bậc hai", "Hình học")
 2. Chương trong sách Toán lớp 8 (ví dụ: "Chương 1: Phép nhân và phép chia đa thức")
 3. Từ khóa tìm kiếm (3-5 từ tiếng Việt)
-4. Mức độ (Cơ bản/Nâng cao)
+4. Loại câu hỏi / cấp độ nhận biết (ví dụ: "Nhận biết", "Thông hiểu", "Vận dụng") — gọi là "questionType"
+5. Sai lầm phổ biến mà học sinh có thể đã gặp dựa trên đáp án sai (mô tả ngắn) — gọi là "likelyMistake"
+6. Mức độ (Cơ bản/Nâng cao)
 
 Trả lời JSON:
 {
@@ -111,10 +118,10 @@ Trả lời JSON:
       openaiResources.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 300,
-        temperature: 0.3
+        max_tokens: 350,
+        temperature: 0.25
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 3000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), TOPIC_ANALYSIS_TIMEOUT_MS))
     ]);
 
     const text = response.choices[0]?.message?.content || '{}';
@@ -171,7 +178,7 @@ Trả lời CHỈ JSON array, không thêm text khác.`;
         max_tokens: 500,
         temperature: 0.5
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('SEARCH_TIMEOUT')), 4000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SEARCH_TIMEOUT')), SEARCH_TIMEOUT_MS))
     ]);
 
     const text = response.choices[0]?.message?.content || '[]';
@@ -310,7 +317,7 @@ async function requestReplacementLinks(searchQuery, excludedUrls = []) {
         max_tokens: 300,
         temperature: 0.6
       }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('REPLACE_TIMEOUT')), 3500))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('REPLACE_TIMEOUT')), REPLACE_TIMEOUT_MS))
     ]);
 
     const text = response.choices[0]?.message?.content || '[]';
@@ -345,10 +352,21 @@ async function getResourcesForTopic(topic, difficulty = 'medium', questionContex
     );
   }
 
-  // Build search query
+  // Build search query. Prefer question-type focused queries when we have analysis from the question.
   let searchQuery = cleanTopic;
   if (topicAnalysis) {
-    searchQuery = `${topicAnalysis.chapter} - ${topicAnalysis.keywords.join(' ')}`;
+    const qType = (topicAnalysis.questionType || '').trim();
+    const mistake = (topicAnalysis.likelyMistake || '').trim();
+    const studentAnswer = (questionContext?.userAnswer || '').toString().trim();
+
+    // If questionType exists, search for "Cách làm" / worked examples for that question type within the topic
+    if (qType) {
+      searchQuery = `${topicAnalysis.chapter} ${topicAnalysis.keywords ? topicAnalysis.keywords.join(' ') : ''} - Cách làm các câu hỏi '${qType}' về ${topicAnalysis.topic}`;
+      if (studentAnswer) searchQuery += `; Ví dụ: học sinh trả lời sai: "${studentAnswer}"`;
+      if (mistake) searchQuery += `; Sai lầm phổ biến: ${mistake}`;
+    } else {
+      searchQuery = `${topicAnalysis.chapter} - ${topicAnalysis.keywords ? topicAnalysis.keywords.join(' ') : topicAnalysis.topic}`;
+    }
   } else {
     searchQuery = `${cleanTopic} toán học lớp 8`;
   }
