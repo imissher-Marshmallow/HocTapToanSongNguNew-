@@ -31,8 +31,8 @@ try {
 
 // Timeouts (ms) - make configurable via env
 const SEARCH_TIMEOUT_MS = parseInt(process.env.OPENAI_SEARCH_TIMEOUT_MS, 10) || 10000; // default 10s
-const REPLACE_TIMEOUT_MS = parseInt(process.env.OPENAI_REPLACE_TIMEOUT_MS, 10) || 7000; // default 7s
-const TOPIC_ANALYSIS_TIMEOUT_MS = parseInt(process.env.OPENAI_TOPIC_TIMEOUT_MS, 10) || 5000; // default 5s
+const REPLACE_TIMEOUT_MS = parseInt(process.env.OPENAI_REPLACE_TIMEOUT_MS, 10) || 10000; // default 7s
+const TOPIC_ANALYSIS_TIMEOUT_MS = parseInt(process.env.OPENAI_TOPIC_TIMEOUT_MS, 10) || 10000; // default 5s
 
 // Trusted educational sources
 const TRUSTED_DOMAINS = [
@@ -82,6 +82,14 @@ function sanitizeSearchQuery(q) {
   s = s.replace(/-\s*\d+\s*câu/gi, '');
   s = s.replace(/\s+/g, ' ').trim();
   return s;
+}
+
+// Detect common assessment label strings that are not useful as search queries
+const ASSESSMENT_LABELS = ['nhận biết', 'thông hiểu', 'vận dụng', 'nhận biết (knowledge)', 'thông hiểu (comprehension)', 'vận dụng thấp', 'vận dụng cao'];
+function isAssessmentLabel(s) {
+  if (!s || typeof s !== 'string') return false;
+  const low = s.toLowerCase();
+  return ASSESSMENT_LABELS.some(lbl => low.includes(lbl));
 }
 
 /**
@@ -342,42 +350,71 @@ async function requestReplacementLinks(searchQuery, excludedUrls = []) {
 async function getResourcesForTopic(topic, difficulty = 'medium', questionContext = null) {
   const cleanTopic = (topic || '').trim();
   
-  // If we have question context, analyze it first
+  // If we have question context, analyze it first. Prefer the student's QUESTION over the provided topic.
   let topicAnalysis = null;
-  if (questionContext?.question && questionContext?.correctAnswer) {
+  if (questionContext?.question) {
     topicAnalysis = await analyzeQuestionTopic(
       questionContext.question,
-      questionContext.correctAnswer,
-      questionContext.userAnswer
+      questionContext.correctAnswer || '',
+      questionContext.userAnswer || ''
     );
+    if (topicAnalysis) {
+      console.log(`[Resources] Using student's question for search analysis: "${(questionContext.question||'').slice(0,120)}..."`);
+    }
   }
 
-  // Build search query. Prefer question-type focused queries when we have analysis from the question.
+  // Build search query. Prefer the student's question if available (question-first approach).
   let searchQuery = cleanTopic;
   if (topicAnalysis) {
     const qType = (topicAnalysis.questionType || '').trim();
     const mistake = (topicAnalysis.likelyMistake || '').trim();
     const studentAnswer = (questionContext?.userAnswer || '').toString().trim();
+    const questionText = sanitizeSearchQuery(questionContext?.question || '');
 
-    // If questionType exists, search for "Cách làm" / worked examples for that question type within the topic
-    if (qType) {
-      searchQuery = `${topicAnalysis.chapter} ${topicAnalysis.keywords ? topicAnalysis.keywords.join(' ') : ''} - Cách làm các câu hỏi '${qType}' về ${topicAnalysis.topic}`;
-      if (studentAnswer) searchQuery += `; Ví dụ: học sinh trả lời sai: "${studentAnswer}"`;
-      if (mistake) searchQuery += `; Sai lầm phổ biến: ${mistake}`;
-    } else {
-      searchQuery = `${topicAnalysis.chapter} - ${topicAnalysis.keywords ? topicAnalysis.keywords.join(' ') : topicAnalysis.topic}`;
-    }
+    // Build a focused query based on the actual question + detected question type and common mistake
+    searchQuery = `${topicAnalysis.topic || cleanTopic} - Cách làm: ${questionText}`;
+    if (qType) searchQuery += `; Loại câu hỏi: ${qType}`;
+    if (mistake) searchQuery += `; Sai lầm: ${mistake}`;
+    if (studentAnswer) searchQuery += `; Học sinh trả lời sai: "${studentAnswer}"`;
   } else {
+    // fallback: topic-based search
     searchQuery = `${cleanTopic} toán học lớp 8`;
   }
 
   // sanitize before searching to avoid tokens like "- 4 câu" causing poor queries
   searchQuery = sanitizeSearchQuery(searchQuery);
 
+  // If the topic looks like an assessment label (e.g., "Thông hiểu - 4 câu"), prefer building a query from the actual question
+  if (isAssessmentLabel(cleanTopic) || isAssessmentLabel(searchQuery)) {
+    if (questionContext && questionContext.question) {
+      const q = sanitizeSearchQuery(questionContext.question);
+      // ask for how-to and worked examples related to the student's incorrect answer
+      const studentAns = (questionContext.userAnswer || '').toString().trim();
+      searchQuery = `Cách làm: ${q}` + (studentAns ? `; Học sinh trả lời sai: "${studentAns}"` : '');
+      console.log(`[Resources] Rewriting assessment-label query -> "${searchQuery}"`);
+    }
+  }
+
   console.log(`[Resources] Searching: "${searchQuery}"`);
 
   // Perform AI-powered web search
-  const webResults = await searchForResources(searchQuery);
+  let webResults = await searchForResources(searchQuery);
+
+  // If we found nothing, try a couple of targeted fallbacks: site-specific queries
+  if ((!webResults || webResults.length === 0) && cleanTopic) {
+    const topicOnly = sanitizeSearchQuery(topicAnalysis?.topic || cleanTopic || '');
+    const fallbacks = [
+      `site:vietjack.com ${topicOnly} cách làm`,
+      `site:khanacademy.org ${topicOnly} lesson ${topicOnly}`,
+      `${topicOnly} cách giải ví dụ`,
+    ];
+
+    for (const fb of fallbacks) {
+      console.log(`[Resources] Fallback search: "${fb}"`);
+      webResults = await searchForResources(fb);
+      if (webResults && webResults.length > 0) break;
+    }
+  }
 
   if (webResults.length > 0) {
     console.log(`[Resources] Found ${webResults.length} verified resources for: "${cleanTopic}"`);
