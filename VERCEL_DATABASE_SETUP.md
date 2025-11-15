@@ -2,6 +2,19 @@
 
 ## Database Configuration
 
+## ✅ CRITICAL FIX APPLIED (June 2025)
+
+**Problem Solved:** 
+- `pg` module was NOT being installed on Vercel (stored in wrong package.json)
+- Quiz scores were saving as 0 and not persisting
+- Data was saving to Vercel's temporary filesystem (lost on redeploy)
+
+**What Changed:**
+- Added all backend dependencies to `/api/package.json` 
+- Created `/api/database.js` for Vercel's serverless functions
+- Now `pg` module will be installed during Vercel build
+- PostgreSQL connection will work automatically
+
 ### Step 1: Set DATABASE_URL Environment Variable on Vercel
 
 1. Go to your Vercel dashboard
