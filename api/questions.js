@@ -46,6 +46,10 @@ module.exports = async (req, res) => {
     // Default to random if nothing provided
     if (!quizId) quizId = 'random';
 
+    // Prevent edge/CDN caching for randomized responses so each request gets a fresh selection
+    // (helps avoid a single cached contest being returned to all users)
+    res.setHeader('Cache-Control', 'no-store');
+
     if (grouped) {
       const groupedData = analyzer.loadGroupedQuestionsForQuiz(quizId);
       res.json(groupedData);
