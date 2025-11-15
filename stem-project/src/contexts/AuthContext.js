@@ -25,6 +25,16 @@ export function AuthProvider({ children }) {
   // Check if token exists on mount
   useEffect(() => {
     if (token) {
+      // Immediately decode token to get user.id (for History and other components)
+      const decoded = decodeToken(token);
+      if (decoded && decoded.userId) {
+        // Set a temporary user object with just the ID from token
+        setUser({
+          id: decoded.userId,
+          email: decoded.email || 'unknown',
+          username: 'Loading...'
+        });
+      }
       verifyToken();
     }
   }, []);
@@ -88,8 +98,16 @@ export function AuthProvider({ children }) {
 
       const data = await response.json();
       setToken(data.token);
-      setUser(data.user);
       localStorage.setItem('auth_token', data.token);
+      
+      // Set user immediately from response
+      const decoded = decodeToken(data.token);
+      const userData = data.user || {
+        id: decoded?.userId,
+        email: decoded?.email || email,
+        username: username
+      };
+      setUser(userData);
       return data;
     } catch (err) {
       setError(err.message);
@@ -118,8 +136,16 @@ export function AuthProvider({ children }) {
 
       const data = await response.json();
       setToken(data.token);
-      setUser(data.user);
       localStorage.setItem('auth_token', data.token);
+      
+      // Set user immediately from response
+      const decoded = decodeToken(data.token);
+      const userData = data.user || {
+        id: decoded?.userId,
+        email: decoded?.email || email,
+        username: 'User'
+      };
+      setUser(userData);
       return data;
     } catch (err) {
       setError(err.message);
@@ -144,7 +170,22 @@ export function AuthProvider({ children }) {
     signin,
     logout,
     isAuthenticated: !!user && !!token,
-    getUserId: () => user?.id || 'anonymous'
+    getUserId: () => {
+      // Try to get userId from user object
+      if (user?.id) return user.id;
+      
+      // Fallback: decode token if available
+      if (token) {
+        const decoded = decodeToken(token);
+        if (decoded?.userId) return decoded.userId;
+      }
+      
+      // Last resort: check localStorage
+      const storedId = localStorage.getItem('userId');
+      if (storedId) return storedId;
+      
+      return 'anonymous';
+    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

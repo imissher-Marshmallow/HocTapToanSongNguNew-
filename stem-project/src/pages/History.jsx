@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import '../styles/History.css';
 
 export default function History() {
-  const { user } = useAuth();
+  const { user, token, getUserId } = useAuth();
   const { language } = useLanguage();
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,26 +16,38 @@ export default function History() {
     const fetchAttempts = async () => {
       try {
         setLoading(true);
-        const userId = user?.id || localStorage.getItem('userId');
-        if (!userId) {
+        // Use getUserId() method which tries multiple sources
+        const userId = getUserId();
+        console.log('[History] Using userId:', userId, 'from auth');
+        
+        if (!userId || userId === 'anonymous') {
+          console.log('[History] No userId found, showing empty state');
           setAttempts([]);
           setLoading(false);
           return;
         }
-        const response = await fetch(`/api/history?userId=${userId}`, {
+
+        const apiBase = getApiBase();
+        const response = await fetch(`${apiBase}/api/history?userId=${userId}`, {
           headers: {
             'Accept': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            'Authorization': token ? `Bearer ${token}` : ''
           }
         });
+        
+        console.log('[History] API response status:', response.status);
         if (!response.ok) throw new Error(`API error: ${response.status}`);
+        
         const data = await response.json();
+        console.log('[History] API returned:', data);
+        
         if (data.success && Array.isArray(data.data)) {
           setAttempts(data.data);
         } else {
           setAttempts([]);
         }
       } catch (error) {
+        console.error('[History] Error:', error.message);
         setError(error.message);
         setAttempts([]);
       } finally {
@@ -43,7 +55,7 @@ export default function History() {
       }
     };
     fetchAttempts();
-  }, [user]);
+  }, [user, token]);
 
   const formatDate = (date) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;

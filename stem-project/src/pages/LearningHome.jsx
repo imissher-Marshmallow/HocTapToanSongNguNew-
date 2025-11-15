@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import StudySidebar from '../components/StudySidebar';
 import '../styles/LearningHome.css';
 
 function LearningHome() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token, getUserId } = useAuth();
   const { language } = useLanguage();
   const [weakAreasExpanded, setWeakAreasExpanded] = useState(false);
 
-
   const name = user?.username || user?.name || (language === 'vi' ? 'Học sinh' : 'Student');
-  const userId = user?.id || localStorage.getItem('userId');
+  const userId = getUserId();
 
   // State for analytics
   const [summary, setSummary] = useState(null);
@@ -23,22 +22,32 @@ function LearningHome() {
 
   useEffect(() => {
     const fetchSummary = async () => {
-      if (!userId) {
+      if (!userId || userId === 'anonymous') {
+        console.log('[LearningHome] No userId available');
         setLoading(false);
         setSummary(null);
         return;
       }
       try {
         setLoading(true);
-        const response = await fetch(`/api/history/summary?userId=${userId}`);
-        if (!response.ok) throw new Error('API error');
+        console.log('[LearningHome] Fetching summary for userId:', userId);
+        const apiBase = getApiBase();
+        const response = await fetch(`${apiBase}/api/history/summary?userId=${userId}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        });
+        console.log('[LearningHome] API status:', response.status);
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
         const data = await response.json();
+        console.log('[LearningHome] API data:', data);
         if (data.success && data.data) {
           setSummary(data.data);
         } else {
           setSummary(null);
         }
       } catch (err) {
+        console.error('[LearningHome] Error:', err.message);
         setError(err.message);
         setSummary(null);
       } finally {
@@ -46,7 +55,7 @@ function LearningHome() {
       }
     };
     fetchSummary();
-  }, [userId]);
+  }, [userId, token]);
 
   // Fallbacks if no data
   const streak = summary?.streak || 0;
