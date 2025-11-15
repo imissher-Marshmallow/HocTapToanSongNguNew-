@@ -90,6 +90,26 @@ app.get('/debug', (req, res) => {
   }
 });
 
+// Debug endpoint - inspect all results in database
+app.get('/debug/results', async (req, res) => {
+  try {
+    const results = await dbHelpers.getAllResults();
+    res.json({
+      status: 'ok',
+      totalResults: results.length,
+      results: results.map(r => ({
+        id: r.id,
+        user_id: r.user_id,
+        quiz_id: r.quiz_id,
+        score: r.score,
+        created_at: r.created_at
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path });

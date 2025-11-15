@@ -115,6 +115,7 @@ if (USE_POSTGRES) {
 
       saveResult: async (userId, quizId, score, totalQuestions, answers, weakAreas, feedback, recommendations) => {
         try {
+          console.log('[DB saveResult] Saving with userId:', userId, 'type:', typeof userId);
           const result = await pool.query(
             `INSERT INTO results 
              (user_id, quiz_id, score, total_questions, answers, weak_areas, feedback, recommendations)
@@ -172,10 +173,12 @@ if (USE_POSTGRES) {
 
       getUserResults: async (userId, limit = 10) => {
         try {
+          console.log('[DB getUserResults] Querying for userId:', userId, 'type:', typeof userId, 'limit:', limit);
           const result = await pool.query(
             'SELECT * FROM results WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
             [userId, limit]
           );
+          console.log('[DB getUserResults] Found', result.rows?.length || 0, 'results for userId:', userId);
           return result.rows || [];
         } catch (err) {
           console.error('getUserResults error:', err.message);
@@ -237,10 +240,10 @@ if (USE_POSTGRES) {
       getAllResults: async () => {
         try {
           const result = await pool.query(
-            `SELECT r.*, u.email, u.username FROM results r
-             LEFT JOIN users u ON r.user_id = u.id
+            `SELECT r.id, r.user_id, r.quiz_id, r.score, r.created_at FROM results r
              ORDER BY r.created_at DESC`
           );
+          console.log('[DB getAllResults] All results in database:', result.rows?.map(r => ({ id: r.id, user_id: r.user_id, quiz_id: r.quiz_id, score: r.score })) || []);
           return result.rows || [];
         } catch (err) {
           console.error('getAllResults error:', err.message);

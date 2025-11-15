@@ -30,6 +30,14 @@ router.post('/', authMiddleware, async (req, res) => {
     const { userId, quizId, answers, questions } = req.body;
     const finalUserId = userId || req.userId || 'anonymous';
 
+    console.log('[Results] POST /api/results received:', {
+      bodyUserId: userId,
+      middlewareUserId: req.userId,
+      finalUserId,
+      quizId,
+      answersLength: answers?.length
+    });
+
     if (!quizId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'Missing required fields: quizId, answers' });
     }
@@ -50,9 +58,9 @@ router.post('/', authMiddleware, async (req, res) => {
         {}, // will be filled by AI
         {}  // will be filled by AI
       );
-      console.log(`[Results] Saved placeholder result ${resultId}`);
+      console.log(`[Results] Saved placeholder result ${resultId} with finalUserId:`, finalUserId);
     } catch (dbErr) {
-      console.warn('[Results] Failed to save initial result:', dbErr.message);
+      console.error('[Results] Failed to save initial result:', dbErr.message);
       // Continue anyway - we'll still analyze and return result
     }
 
