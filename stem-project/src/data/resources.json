@@ -1,0 +1,32 @@
+{
+  "topics": [
+    {
+      "id": "k8",
+      "title": "Kiến thức lớp 8",
+      "featured": true,
+      "lessons": [
+        { "name": "Hằng đẳng thức - Nhập môn", "link": "https://example.com/hangdangthuc" },
+        { "name": "Thu gọn đa thức - Bài tập mẫu", "link": "https://example.com/thugon" },
+        { "name": "Phân tích đa thức", "link": "https://example.com/phan-tich" }
+      ]
+    },
+    {
+      "id": "k9",
+      "title": "Kiến thức lớp 9",
+      "featured": false,
+      "lessons": [
+        { "name": "Phương trình bậc hai", "link": "https://example.com/pt-bac-2" },
+        { "name": "Hệ phương trình", "link": "https://example.com/he-pt" }
+      ]
+    },
+    {
+      "id": "alg",
+      "title": "Đại số cơ bản",
+      "featured": true,
+      "lessons": [
+        { "name": "Độ lệch trung bình", "link": "https://example.com/stat" },
+        { "name": "Tổng và tích đa thức", "link": "https://example.com/tong-tich" }
+      ]
+    }
+  ]
+}

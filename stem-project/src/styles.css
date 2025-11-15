@@ -25,6 +25,8 @@ body {
 
 main {
   flex: 1;
+  /* Offset main content so fixed navbar (height: 4rem) doesn't overlap it. */
+  padding-top: 4.5rem;
 }
 
 /* Button Styles */

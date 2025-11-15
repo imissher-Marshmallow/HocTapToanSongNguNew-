@@ -4,6 +4,7 @@ const cors = require('cors');
 const quizRoutes = require('./routes/quiz');
 const authRoutes = require('./routes/auth');
 const resultsRoutes = require('./routes/results');
+const historyRoutes = require('./routes/history');
 const { db } = require('./database');
 
 const app = express();
@@ -58,6 +59,7 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/api', quizRoutes);
 app.use('/api/results', resultsRoutes);
+app.use('/api/history', historyRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -1,0 +1,334 @@
+.resources-container {
+  padding: 2rem 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 4.5rem);
+}
+
+/* Header Section */
+.resources-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.resources-header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #2563eb 0%, #0891b2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.resources-header p {
+  font-size: 1.1rem;
+  color: #6b7280;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Featured Section */
+.featured-section {
+  margin-bottom: 3rem;
+}
+
+.featured-section h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+}
+
+.featured-carousel {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+  scroll-behavior: smooth;
+}
+
+.featured-carousel::-webkit-scrollbar {
+  height: 6px;
+}
+
+.featured-carousel::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 10px;
+}
+
+.featured-carousel::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+.featured-card {
+  flex-shrink: 0;
+  min-width: 280px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+  border: 2px solid #dbeafe;
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  text-decoration: none;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.featured-card:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+  transform: translateY(-8px);
+}
+
+.featured-card-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.featured-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.featured-card-content h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.featured-card-content p {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.featured-card-arrow {
+  font-size: 1.5rem;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+/* Topics Section */
+.topics-section {
+  margin-bottom: 2rem;
+}
+
+.topics-section h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+}
+
+.topics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Topic Accordion */
+.topic-accordion {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.topic-accordion:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #dbeafe;
+}
+
+.accordion-toggle {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  transition: all 0.3s;
+}
+
+.accordion-toggle:hover .accordion-header {
+  background: #f9fafb;
+}
+
+.accordion-info {
+  flex: 1;
+  text-align: left;
+}
+
+.accordion-info h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.lesson-count {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+}
+
+.accordion-icon {
+  font-size: 1.2rem;
+  color: #9ca3af;
+  margin-left: 1rem;
+  transition: color 0.3s;
+  flex-shrink: 0;
+}
+
+.accordion-toggle:hover .accordion-icon {
+  color: #2563eb;
+}
+
+/* Accordion Content */
+.accordion-content {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.lessons-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lesson-item {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.lesson-item:last-child {
+  border-bottom: none;
+}
+
+.lesson-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  text-decoration: none;
+  color: #1f2937;
+  transition: all 0.3s;
+}
+
+.lesson-link:hover {
+  background: white;
+  padding-left: 2rem;
+  color: #2563eb;
+}
+
+.lesson-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.lesson-name {
+  flex: 1;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.external-icon {
+  font-size: 0.9rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.lesson-link:hover .external-icon {
+  color: #2563eb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .resources-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .resources-header p {
+    font-size: 0.95rem;
+  }
+
+  .featured-carousel {
+    gap: 1rem;
+  }
+
+  .featured-card {
+    min-width: 240px;
+    padding: 1rem;
+  }
+
+  .featured-section h2,
+  .topics-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .accordion-header {
+    padding: 1rem;
+  }
+
+  .lesson-link {
+    padding: 0.75rem 1rem;
+  }
+
+  .lesson-link:hover {
+    padding-left: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .resources-container {
+    padding: 1rem 0.5rem;
+  }
+
+  .resources-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .featured-carousel {
+    gap: 0.75rem;
+  }
+
+  .featured-card {
+    min-width: 200px;
+    padding: 0.75rem;
+  }
+
+  .featured-card-content h4 {
+    font-size: 0.9rem;
+  }
+
+  .featured-card-content p {
+    font-size: 0.75rem;
+  }
+
+  .accordion-info h3 {
+    font-size: 1rem;
+  }
+
+  .lesson-count {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+  }
+}

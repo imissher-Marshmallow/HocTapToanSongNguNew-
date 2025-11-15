@@ -8,6 +8,10 @@ import LandingPage from './pages/LandingPage';
 import QuizList from './pages/QuizList';
 import QuizPage from './pages/QuizPage';
 import ResultPage from './pages/ResultPage';
+import LearningHome from './pages/LearningHome';
+import Study from './pages/Study';
+import Resources from './pages/Resources';
+import History from './pages/History';
 import Signup from './components/Signup';
 import Signin from './components/Signin';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -24,6 +28,38 @@ function App() {
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/quizzes" element={<QuizList />} />
+                <Route
+                  path="/study"
+                  element={
+                    <ProtectedRoute>
+                      <LearningHome />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/study-mode"
+                  element={
+                    <ProtectedRoute>
+                      <Study />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/resources"
+                  element={
+                    <ProtectedRoute>
+                      <Resources />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/history"
+                  element={
+                    <ProtectedRoute>
+                      <History />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/quiz/:id"
                   element={

@@ -1,6 +1,7 @@
 export const navTranslations = {
   en: {
     home: 'Home',
+    study: 'Study',
     quizzes: 'Tests',
     login: 'Login',
     signup: 'Sign Up',
@@ -10,6 +11,7 @@ export const navTranslations = {
   },
   vi: {
     home: 'Trang chủ',
+    study: 'Học',
     quizzes: 'Bài kiểm tra',
     login: 'Đăng nhập',
     signup: 'Đăng ký',
