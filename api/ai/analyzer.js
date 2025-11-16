@@ -110,19 +110,20 @@ function loadQuestionsForQuiz(quizId) {
       // Numeric array style contests: pick by index or random
       let idx = 0;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        idx = Math.floor(Math.random() * parsed.contests.length);
+        idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
       } else {
         const parsedId = parseInt(quizId, 10);
         if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) {
           idx = parsedId - 1;
         } else {
-          idx = Math.floor(Math.random() * parsed.contests.length);
+          idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
         }
       }
       const contest = parsed.contests[idx] || [];
       const shuffled = shuffleArray([...contest]);
       const chosenKey = `contest${idx + 1}`;
-      return { questions: shuffled, contestKey: chosenKey };
+      // Include numeric contest index and top-level contest name when present
+      return { questions: shuffled, contestKey: chosenKey, contestIndex: idx + 1, contestName: parsed.name || null };
     }
 
     // If contests is an object with named contests, support selecting by name, numeric index or random
@@ -167,14 +168,18 @@ function loadQuestionsForQuiz(quizId) {
         english_question: q.english_question || q.question,
         english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
       }));
-      return { questions: normalized, contestKey: chosenKey };
+      // Derive a numeric contest index when possible (e.g., 'contest3' -> 3)
+      let contestIndex = null;
+      const m = String(chosenKey).match(/contest(\d+)/);
+      if (m) contestIndex = parseInt(m[1], 10);
+      return { questions: normalized, contestKey: chosenKey, contestIndex, contestName: parsed.name || null };
     }
   }
   // backwards compatibility: if file is a plain array of questions
   if (Array.isArray(parsed)) {
     const shuffled = shuffleArray([...parsed]);
     const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
-    return { questions: trimmed, contestKey: 'contest1' };
+    return { questions: trimmed, contestKey: 'contest1', contestIndex: 1, contestName: null };
   }
   return { questions: [], contestKey: null };
 }
@@ -206,7 +211,7 @@ function loadGroupedQuestionsForQuiz(quizId) {
       // numeric or random selection
       let idx;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        idx = Math.floor(Math.random() * parsed.contests.length);
+        idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
       } else {
         const parsedId = parseInt(quizId, 10);
         idx = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) ? parsedId - 1 : 0;
@@ -223,7 +228,7 @@ function loadGroupedQuestionsForQuiz(quizId) {
       if (keys.length === 0) return { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
       let chosenKey;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        const idx = Math.floor(Math.random() * keys.length);
+        const idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, keys.length) : Math.floor(Math.random() * keys.length);
         chosenKey = keys[idx];
       } else if (parsed.contests.hasOwnProperty(quizId)) {
         chosenKey = quizId;

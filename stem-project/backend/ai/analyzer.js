@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const OpenAI = require('openai');
 const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
@@ -55,7 +56,29 @@ function loadQuestionsForQuiz(quizId) {
   const data = fs.readFileSync(questionsPath, 'utf8');
   const parsed = JSON.parse(data);
   
+  // Support multiple top-level container names. Prefer 'contests' but fall back to first object key
+  let containerName = null;
+  let container = null;
   if (parsed && parsed.contests) {
+    containerName = 'contests';
+    container = parsed.contests;
+  } else if (parsed && typeof parsed === 'object') {
+    // find first key whose value looks like a contests map (object with arrays)
+    const keys = Object.keys(parsed);
+    for (const k of keys) {
+      if (parsed[k] && typeof parsed[k] === 'object') {
+        // heuristic: value has child keys mapping to arrays of question objects
+        const childKeys = Object.keys(parsed[k] || {});
+        if (childKeys.length > 0 && childKeys.every(ck => Array.isArray(parsed[k][ck]))) {
+          containerName = k;
+          container = parsed[k];
+          break;
+        }
+      }
+    }
+  }
+
+  if (container) {
     if (Array.isArray(parsed.contests)) {
       let idx = 0;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
@@ -66,16 +89,16 @@ function loadQuestionsForQuiz(quizId) {
         if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) {
           idx = parsedId - 1;
         } else {
-          idx = Math.floor(Math.random() * parsed.contests.length);
+          idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
         }
       }
       const contest = parsed.contests[idx] || [];
       const shuffled = shuffleArray([...contest]);
-      return { questions: shuffled, contestKey: `contest${idx + 1}` };
+      return { questions: shuffled, contestKey: `contest${idx + 1}`, contestIndex: idx + 1, contestName: parsed.name || null };
     }
 
-    if (typeof parsed.contests === 'object') {
-      const allKeys = Object.keys(parsed.contests);
+    if (typeof container === 'object') {
+      const allKeys = Object.keys(container);
       const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
         const na = parseInt((a.match(/\d+/) || [0])[0], 10);
         const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
@@ -86,7 +109,7 @@ function loadQuestionsForQuiz(quizId) {
       if (keys.length === 0) return { questions: [], contestKey: 'none' };
       let chosenKey;
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        const idx = Math.floor(Math.random() * keys.length);
+        const idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, keys.length) : Math.floor(Math.random() * keys.length);
         chosenKey = keys[idx];
       } else if (parsed.contests.hasOwnProperty(quizId)) {
         chosenKey = quizId;
@@ -98,7 +121,7 @@ function loadQuestionsForQuiz(quizId) {
           chosenKey = keys[0];
         }
       }
-      const contest = parsed.contests[chosenKey] || [];
+      const contest = container[chosenKey] || [];
       const shuffled = shuffleArray([...contest]);
       const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
       // Ensure english fields present for frontend (fallback to original fields)
@@ -107,7 +130,11 @@ function loadQuestionsForQuiz(quizId) {
         english_question: q.english_question || q.question,
         english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
       }));
-      return { questions: normalized, contestKey: chosenKey };
+      // derive numeric index from chosenKey if possible
+      let contestIndex = null;
+      const m = String(chosenKey).match(/contest(\d+)/);
+      if (m) contestIndex = parseInt(m[1], 10);
+      return { questions: normalized, contestKey: chosenKey, contestIndex, contestName: parsed.name || containerName };
     }
   }
   return { questions: [], contestKey: 'none' };
@@ -354,6 +381,7 @@ async function analyzeQuiz(payload) {
   const loadResult = loadQuestionsForQuiz(quizId);
   const questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
   const contestKey = loadResult && loadResult.contestKey ? loadResult.contestKey : quizId;
+  const contestName = loadResult && loadResult.contestName ? loadResult.contestName : null;
   
   let correct = 0;
   const perQuestionFeedback = [];
@@ -526,7 +554,9 @@ async function analyzeQuiz(payload) {
     // Anti-cheat flags
     isFlaggedForCheating,
     cheatReason: isFlaggedForCheating ? cheatReason : null,
-    isAutoSubmitted: isAutoSubmitted || false
+    isAutoSubmitted: isAutoSubmitted || false,
+    contestKey,
+    contestName
 
   };
 }

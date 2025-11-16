@@ -1,6 +1,7 @@
 {
-  "contests": {
-    "contest1": [
+  "name": "Kiểm tra kiến thức đại số 8",
+  "contests": [
+    [
       {
          "id": 1,
     "topic": "Nhận biết (Knowledge) - 8 câu",
@@ -182,7 +183,7 @@
     "difficulty": "4"
   }
     ],
-    "contest2": [
+    [
       {
         "id": 1,
     "topic": "Nhận biết (Knowledge) - 8 câu",
@@ -364,7 +365,7 @@
     "difficulty": "4"
   }
     ],
-    "contest3": [
+    [
       {
         "id": 1,
     "topic": "Nhận biết (Knowledge) - 8 câu",
@@ -546,7 +547,7 @@
     "difficulty": "4"
   }
     ],
-    "contest4": [
+    [
       {
         "id": 1,
     "topic": "Nhận biết (Knowledge) - 8 câu",
@@ -728,7 +729,7 @@
     "difficulty": "4"
   }
     ],
-    "contest5": [
+    [
       {
         "id": 1,
     "topic": "Nhận biết (Knowledge) - 8 câu",
@@ -910,5 +911,5 @@
     "difficulty": "4"
   }
     ]
-  }
+  ]
 }

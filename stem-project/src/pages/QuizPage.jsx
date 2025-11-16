@@ -36,6 +36,8 @@ function QuizPage() {
   const [started, setStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [selectedContestKey, setSelectedContestKey] = useState(null);
+  const [selectedContestIndex, setSelectedContestIndex] = useState(null);
+  const [selectedContestName, setSelectedContestName] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [questionStartTime, setQuestionStartTime] = useState(null);
@@ -73,9 +75,13 @@ function QuizPage() {
         if (data && data.questions && Array.isArray(data.questions)) {
           setQuestions(data.questions);
           setSelectedContestKey(data.contestKey || (id || 'random'));
+          setSelectedContestIndex(data.contestIndex || null);
+          setSelectedContestName(data.contestName || null);
         } else if (Array.isArray(data)) {
           setQuestions(data);
           setSelectedContestKey(id || 'random');
+          setSelectedContestIndex(null);
+          setSelectedContestName(null);
         } else {
           // unexpected shape
           console.warn('Unexpected questions payload shape', data);
@@ -259,6 +265,9 @@ function QuizPage() {
       questions: questions,
       isAutoSubmitted: isAutoSubmitted
     };
+    // attach contest metadata when available so backend and history can record it
+    if (selectedContestIndex) payload.contestIndex = selectedContestIndex;
+    if (selectedContestName) payload.contestName = selectedContestName;
     try {
       const apiBaseUrl = getApiBase();
       const headers = {
