@@ -31,9 +31,14 @@ router.get('/questions/random', (req, res) => {
     // Prevent caching of randomized responses
     res.setHeader('Cache-Control', 'no-store, max-age=0');
     const result = loadQuestionsForQuiz('random');
-    console.log('[QuizRoute] /questions/random selected', { contestKey: result.contestKey, contestIndex: result.contestIndex, contestName: result.contestName });
-    if (result && result.questions) res.json(result);
-    else res.json({ questions: result, contestKey: 'random' });
+    console.log('[QuizRoute] /questions/random selected', {
+      contestKey: result && result.contestKey,
+      contestIndex: result && result.contestIndex,
+      contestId: result && result.contestId,
+      contestName: result && result.contestName,
+    });
+    if (result && result.questions) return res.json(result);
+    return res.json({ questions: result, contestKey: 'random' });
   } catch (error) {
     console.error('Error loading random questions:', error);
     res.status(500).json({ error: 'Internal server error' });

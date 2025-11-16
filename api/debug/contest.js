@@ -8,12 +8,19 @@ module.exports = async (req, res) => {
 
   try {
     // Force a random selection each request
-    const result = analyzer.loadQuestionsForQuiz('random');
-    const contestKey = result && result.contestKey ? result.contestKey : null;
-    const contestIndex = result && result.contestIndex ? result.contestIndex : null;
-    const contestName = result && result.contestName ? result.contestName : null;
-    res.setHeader('Cache-Control', 'no-store, max-age=0');
-    res.json({ contestKey, contestIndex, contestName, timestamp: Date.now(), note: 'Use this endpoint to verify contest selection/randomness in production' });
+      const result = analyzer.loadQuestionsForQuiz('random');
+      // avoid caching random responses
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      res.json({
+        ok: true,
+        contestKey: result && result.contestKey ? result.contestKey : null,
+        contestIndex: result && result.contestIndex ? result.contestIndex : null,
+        contestId: result && result.contestId ? result.contestId : null,
+        contestName: result && result.contestName ? result.contestName : null,
+        questions: result && result.questions ? result.questions.length : 0,
+        timestamp: Date.now(),
+        note: 'Use this endpoint to verify contest selection/randomness in production'
+      });
   } catch (err) {
     console.error('Debug /api/debug/contest error:', err);
     res.status(500).json({ error: 'internal' });

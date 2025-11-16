@@ -94,7 +94,7 @@ function loadQuestionsForQuiz(quizId) {
       }
       const contest = parsed.contests[idx] || [];
       const shuffled = shuffleArray([...contest]);
-      return { questions: shuffled, contestKey: `contest${idx + 1}`, contestIndex: idx + 1, contestName: parsed.name || null };
+      return { questions: shuffled, contestKey: `contest${idx + 1}`, contestIndex: idx + 1, contestId: idx + 1, contestName: parsed.name || null };
     }
 
     if (typeof container === 'object') {
@@ -134,7 +134,7 @@ function loadQuestionsForQuiz(quizId) {
       let contestIndex = null;
       const m = String(chosenKey).match(/contest(\d+)/);
       if (m) contestIndex = parseInt(m[1], 10);
-      return { questions: normalized, contestKey: chosenKey, contestIndex, contestName: parsed.name || containerName };
+      return { questions: normalized, contestKey: chosenKey, contestIndex, contestId: contestIndex, contestName: parsed.name || containerName };
     }
   }
   return { questions: [], contestKey: 'none' };

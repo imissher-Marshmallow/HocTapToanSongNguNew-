@@ -56,14 +56,23 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Use the analyzer helper which now returns both questions and the chosen contest key
+    // Use the analyzer helper which may return questions + contest metadata
     const result = analyzer.loadQuestionsForQuiz(quizId);
-    // result: { questions: [...], contestKey: 'contest5' }
+    // Normalize response: always include numeric `contestId` when available
     if (result && result.questions) {
-      res.json(result);
+      const out = Object.assign({}, result);
+      if (!out.contestId) {
+        // try to derive numeric id from contestIndex or contestKey
+        if (out.contestIndex) out.contestId = out.contestIndex;
+        else if (out.contestKey) {
+          const m = String(out.contestKey).match(/contest(\d+)/);
+          if (m) out.contestId = parseInt(m[1], 10);
+        }
+      }
+      res.json(out);
     } else {
       // backward-compat: if analyzer returned an array, wrap it
-      res.json({ questions: result, contestKey: quizId });
+      res.json({ questions: result, contestId: null, contestKey: quizId });
     }
   } catch (err) {
     console.error('API /api/questions error:', err);

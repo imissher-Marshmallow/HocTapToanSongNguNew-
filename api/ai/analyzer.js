@@ -122,8 +122,8 @@ function loadQuestionsForQuiz(quizId) {
       const contest = parsed.contests[idx] || [];
       const shuffled = shuffleArray([...contest]);
       const chosenKey = `contest${idx + 1}`;
-      // Include numeric contest index and top-level contest name when present
-      return { questions: shuffled, contestKey: chosenKey, contestIndex: idx + 1, contestName: parsed.name || null };
+      // Include numeric contest id and top-level contest name when present
+      return { questions: shuffled, contestKey: chosenKey, contestIndex: idx + 1, contestId: idx + 1, contestName: parsed.name || null };
     }
 
     // If contests is an object with named contests, support selecting by name, numeric index or random
@@ -172,7 +172,7 @@ function loadQuestionsForQuiz(quizId) {
       let contestIndex = null;
       const m = String(chosenKey).match(/contest(\d+)/);
       if (m) contestIndex = parseInt(m[1], 10);
-      return { questions: normalized, contestKey: chosenKey, contestIndex, contestName: parsed.name || null };
+      return { questions: normalized, contestKey: chosenKey, contestIndex, contestId: contestIndex, contestName: parsed.name || null };
     }
   }
   // backwards compatibility: if file is a plain array of questions
