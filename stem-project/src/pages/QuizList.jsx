@@ -11,10 +11,10 @@ export default function QuizList() {
   const t = quizListTranslations[language];
   const [selectedQuiz, setSelectedQuiz] = useState(null);
 
-  // Show only 1 quiz with 20 questions
+  // Show only 1 quiz with 20 questions - uses 'random' to select a random contest each time
   const quizzes = [
     {
-      id: 1,
+      id: 'random',
       title: language === 'vi' ? 'Kiểm Tra Toán' : 'Math Quiz',
       description: language === 'vi' ? 'Bài kiểm tra toàn diện về kiến thức toán học' : 'Comprehensive math knowledge assessment',
       time: '30 phút / 30 min',
