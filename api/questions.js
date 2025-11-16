@@ -48,7 +48,12 @@ module.exports = async (req, res) => {
 
     // Prevent edge/CDN caching for randomized responses so each request gets a fresh selection
     // (helps avoid a single cached contest being returned to all users)
-    res.setHeader('Cache-Control', 'no-store');
+    // Use aggressive cache-control headers to bypass Vercel edge caching
+    res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate, proxy-revalidate, public');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    // Add request timestamp to response headers for debugging
+    res.setHeader('X-Request-Time', new Date().toISOString());
 
     if (grouped) {
       const groupedData = analyzer.loadGroupedQuestionsForQuiz(quizId);

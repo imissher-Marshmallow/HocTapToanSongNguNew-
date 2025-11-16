@@ -28,8 +28,11 @@ router.get('/questions/:quizId', (req, res) => {
 // GET /api/questions/random -> pick one random contest (1..N) and return shuffled questions
 router.get('/questions/random', (req, res) => {
   try {
-    // Prevent caching of randomized responses
-    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    // Prevent caching of randomized responses with aggressive headers
+    res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate, proxy-revalidate, public');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('X-Request-Time', new Date().toISOString());
     const result = loadQuestionsForQuiz('random');
     console.log('[QuizRoute] /questions/random selected', {
       contestKey: result && result.contestKey,
