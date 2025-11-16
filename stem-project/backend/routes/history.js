@@ -54,8 +54,12 @@ router.get('/summary', async (req, res) => {
       chart.push({ date: r.created_at, score });
       totalScore += score;
       totalAttempts++;
-      // Weak/strength areas
-      (r.weak_areas || []).forEach(w => { weakAreas[w] = (weakAreas[w] || 0) + 1; });
+      // Weak/strength areas - handle both string and object formats
+      (r.weak_areas || []).forEach(w => {
+        // Extract topic name: if w is object with topic property, use it; otherwise use w as string
+        const topicName = (typeof w === 'object' && w !== null && w.topic) ? w.topic : (typeof w === 'string' ? w : String(w));
+        weakAreas[topicName] = (weakAreas[topicName] || 0) + 1;
+      });
       if (r.ai_analysis && r.ai_analysis.strengthAreas) {
         r.ai_analysis.strengthAreas.forEach(s => { strengthAreas[s] = (strengthAreas[s] || 0) + 1; });
       }

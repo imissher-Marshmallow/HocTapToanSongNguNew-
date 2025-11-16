@@ -152,7 +152,10 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
 
     // Extract actual score from AI analyzer (coerce to number)
     const actualScore = Number(aiResult.score) || 0;
-    const weakAreas = aiResult.weakAreas || [];
+    // Extract weakness topic names (handle both object and string formats)
+    const weakAreas = (aiResult.weakAreas || []).map(w => {
+      return (typeof w === 'object' && w !== null && w.topic) ? w.topic : (typeof w === 'string' ? w : String(w));
+    });
     const summary = aiResult.summary || {};
 
     // Debug logging: show values we'll save

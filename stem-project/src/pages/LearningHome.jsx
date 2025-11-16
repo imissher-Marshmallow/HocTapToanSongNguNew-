@@ -4,7 +4,9 @@ import { motion } from 'framer-motion';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import StudySidebar from '../components/StudySidebar';
+import PerformanceCharts from '../components/PerformanceCharts';
 import '../styles/LearningHome.css';
+import '../styles/PerformanceCharts.css';
 
 function LearningHome() {
   const navigate = useNavigate();
@@ -64,12 +66,16 @@ function LearningHome() {
   const lastActivityTime = summary?.chart && summary.chart.length > 0 ?
     new Date(summary.chart[0].date).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US') :
     (language === 'vi' ? 'Chưa có hoạt động' : 'No activity yet');
-  const weakAreas = (summary?.topWeak || []).map((name, idx) => ({
-    id: idx + 1,
-    name,
-    accuracy: 40 + idx * 10,
-    icon: '⚠️'
-  }));
+  // Handle both string and object formats for weakAreas
+  const weakAreas = ((summary?.topWeak || []).map(name => {
+    const topicName = (typeof name === 'object' && name !== null && name.topic) ? name.topic : (typeof name === 'string' ? name : String(name));
+    return {
+      id: topicName,
+      name: topicName,
+      accuracy: 40 + (summary?.topWeak?.indexOf(name) || 0) * 10,
+      icon: '⚠️'
+    };
+  })) || [];
   const strengthAreas = (summary?.topStrength || []).map((name, idx) => ({
     id: idx + 1,
     name,
@@ -229,6 +235,14 @@ function LearningHome() {
               )}
             </div>
           </motion.div>
+
+          {/* Performance Charts Section */}
+          <PerformanceCharts
+            chartData={summary?.chart || []}
+            weakAreas={summary?.topWeak || []}
+            strengthAreas={summary?.topStrength || []}
+            masteryScore={Number(summary?.averageScore) || 0}
+          />
 
           {/* Quick Actions */}
           <motion.div
