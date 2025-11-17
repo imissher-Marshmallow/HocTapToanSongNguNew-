@@ -62,8 +62,8 @@
 }
 
 .tab-btn.active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: #6366f1;
+  border-bottom-color: #6366f1;
 }
 
 .tab-content {
@@ -85,7 +85,7 @@
 }
 
 .resource-card {
-  background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+  background: #6366f1;
   border: 2px solid #dbeafe;
   border-radius: 10px;
   padding: 1.5rem;
@@ -98,8 +98,8 @@
 }
 
 .resource-card:hover {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  background: #6366f1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .resource-icon {
@@ -129,7 +129,7 @@
 }
 
 .resource-arrow {
-  color: #2563eb;
+  color: #6366f1;
   font-weight: 700;
   font-size: 1.25rem;
   flex-shrink: 0;
@@ -157,8 +157,8 @@
 
 .notes-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 /* Chat Tab */
@@ -216,7 +216,7 @@
 }
 
 .chat-message.user .message-bubble {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  background: #6366f1;
   color: white;
 }
 
@@ -240,12 +240,12 @@
 
 .chat-input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .btn-send {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -257,7 +257,7 @@
 
 .btn-send:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 /* Timer Section */
@@ -308,8 +308,8 @@
 
 .time-input-group input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .time-input-group input:disabled {
@@ -322,7 +322,7 @@
   text-align: center;
   margin-bottom: 1.5rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+  background: #6366f1;
   border-radius: 12px;
   border: 2px solid #dbeafe;
 }
@@ -330,7 +330,7 @@
 .time-large {
   font-size: 2.5rem;
   font-weight: 800;
-  color: #2563eb;
+  color: #6366f1;
   font-family: 'Courier New', monospace;
   letter-spacing: 2px;
 }
@@ -343,7 +343,7 @@
 }
 
 .btn-start {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -356,7 +356,7 @@
 
 .btn-start:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 .btn-start:disabled {
@@ -365,7 +365,7 @@
 }
 
 .btn-pause {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -377,7 +377,7 @@
 
 .btn-pause:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 .btn-cancel {
@@ -421,7 +421,7 @@
 }
 
 .btn-add-task {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.5rem 0.75rem;
@@ -434,7 +434,7 @@
 
 .btn-add-task:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .task-form {
@@ -460,8 +460,8 @@
 .task-input:focus,
 .task-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .task-form-buttons {
@@ -471,7 +471,7 @@
 }
 
 .btn-submit {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.6rem;
@@ -525,13 +525,13 @@
   padding: 0.75rem;
   background: #f9fafb;
   border-radius: 8px;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #6366f1;
   transition: all 0.3s;
 }
 
 .task-item.completed {
   opacity: 0.6;
-  border-left-color: #10b981;
+  border-left-color: #6366f1;
 }
 
 .task-item:hover {
@@ -593,7 +593,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: #1f2937;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -645,7 +645,7 @@
 .focus-timer {
   font-size: 4rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  color: #6366f1;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -675,15 +675,15 @@
 
 .btn-pause,
 .btn-resume {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #6366f1;
   color: white;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
 }
 
 .btn-pause:hover,
 .btn-resume:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.4);
 }
 
 .btn-focus.btn-cancel {
@@ -796,8 +796,8 @@
 
 .time-input-group input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .time-input-group input:disabled {
@@ -810,7 +810,7 @@
   text-align: center;
   margin-bottom: 1.5rem;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+  background: #6366f1;
   border-radius: 12px;
   border: 2px solid #dbeafe;
 }
@@ -818,7 +818,7 @@
 .time-large {
   font-size: 2.5rem;
   font-weight: 800;
-  color: #2563eb;
+  color: #6366f1;
   font-family: 'Courier New', monospace;
   letter-spacing: 2px;
 }
@@ -831,7 +831,7 @@
 }
 
 .btn-start {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -844,7 +844,7 @@
 
 .btn-start:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 .btn-start:disabled {
@@ -853,7 +853,7 @@
 }
 
 .btn-pause {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -865,7 +865,7 @@
 
 .btn-pause:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 .btn-cancel {
@@ -916,7 +916,7 @@
 }
 
 .btn-add-task {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -929,7 +929,7 @@
 
 .btn-add-task:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .task-form {
@@ -955,8 +955,8 @@
 .task-input:focus,
 .task-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .task-form-buttons {
@@ -966,7 +966,7 @@
 }
 
 .btn-submit {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.6rem;
@@ -978,7 +978,7 @@
 }
 
 .btn-submit:hover {
-  background: #1d4ed8;
+  background: #4f46e5;
 }
 
 .btn-cancel-form {
@@ -1020,13 +1020,13 @@
   padding: 0.75rem;
   background: #f9fafb;
   border-radius: 8px;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #6366f1;
   transition: all 0.3s;
 }
 
 .task-item.completed {
   opacity: 0.6;
-  border-left-color: #10b981;
+  border-left-color: #6366f1;
 }
 
 .task-item:hover {
@@ -1165,7 +1165,7 @@
 }
 
 .chat-message.user .message-bubble {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  background: #6366f1;
   color: white;
 }
 
@@ -1189,12 +1189,12 @@
 
 .chat-input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .btn-send {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  background: #6366f1;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -1206,7 +1206,7 @@
 
 .btn-send:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 /* Focus Mode */
@@ -1216,7 +1216,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: #1f2937;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1268,7 +1268,7 @@
 .focus-timer {
   font-size: 4rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  color: #6366f1;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1298,15 +1298,15 @@
 
 .btn-pause,
 .btn-resume {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: #6366f1;
   color: white;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
 }
 
 .btn-pause:hover,
 .btn-resume:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.4);
 }
 
 .btn-focus.btn-cancel {
@@ -1349,7 +1349,7 @@
 .floating-time {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #2563eb;
+  color: #6366f1;
   font-family: 'Courier New', monospace;
   min-width: 80px;
   text-align: center;
@@ -1361,7 +1361,7 @@
 }
 
 .floating-btn {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
   border: none;
   width: 36px;
@@ -1377,7 +1377,7 @@
 
 .floating-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 @media (max-width: 768px) {
@@ -1403,3 +1403,4 @@
     right: 1rem;
   }
 }
+

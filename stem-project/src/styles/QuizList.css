@@ -13,10 +13,7 @@
 .quiz-list-header h1 {
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #6366f1;
   margin-bottom: 0.75rem;
 }
 
@@ -62,9 +59,9 @@
 }
 
 .quiz-card-header {
-  background: linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%);
+  background: #f0f4ff;
   padding: 1.5rem;
-  border-bottom: 2px solid #dbeafe;
+  border-bottom: 2px solid #ddd6fe;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -72,7 +69,7 @@
 }
 
 .quiz-badge {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  background: #6366f1;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -119,7 +116,7 @@
   padding: 0.75rem;
   background: #f9fafb;
   border-radius: 10px;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #6366f1;
 }
 
 .stat-icon {
@@ -163,7 +160,7 @@
 }
 
 .pass-rate-value {
-  color: #2563eb;
+  color: #6366f1;
   font-weight: 700;
 }
 
@@ -177,7 +174,7 @@
 
 .pass-rate-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+  background: #6366f1;
   border-radius: 10px;
 }
 
@@ -231,15 +228,15 @@
 }
 
 .btn-details-card:hover {
-  background: #eff6ff;
-  color: #2563eb;
-  border-color: #2563eb;
+  background: #f0f4ff;
+  color: #6366f1;
+  border-color: #6366f1;
 }
 
 .btn-start-card {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #6366f1;
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .btn-start-card:hover:not(.disabled) {
@@ -297,12 +294,8 @@
 .modal-content h2 {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #1f2937;
+  color: #6366f1;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .modal-content > p {
@@ -367,9 +360,9 @@
 }
 
 .btn-modal-start {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #6366f1;
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .btn-modal-start:hover {

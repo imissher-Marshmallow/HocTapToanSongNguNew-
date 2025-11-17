@@ -5,6 +5,7 @@ const quizRoutes = require('./routes/quiz');
 const authRoutes = require('./routes/auth');
 const resultsRoutes = require('./routes/results');
 const historyRoutes = require('./routes/history');
+const mlAnalyticsRoutes = require('./routes/ml-analytics');
 const { db } = require('./database');
 
 const app = express();
@@ -58,6 +59,7 @@ app.get('/', (req, res) => {
 // Routes - Order matters! More specific routes first
 app.use('/auth', authRoutes);
 app.use('/api/history', historyRoutes);  // Must come BEFORE /api for /summary to work
+app.use('/api/ml', mlAnalyticsRoutes);   // ML Analytics routes
 app.use('/api', quizRoutes);
 app.use('/api/results', resultsRoutes);
 

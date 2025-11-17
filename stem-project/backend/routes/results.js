@@ -1,7 +1,9 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { dbHelpers } = require('../database');
+const { dbHelpers, db } = require('../database');
 const { analyzeQuiz } = require('../ai/analyzer');
+const MLAnalyticsService = require('../ai/MLAnalyticsService');
+const MLAnalyticsDB = require('../ai/MLAnalyticsDB');
 
 const router = express.Router();
 
@@ -130,6 +132,8 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
 
     // If ai_analysis is provided by caller (frontend already analyzed), use it and skip double analysis
     let aiResult = null;
+    let mlAnalysis = null;
+    
     if (ai_analysis) {
       aiResult = ai_analysis;
       console.log('[Results] Using ai_analysis provided in request body (skipping analyzer)');
@@ -148,6 +152,29 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
         console.error('[Results] Local analyzer failed:', err && err.message ? err.message : err);
         aiResult = { score: 0, weakAreas: [], recommendations: [], summary: null };
       }
+    }
+
+    // Run ML Analytics on the quiz data (parallel to traditional analyzer)
+    try {
+      const mlService = new MLAnalyticsService(db);
+      const mlPayload = {
+        userId: numericUserId,
+        quizId,
+        answers,
+        questions: questions || []
+      };
+      mlAnalysis = await mlService.analyzeAndStore(mlPayload.userId, mlPayload.quizId, mlPayload.questions, mlPayload.answers);
+      console.log('[Results] ML Analytics completed successfully');
+      
+      // If ML analysis succeeded, store it to Supabase asynchronously (non-blocking)
+      if (mlAnalysis && mlAnalysis.success) {
+        mlService.storeAnalysis(mlPayload.userId, mlPayload.quizId, mlAnalysis.analysis).catch(err => {
+          console.warn('[Results] ML Analytics storage failed (non-blocking):', err && err.message ? err.message : err);
+        });
+      }
+    } catch (err) {
+      console.warn('[Results] ML Analytics failed (continuing without it):', err && err.message ? err.message : err);
+      mlAnalysis = { success: false };
     }
 
     // Extract actual score from AI analyzer (coerce to number)
@@ -235,14 +262,22 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
       };
     }).filter(x => x !== null);
 
-    // Return comprehensive result to frontend
+    // Return comprehensive result to frontend (including ML analysis if available)
     const fullResult = {
       resultId,
       score: actualScore,
       totalQuestions,
       percentage: totalQuestions > 0 ? Math.round((actualScore / totalQuestions) * 100) : 0,
       answerComparison,
-      ...aiResult // includes summary, feedback, recommendations, weakAreas
+      ...aiResult, // includes summary, feedback, recommendations, weakAreas
+      // Include ML Analytics data if available
+      ...(mlAnalysis && mlAnalysis.success && mlAnalysis.analysis ? {
+        mlAnalysis: mlAnalysis.analysis,
+        weaknesses: mlAnalysis.analysis.weaknesses || [],
+        strengths: mlAnalysis.analysis.strengths || [],
+        predictions: mlAnalysis.analysis.predictions || {},
+        learningPath: mlAnalysis.analysis.learningPath || {}
+      } : {})
     };
 
     res.json(fullResult);

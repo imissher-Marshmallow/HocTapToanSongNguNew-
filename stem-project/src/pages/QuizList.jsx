@@ -16,7 +16,7 @@ export default function QuizList() {
     {
       id: 'random',
       title: language === 'vi' ? 'Kiểm Tra Toán' : 'Math Quiz',
-      description: language === 'vi' ? 'Bài kiểm tra toàn diện về kiến thức toán học' : 'Comprehensive math knowledge assessment',
+      description: language === 'vi' ? 'Bài kiểm tra toàn diện về kiến thức đại số' : 'Comprehensive math knowledge assessment',
       time: '30 phút / 30 min',
       attempts: 0,
       totalAttempts: 0,
@@ -77,7 +77,7 @@ export default function QuizList() {
               {/* Stats Grid */}
               <div className="quiz-stats-grid">
                 <div className="stat-item">
-                  <span className="stat-icon">📋</span>
+                  <span className="stat-icon"></span>
                   <div>
                     <span className="stat-label">{language === 'vi' ? 'Câu hỏi' : 'Questions'}</span>
                     <span className="stat-value">{quiz.questionsCount}</span>
@@ -85,7 +85,7 @@ export default function QuizList() {
                 </div>
 
                 <div className="stat-item">
-                  <span className="stat-icon">⏱️</span>
+                  <span className="stat-icon"></span>
                   <div>
                     <span className="stat-label">{t.time}</span>
                     <span className="stat-value">{quiz.time}</span>
@@ -93,7 +93,7 @@ export default function QuizList() {
                 </div>
 
                 <div className="stat-item">
-                  <span className="stat-icon">✅</span>
+                  <span className="stat-icon"></span>
                   <div>
                     <span className="stat-label">{language === 'vi' ? 'Đã làm' : 'Attempts'}</span>
                     <span className="stat-value">{quiz.attempts}</span>
@@ -101,7 +101,7 @@ export default function QuizList() {
                 </div>
 
                 <div className="stat-item">
-                  <span className="stat-icon">📊</span>
+                  <span className="stat-icon"></span>
                   <div>
                     <span className="stat-label">{language === 'vi' ? 'Tổng' : 'Total'}</span>
                     <span className="stat-value">{quiz.totalAttempts}</span>
