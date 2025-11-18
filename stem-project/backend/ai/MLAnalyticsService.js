@@ -5,7 +5,7 @@
  * Flow: AIAnalyzer → PerformanceAnalytics → LearningPathGenerator → MLAnalyticsDB → PostgreSQL
  */
 
-const AIAnalyzer = require('./analyzer');
+const AIAnalyzer = require('./AIAnalyzer');
 const PerformanceAnalytics = require('./PerformanceAnalytics');
 const LearningPathGenerator = require('./LearningPathGenerator');
 const MLAnalyticsDB = require('./MLAnalyticsDB');

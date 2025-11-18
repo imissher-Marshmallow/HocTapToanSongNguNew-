@@ -118,8 +118,8 @@
 }
 
 .option-button:hover {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: #ddd6fe;
+  background: #f0f4ff;
 }
 
 .option-button.selected {
@@ -196,13 +196,13 @@
 }
 
 .nav-button.submit {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
-  border-color: #2563eb;
+  border-color: #6366f1;
 }
 
 .nav-button.submit:hover {
-  background: #1d4ed8;
+  background: #4f46e5;
 }
 
 /* Submit Dialog */
@@ -273,13 +273,13 @@
 }
 
 .submit-button {
-  background: #2563eb;
+  background: #6366f1;
   color: white;
-  border: 1px solid #2563eb;
+  border: 1px solid #6366f1;
 }
 
 .submit-button:hover {
-  background: #1d4ed8;
+  background: #4f46e5;
 }
 
 .cancel-button {
@@ -321,20 +321,20 @@
 }
 
 .question-number:hover {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: #ddd6fe;
+  background: #f0f4ff;
 }
 
 .question-number.current {
-  background: #3b82f6;
+  background: #6366f1;
   color: white;
-  border-color: #3b82f6;
+  border-color: #6366f1;
 }
 
 .question-number.answered {
-  background: #93c5fd;
-  color: #1e40af;
-  border-color: #93c5fd;
+  background: #ddd6fe;
+  color: #6366f1;
+  border-color: #ddd6fe;
 }
 
 .question-number.not-answered {
@@ -363,7 +363,7 @@
 }
 
 .topic-tab.active {
-  background: #3b82f6;
+  background: #6366f1;
   color: white;
 }
 

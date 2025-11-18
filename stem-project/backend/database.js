@@ -249,6 +249,11 @@ if (USE_POSTGRES) {
           console.error('getAllResults error:', err.message);
           throw err;
         }
+      },
+
+      // Alias for getResultById
+      getResult: async (resultId) => {
+        return dbHelpers.getResultById(resultId);
       }
     };
 

@@ -483,7 +483,7 @@
 }
 
 .btn-submit:hover {
-  background: #1d4ed8;
+  background: #5b5af6;
 }
 
 .btn-cancel-form {
@@ -645,10 +645,7 @@
 .focus-timer {
   font-size: 4rem;
   font-weight: 800;
-  color: #6366f1;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: white;
   font-family: 'Courier New', monospace;
   margin-bottom: 2rem;
   letter-spacing: 3px;
@@ -1268,10 +1265,7 @@
 .focus-timer {
   font-size: 4rem;
   font-weight: 800;
-  color: #6366f1;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: white;
   font-family: 'Courier New', monospace;
   margin-bottom: 2rem;
   letter-spacing: 3px;
@@ -1349,7 +1343,7 @@
 .floating-time {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #6366f1;
+  color: white;
   font-family: 'Courier New', monospace;
   min-width: 80px;
   text-align: center;
