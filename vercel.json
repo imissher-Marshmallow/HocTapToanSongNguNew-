@@ -1,13 +1,6 @@
 {
   "version": 2,
   "name": "stem-project",
-  "env": [
-    "DATABASE_URL",
-    "OPENAI_API_KEY",
-    "OPENAI_API_KEY_SUMMARY",
-    "OPENAI_API_KEY_RESOURCES",
-    "NODE_ENV"
-  ],
   "buildCommand": "cd stem-project && npm install && npm run build",
   "outputDirectory": "stem-project/build",
   "headers": [
