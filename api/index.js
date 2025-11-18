@@ -70,13 +70,9 @@ app.get('/debug', (req, res) => {
   });
 });
 
-// Export for Vercel
+// Export for Vercel Serverless Function
 module.exports = app;
 
-// Also handle direct invocation (for local testing)
-if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`[API Server] Running on port ${PORT}`);
-  });
-}
+// Also export as handler for Vercel
+module.exports.default = app;
+module.exports.handler = app;
