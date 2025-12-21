@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "stem-project",
-  "buildCommand": "cd stem-project && npm install && npm run build",
+  "buildCommand": "npm install && cd stem-project && npm install && npm run build",
   "outputDirectory": "stem-project/build",
   "functions": {
     "api/[...path].js": {

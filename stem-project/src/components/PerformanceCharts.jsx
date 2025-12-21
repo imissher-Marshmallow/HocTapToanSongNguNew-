@@ -1,14 +1,33 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Bar, Line } from 'react-chartjs-2';
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import { useLanguage } from '../contexts/LanguageContext';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 /**
  * PerformanceCharts Component
- * Displays visual analytics for student learning progress
+ * Displays visual analytics for student learning progress using Chart.js
  * 
  * Props:
  * - chartData: array of {date, score} for score trends
@@ -39,13 +58,13 @@ function PerformanceCharts({ chartData = [], weakAreas = [], strengthAreas = [],
     score: Number(item.score) || 0
   })).slice(-10); // Show last 10 attempts
 
-  // Prepare strength vs weakness data for pie chart
+  // Prepare strength vs weakness data
   const areaDistribution = [
     { name: language === 'vi' ? 'Điểm mạnh' : 'Strengths', value: strengthAreas.length, color: '#10b981' },
     { name: language === 'vi' ? 'Điểm yếu' : 'Weaknesses', value: weakAreas.length, color: '#ef4444' }
   ];
 
-  // Prepare accuracy by topic (simulated - would need real data)
+  // Prepare accuracy by topic
   const topicAccuracy = [
     ...weakAreas.slice(0, 3).map(topic => ({
       topic: typeof topic === 'string' ? topic : String(topic),
@@ -80,6 +99,122 @@ function PerformanceCharts({ chartData = [], weakAreas = [], strengthAreas = [],
 
   const labels = chartLabels[language] || chartLabels.en;
 
+  // Chart.js configurations
+  const lineChartData = {
+    labels: formattedChartData.map(d => d.displayDate),
+    datasets: [
+      {
+        label: labels.score,
+        data: formattedChartData.map(d => d.score),
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }
+    ]
+  };
+
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          color: '#6b7280',
+          padding: 15,
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+        padding: 10,
+        displayColors: false,
+        callbacks: {
+          label: function(context) {
+            return `${labels.score}: ${context.parsed.y.toFixed(1)}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 10,
+        ticks: { color: '#6b7280' },
+        grid: { color: 'rgba(229, 231, 235, 0.5)' }
+      },
+      x: {
+        ticks: { color: '#6b7280' },
+        grid: { color: 'rgba(229, 231, 235, 0.5)' }
+      }
+    }
+  };
+
+  const barChartData = {
+    labels: topicAccuracy.map(t => t.topic),
+    datasets: [
+      {
+        label: labels.accuracy,
+        data: topicAccuracy.map(t => t.accuracy),
+        backgroundColor: '#10b981',
+        borderRadius: 8,
+        borderSkipped: false,
+      }
+    ]
+  };
+
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          color: '#6b7280',
+          padding: 15,
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#10b981',
+        borderWidth: 2,
+        padding: 10,
+        displayColors: false,
+        callbacks: {
+          label: function(context) {
+            return `${labels.accuracy}: ${context.parsed.y.toFixed(1)}%`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        ticks: { color: '#6b7280' },
+        grid: { color: 'rgba(229, 231, 235, 0.5)' }
+      },
+      x: {
+        ticks: { color: '#6b7280' },
+        grid: { color: 'rgba(229, 231, 235, 0.5)' }
+      }
+    }
+  };
+
   return (
     <motion.div
       className="performance-charts-container"
@@ -97,32 +232,9 @@ function PerformanceCharts({ chartData = [], weakAreas = [], strengthAreas = [],
           transition={{ delay: 0.35, duration: 0.5 }}
         >
           <h3 className="chart-title">{labels.scoreTrend}</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={formattedChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="displayDate" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" domain={[0, 10]} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#fff',
-                  border: '2px solid #3b82f6',
-                  borderRadius: '8px',
-                  padding: '10px'
-                }}
-                formatter={(value) => [value.toFixed(1), labels.score]}
-                labelFormatter={(label) => `${labels.date}: ${label}`}
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', r: 5 }}
-                activeDot={{ r: 7 }}
-                name={labels.score}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div style={{ position: 'relative', height: '300px' }}>
+            <Line data={lineChartData} options={lineChartOptions} />
+          </div>
         </motion.div>
       ) : (
         <motion.div
@@ -144,34 +256,9 @@ function PerformanceCharts({ chartData = [], weakAreas = [], strengthAreas = [],
           transition={{ delay: 0.4, duration: 0.5 }}
         >
           <h3 className="chart-title">{labels.topicAccuracy}</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={topicAccuracy}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="topic"
-                stroke="#6b7280"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-              />
-              <YAxis stroke="#6b7280" domain={[0, 100]} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#fff',
-                  border: '2px solid #10b981',
-                  borderRadius: '8px',
-                  padding: '10px'
-                }}
-                formatter={(value) => [value.toFixed(1) + '%', labels.accuracy]}
-              />
-              <Bar
-                dataKey="accuracy"
-                fill="#10b981"
-                radius={[8, 8, 0, 0]}
-                name={labels.accuracy}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div style={{ position: 'relative', height: '300px' }}>
+            <Bar data={barChartData} options={barChartOptions} />
+          </div>
         </motion.div>
       ) : null}
 
@@ -185,34 +272,16 @@ function PerformanceCharts({ chartData = [], weakAreas = [], strengthAreas = [],
           transition={{ delay: 0.45, duration: 0.5 }}
         >
           <h3 className="chart-title">{labels.areaDistribution}</h3>
-          <div className="pie-chart-wrapper">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={areaDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {areaDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '2px solid #f59e0b',
-                    borderRadius: '8px',
-                    padding: '10px'
-                  }}
-                  formatter={(value) => [value, 'Count']}
+          <div className="distribution-summary">
+            {areaDistribution.map((item, idx) => (
+              <div key={idx} className="distribution-item">
+                <div
+                  className="distribution-color"
+                  style={{ backgroundColor: item.color }}
                 />
-              </PieChart>
-            </ResponsiveContainer>
+                <span className="distribution-label">{item.name}: {item.value}</span>
+              </div>
+            ))}
           </div>
         </motion.div>
       ) : null}
