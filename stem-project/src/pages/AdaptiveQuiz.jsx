@@ -54,11 +54,17 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       if (!response.ok) throw new Error('Failed to load quiz');
       
       const data = await response.json();
-      setQuiz(data);
+      // Handle both formats: direct array or {quiz: [...]}
+      const quizData = data.quiz ? data : { questions: data, ...data };
+      setQuiz({
+        questions: Array.isArray(data.quiz) ? data.quiz : data,
+        userId: finalUserId,
+        questionCount: data.questionCount || (Array.isArray(data.quiz) ? data.quiz.length : data.length)
+      });
       setTimeStarted(Date.now());
     } catch (err) {
       console.error('Error loading quiz:', err);
-      setQuiz(null);
+      setQuiz({ questions: [], error: err.message });
     } finally {
       setLoading(false);
     }
@@ -140,12 +146,12 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     );
   }
 
-  if (!quiz) {
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     return (
       <div className="adaptive-quiz error">
         <div className="error-container">
           <h2>Unable to Load Quiz</h2>
-          <p>Please try refreshing the page or contact support.</p>
+          <p>{quiz?.error || 'Please try refreshing the page or contact support.'}</p>
           <button onClick={loadPersonalizedQuiz} className="btn-retry">
             Try Again
           </button>

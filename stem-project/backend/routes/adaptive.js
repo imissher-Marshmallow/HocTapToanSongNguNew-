@@ -130,6 +130,119 @@ router.get('/profile/:userId', async (req, res) => {
 })
 
 /**
+ * GET /api/adaptive/dashboard/:userId
+ * Unified endpoint: Get profile + learning data + quiz recommendations in one call
+ * Returns everything needed for LearningProfile dashboard
+ */
+router.get('/dashboard/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+
+    if (!userId || userId === 'undefined') {
+      return res.status(400).json({ error: 'User ID is required' })
+    }
+
+    // Create default profile
+    const getDefaultProfile = () => ({
+      userId,
+      scores: {
+        level1: 0,
+        level2: 0,
+        level3: 0,
+        level4: 0
+      },
+      proficiency: {
+        level1: 'NOT_STARTED',
+        level2: 'NOT_STARTED',
+        level3: 'NOT_STARTED',
+        level4: 'NOT_STARTED'
+      },
+      weakAreas: [],
+      strongAreas: [],
+      recommendations: ['Take your first quiz to see personalized recommendations'],
+      learningPath: null,
+      quizzesTaken: 0
+    })
+
+    let profile = getDefaultProfile()
+
+    // Try to fetch from Supabase if available
+    if (supabase) {
+      try {
+        const { data } = await supabase
+          .from('user_learning_profiles')
+          .select(`
+            id, user_id, cognitive_levels, weak_areas, strong_areas, 
+            proficiency_status, recommendations, learning_path, 
+            quizzes_taken, last_updated, created_at
+          `)
+          .eq('user_id', userId)
+          .single()
+
+        if (data) {
+          profile = {
+            userId,
+            scores: data.cognitive_levels || getDefaultProfile().scores,
+            proficiency: data.proficiency_status || getDefaultProfile().proficiency,
+            weakAreas: data.weak_areas || [],
+            strongAreas: data.strong_areas || [],
+            recommendations: data.recommendations || getDefaultProfile().recommendations,
+            learningPath: data.learning_path,
+            quizzesTaken: data.quizzes_taken || 0,
+            lastUpdated: data.last_updated,
+            createdAt: data.created_at
+          }
+        }
+      } catch (err) {
+        console.log('[Dashboard] Supabase fetch failed, using defaults:', err.message)
+      }
+    }
+
+    // Load questions for quiz recommendations
+    let quizzes = []
+    try {
+      const questionData = require('../data/questions_updated.json')
+      const allQuestions = []
+      Object.values(questionData.contests).forEach(contest => {
+        allQuestions.push(...contest)
+      })
+
+      // Generate personalized quiz based on profile
+      const personalizedQuiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
+        profile,
+        allQuestions,
+        20
+      )
+
+      quizzes = personalizedQuiz.map(q => ({
+        id: q.id,
+        topic: q.topic,
+        question: q.question,
+        english_question: q.english_question,
+        options: q.options,
+        difficulty: q.difficulty,
+        bloomLevel: q.bloomLevel
+      }))
+    } catch (err) {
+      console.log('[Dashboard] Quiz generation failed:', err.message)
+    }
+
+    // Return unified dashboard data
+    res.json({
+      profile,
+      quizzes,
+      quizCount: quizzes.length,
+      status: profile.quizzesTaken === 0 ? 'new_user' : 'returning_user',
+      message: 'Dashboard data loaded successfully'
+    })
+  } catch (error) {
+    console.error('Error fetching dashboard:', error)
+    res.status(500).json({ error: 'Internal server error', details: error.message })
+  }
+})
+
+
+/**
  * GET /api/adaptive/quiz/personalized
  * Generate personalized quiz based on student profile from Supabase
  * Query params: userId (required)

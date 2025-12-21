@@ -34,15 +34,18 @@ export default function LearningProfile({ userId }) {
   const fetchLearningProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/adaptive/profile/${finalUserId}`);
+      // Fetch unified dashboard data that includes profile, quizzes, and recommendations
+      const response = await fetch(`/api/adaptive/dashboard/${finalUserId}`);
       
-      if (!response.ok) throw new Error('Failed to fetch profile');
+      if (!response.ok) throw new Error('Failed to fetch dashboard');
       
       const data = await response.json();
-      setProfile(data);
+      // Dashboard returns { profile, quizzes, quizCount, status, message }
+      // Set the profile object (contains scores, proficiency, weakAreas, etc.)
+      setProfile(data.profile || data);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching profile:', err);
+      console.error('Error fetching dashboard:', err);
     } finally {
       setLoading(false);
     }
