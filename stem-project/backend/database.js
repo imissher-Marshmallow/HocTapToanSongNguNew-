@@ -12,6 +12,23 @@
 
 require('dotenv').config();
 
+// Initialize Supabase client for non-query operations
+let supabase = null;
+try {
+  const { createClient } = require('@supabase/supabase-js');
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+  
+  if (SUPABASE_URL && SUPABASE_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('[DB] ✅ Supabase client initialized');
+  } else {
+    console.log('[DB] ⚠️ Supabase credentials not found - adaptive features may not work');
+  }
+} catch (err) {
+  console.log('[DB] Supabase not available (optional):', err.message);
+}
+
 // Determine which database to use
 let USE_POSTGRES = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 
@@ -617,4 +634,4 @@ if (!USE_POSTGRES || !dbHelpers) {
   };
 }
 
-module.exports = { db, dbHelpers };
+module.exports = { db, dbHelpers, supabase };

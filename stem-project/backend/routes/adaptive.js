@@ -4,13 +4,13 @@
  */
 
 const express = require('express')
-const rateLimit = require('express-rate-limit')
 const {
   AssessmentEngine,
   AdaptiveQuestionSelector,
   LearningProfileManager
 } = require('../ai/adaptiveEngine')
 const { analyzeQuiz } = require('../ai/analyzer')
+const { supabase } = require('../database')
 
 const router = express.Router()
 
@@ -28,76 +28,94 @@ function validateAnswers(answers) {
   return answers.every(a => Number.isInteger(a) && a >= 0 && a <= 3)
 }
 
-// Rate limiting
-const quizLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 10,
-  message: 'Too many quiz submissions'
-})
-
 /**
  * GET /api/adaptive/profile/:userId
- * Get student's learning profile
+ * Get student's learning profile from Supabase
  */
 router.get('/profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params
 
-    // TODO: Fetch from database
-    // For now, return mock profile
-    const mockProfile = {
-      userId,
-      scores: {
-        level1: 85,
-        level2: 68,
-        level3: 52,
-        level4: 35
-      },
-      proficiency: {
-        level1: 'MASTERED',
-        level2: 'DEVELOPING',
-        level3: 'NEEDS_WORK',
-        level4: 'NOT_READY'
-      },
-      weakAreas: [
-        {
-          level: 2,
-          levelName: 'Comprehension (Understanding)',
-          score: 68,
-          priority: 32
-        },
-        {
-          level: 3,
-          levelName: 'Application (Low-level)',
-          score: 52,
-          priority: 48
-        }
-      ],
-      strongAreas: [
-        {
-          level: 1,
-          levelName: 'Knowledge (Recognition)',
-          score: 85
-        }
-      ],
-      recommendations: [],
-      learningPath: null,
-      quizzesTaken: 1
+    if (!userId || userId === 'undefined') {
+      return res.status(400).json({ error: 'User ID is required' })
     }
 
-    res.json(mockProfile)
+    // Fetch user's learning profile from Supabase
+    const { data, error } = await supabase
+      .from('user_learning_profiles')
+      .select(`
+        id, user_id, cognitive_levels, weak_areas, strong_areas, 
+        proficiency_status, recommendations, learning_path, 
+        quizzes_taken, last_updated, created_at
+      `)
+      .eq('user_id', userId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Supabase error:', error)
+      return res.status(500).json({ error: 'Database error' })
+    }
+
+    // If no profile exists, create default one
+    if (!data) {
+      const defaultProfile = {
+        userId,
+        scores: {
+          level1: 0,
+          level2: 0,
+          level3: 0,
+          level4: 0
+        },
+        proficiency: {
+          level1: 'NOT_STARTED',
+          level2: 'NOT_STARTED',
+          level3: 'NOT_STARTED',
+          level4: 'NOT_STARTED'
+        },
+        weakAreas: [],
+        strongAreas: [],
+        recommendations: ['Take your first quiz to see personalized recommendations'],
+        learningPath: null,
+        quizzesTaken: 0,
+        message: 'No profile found. Start with an assessment quiz.'
+      }
+      return res.json(defaultProfile)
+    }
+
+    // Transform Supabase data to response format
+    const profile = {
+      userId,
+      scores: data.cognitive_levels || {},
+      proficiency: data.proficiency_status || {},
+      weakAreas: data.weak_areas || [],
+      strongAreas: data.strong_areas || [],
+      recommendations: data.recommendations || [],
+      learningPath: data.learning_path,
+      quizzesTaken: data.quizzes_taken || 0,
+      lastUpdated: data.last_updated,
+      createdAt: data.created_at
+    }
+
+    res.json(profile)
   } catch (error) {
     console.error('Error fetching profile:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: 'Internal server error', details: error.message })
   }
 })
 
 /**
  * GET /api/adaptive/quiz/personalized
- * Generate personalized quiz based on student profile
+ * Generate personalized quiz based on student profile from Supabase
+ * Query params: userId (required)
  */
 router.get('/quiz/personalized', async (req, res) => {
   try {
+    const { userId } = req.query
+    
+    if (!userId || userId === 'undefined') {
+      return res.status(400).json({ error: 'userId query parameter is required' })
+    }
+
     // Load all questions
     const questionData = require('../data/questions_updated.json')
     const allQuestions = []
@@ -107,20 +125,41 @@ router.get('/quiz/personalized', async (req, res) => {
       allQuestions.push(...contest)
     })
 
-    // TODO: Get user ID and fetch actual profile
-    // For demo, use mock profile
-    const mockProfile = {
-      scores: {
-        level1: 85,
-        level2: 68,
-        level3: 52,
-        level4: 35
+    // Fetch real profile from Supabase
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_learning_profiles')
+      .select('cognitive_levels, weak_areas, strong_areas')
+      .eq('user_id', userId)
+      .single()
+
+    // Use Supabase data if available, otherwise use mock for first-time users
+    let userProfile
+    if (profileData) {
+      userProfile = {
+        userId,
+        scores: profileData.cognitive_levels || {},
+        weakAreas: profileData.weak_areas || [],
+        strongAreas: profileData.strong_areas || []
+      }
+    } else {
+      // First-time user - provide assessment quiz to gauge level
+      userProfile = {
+        userId,
+        scores: {
+          level1: 50,  // Default middle ground
+          level2: 50,
+          level3: 50,
+          level4: 50
+        },
+        weakAreas: [],
+        strongAreas: [],
+        isFirstTime: true
       }
     }
 
-    // Generate personalized quiz
+    // Generate personalized quiz based on user's cognitive levels
     const personalizedQuiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
-      mockProfile,
+      userProfile,
       allQuestions,
       20
     )
@@ -132,13 +171,15 @@ router.get('/quiz/personalized', async (req, res) => {
       question: q.question,
       english_question: q.english_question,
       options: q.options,
-      difficulty: q.difficulty
+      difficulty: q.difficulty,
+      bloomLevel: q.bloomLevel
       // Don't send answerIndex!
     }))
 
     res.json({
       quiz: quizForClient,
       questionCount: quizForClient.length,
+      userId,
       message: 'Personalized quiz generated based on your learning profile'
     })
   } catch (error) {
