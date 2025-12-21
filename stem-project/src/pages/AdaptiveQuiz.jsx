@@ -13,9 +13,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/AdaptiveQuiz.css';
 
 export default function AdaptiveQuiz({ userId, onComplete }) {
+  const { user: authUser } = useAuth();
+  const finalUserId = userId || authUser?.id;
+  
   const [quiz, setQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -26,8 +30,10 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
-    loadPersonalizedQuiz();
-  }, [userId]);
+    if (finalUserId) {
+      loadPersonalizedQuiz();
+    }
+  }, [finalUserId]);
 
   // Timer effect
   useEffect(() => {
@@ -43,7 +49,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const loadPersonalizedQuiz = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/adaptive/quiz/personalized');
+      const response = await fetch(`/api/adaptive/quiz/personalized?userId=${finalUserId}`);
       
       if (!response.ok) throw new Error('Failed to load quiz');
       

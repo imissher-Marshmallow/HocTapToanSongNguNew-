@@ -14,21 +14,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, AlertCircle, Trophy, Target, Book } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/LearningProfile.css';
 
 export default function LearningProfile({ userId }) {
+  const { user: authUser } = useAuth();
+  const finalUserId = userId || authUser?.id;
+  
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchLearningProfile();
-  }, [userId]);
+    if (finalUserId) {
+      fetchLearningProfile();
+    }
+  }, [finalUserId]);
 
   const fetchLearningProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/adaptive/profile/${userId}`);
+      const response = await fetch(`/api/adaptive/profile/${finalUserId}`);
       
       if (!response.ok) throw new Error('Failed to fetch profile');
       

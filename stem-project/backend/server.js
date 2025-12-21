@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const resultsRoutes = require('./routes/results');
 const historyRoutes = require('./routes/history');
 const mlAnalyticsRoutes = require('./routes/ml-analytics');
+const adaptiveRoutes = require('./routes/adaptive');
 const { db } = require('./database');
 
 const app = express();
@@ -71,6 +72,14 @@ app.use('/api/backend/api/history', historyRoutes);
 app.use('/api/ml', mlAnalyticsRoutes);   // ML Analytics routes
 app.use('/backend/api/ml', mlAnalyticsRoutes);
 app.use('/api/backend/api/ml', mlAnalyticsRoutes);
+
+// Adaptive learning routes - multiple path variants
+app.use('/adaptive', adaptiveRoutes);
+app.use('/api/adaptive', adaptiveRoutes);
+app.use('/backend/adaptive', adaptiveRoutes);
+app.use('/api/backend/adaptive', adaptiveRoutes);
+app.use('/backend/api/adaptive', adaptiveRoutes);
+app.use('/api/backend/api/adaptive', adaptiveRoutes);
 
 app.use('/api', quizRoutes);
 app.use('/backend/api', quizRoutes);
