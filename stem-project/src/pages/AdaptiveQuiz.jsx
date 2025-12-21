@@ -1,0 +1,525 @@
+/**
+ * Adaptive Quiz Component
+ * Presents personalized quiz tailored to student's cognitive level proficiency
+ * 
+ * Features:
+ * - Dynamically loaded questions based on proficiency
+ * - Progress tracking
+ * - Real-time feedback
+ * - Adaptive question selection during quiz
+ * - Performance analysis after completion
+ */
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
+import '../styles/AdaptiveQuiz.css';
+
+export default function AdaptiveQuiz({ userId, onComplete }) {
+  const [quiz, setQuiz] = useState(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [results, setResults] = useState(null);
+  const [timeStarted, setTimeStarted] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    loadPersonalizedQuiz();
+  }, [userId]);
+
+  // Timer effect
+  useEffect(() => {
+    if (!timeStarted || results) return;
+
+    const interval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - timeStarted) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeStarted, results]);
+
+  const loadPersonalizedQuiz = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/adaptive/quiz/personalized');
+      
+      if (!response.ok) throw new Error('Failed to load quiz');
+      
+      const data = await response.json();
+      setQuiz(data);
+      setTimeStarted(Date.now());
+    } catch (err) {
+      console.error('Error loading quiz:', err);
+      setQuiz(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswerSelect = (questionId, selectedAnswer) => {
+    setAnswers({
+      ...answers,
+      [questionId]: selectedAnswer
+    });
+  };
+
+  const handleNext = () => {
+    if (currentQuestion < quiz.questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    }
+  };
+
+  const handleSubmitQuiz = async () => {
+    try {
+      setAnalyzing(true);
+
+      // Prepare answers in expected format
+      const formattedAnswers = quiz.questions.map(q => ({
+        questionId: q.id,
+        answer: answers[q.id] || null
+      }));
+
+      const response = await fetch('/api/adaptive/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          quizId: 'personalized',
+          answers: formattedAnswers,
+          timeSpent: elapsedTime
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to analyze quiz');
+
+      const analysisResults = await response.json();
+      setResults(analysisResults);
+
+      if (onComplete) {
+        onComplete(analysisResults);
+      }
+    } catch (err) {
+      console.error('Error submitting quiz:', err);
+      alert('Error analyzing quiz. Please try again.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="adaptive-quiz loading">
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <h2>Loading Your Personalized Quiz...</h2>
+          <p>We're preparing questions tailored to your skill level</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!quiz) {
+    return (
+      <div className="adaptive-quiz error">
+        <div className="error-container">
+          <h2>Unable to Load Quiz</h2>
+          <p>Please try refreshing the page or contact support.</p>
+          <button onClick={loadPersonalizedQuiz} className="btn-retry">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (results) {
+    return <QuizResults results={results} timeSpent={elapsedTime} />;
+  }
+
+  const question = quiz.questions[currentQuestion];
+  const isAnswered = answers[question.id] !== undefined;
+  const allAnswered = Object.keys(answers).length === quiz.questions.length;
+  const progressPercent = ((currentQuestion + 1) / quiz.questions.length) * 100;
+
+  return (
+    <div className="adaptive-quiz">
+      {/* Header */}
+      <header className="quiz-header">
+        <div className="quiz-title">
+          <h1>Personalized Quiz</h1>
+          <p>Questions adapted to your level</p>
+        </div>
+
+        <div className="quiz-stats">
+          <div className="stat">
+            <Clock size={18} />
+            <span>{formatTime(elapsedTime)}</span>
+          </div>
+          <div className="stat">
+            <span className="progress-badge">
+              {currentQuestion + 1}/{quiz.questions.length}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Progress Bar */}
+      <div className="progress-container">
+        <div className="progress-bar">
+          <motion.div
+            className="progress-fill"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.5 }}
+          ></motion.div>
+        </div>
+        <p className="progress-text">{progressPercent.toFixed(0)}% Complete</p>
+      </div>
+
+      {/* Main Content */}
+      <div className="quiz-container">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentQuestion}
+            className="question-section"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Cognitive Level Badge */}
+            <div className="cognitive-badge">
+              {getCognitiveLevelDisplay(question.cognitiveLevel)}
+            </div>
+
+            {/* Question */}
+            <div className="question">
+              <h2>{question.question}</h2>
+              {question.description && (
+                <p className="question-context">{question.description}</p>
+              )}
+            </div>
+
+            {/* Answer Options */}
+            <div className="options">
+              {question.options.map((option, idx) => (
+                <motion.label
+                  key={idx}
+                  className={`option ${
+                    answers[question.id] === option ? 'selected' : ''
+                  }`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                >
+                  <input
+                    type="radio"
+                    name={`question-${question.id}`}
+                    value={option}
+                    checked={answers[question.id] === option}
+                    onChange={(e) =>
+                      handleAnswerSelect(question.id, e.target.value)
+                    }
+                  />
+                  <span className="option-content">{option}</span>
+                </motion.label>
+              ))}
+            </div>
+
+            {/* Question Info */}
+            <div className="question-info">
+              <p>
+                <strong>Difficulty:</strong>{' '}
+                {getDifficultyLabel(question.cognitiveLevel)}
+              </p>
+              {question.topic && (
+                <p>
+                  <strong>Topic:</strong> {question.topic}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation */}
+        <div className="navigation">
+          <button
+            onClick={handlePrevious}
+            disabled={currentQuestion === 0}
+            className="btn-nav btn-prev"
+          >
+            ← Previous
+          </button>
+
+          <div className="question-indicators">
+            {quiz.questions.map((_, idx) => (
+              <motion.button
+                key={idx}
+                className={`indicator ${
+                  idx === currentQuestion ? 'active' : ''
+                } ${answers[quiz.questions[idx].id] ? 'answered' : ''}`}
+                onClick={() => setCurrentQuestion(idx)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {idx + 1}
+              </motion.button>
+            ))}
+          </div>
+
+          {currentQuestion < quiz.questions.length - 1 ? (
+            <button onClick={handleNext} className="btn-nav btn-next">
+              Next →
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmitQuiz}
+              disabled={!allAnswered || analyzing}
+              className={`btn-submit ${!allAnswered ? 'disabled' : ''}`}
+            >
+              {analyzing ? 'Analyzing...' : 'Submit Quiz'}
+            </button>
+          )}
+        </div>
+
+        {/* Answer Summary */}
+        <div className="answer-summary">
+          <p>Answered: {Object.keys(answers).length} / {quiz.questions.length}</p>
+          {!allAnswered && (
+            <p className="warning">
+              Answer all questions before submitting
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Quiz Results Component
+ * Displays adaptive analysis and personalized recommendations
+ */
+function QuizResults({ results, timeSpent }) {
+  const [viewingDetails, setViewingDetails] = useState(null);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  return (
+    <div className="quiz-results">
+      <header className="results-header">
+        <h1>Quiz Complete!</h1>
+        <p>Your Adaptive Analysis</p>
+      </header>
+
+      {/* Overall Performance */}
+      <div className="results-container">
+        <motion.section
+          className="overall-score"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <div className="score-circle">
+            <div className="score-value">
+              {Math.round(results.overallScore)}%
+            </div>
+          </div>
+          <p className="time-info">
+            Completed in: {formatTime(timeSpent)}
+          </p>
+        </motion.section>
+
+        {/* Cognitive Level Analysis */}
+        <motion.section
+          className="cognitive-analysis"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <h2>
+            <BarChart3 size={20} />
+            Cognitive Level Performance
+          </h2>
+
+          <div className="levels-grid">
+            {renderCognitiveAnalysis(results.cognitiveAnalysis)}
+          </div>
+        </motion.section>
+
+        {/* Strengths */}
+        {results.strengths && results.strengths.length > 0 && (
+          <motion.section
+            className="strengths-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2>🌟 Your Strengths</h2>
+            <div className="strengths-list">
+              {results.strengths.map((strength, idx) => (
+                <div key={idx} className="strength-item">
+                  <p>{strength}</p>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Areas to Improve */}
+        {results.areasToImprove && results.areasToImprove.length > 0 && (
+          <motion.section
+            className="improve-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <h2>📈 Areas to Improve</h2>
+            <div className="improve-list">
+              {results.areasToImprove.map((area, idx) => (
+                <div key={idx} className="improve-item">
+                  <p>{area}</p>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Next Steps */}
+        {results.nextSteps && (
+          <motion.section
+            className="next-steps"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <h2>🎯 Your Next Steps</h2>
+            <div className="next-steps-content">
+              <p>{results.nextSteps}</p>
+            </div>
+          </motion.section>
+        )}
+
+        {/* Recommendations */}
+        {results.recommendations && results.recommendations.length > 0 && (
+          <motion.section
+            className="recommendations"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <h2>💡 Personalized Recommendations</h2>
+            <div className="recommendations-list">
+              {results.recommendations.map((rec, idx) => (
+                <motion.div
+                  key={idx}
+                  className="recommendation-item"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + idx * 0.1 }}
+                >
+                  <h4>{rec.title}</h4>
+                  <p>{rec.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Action Buttons */}
+        <div className="results-actions">
+          <button className="btn-dashboard">
+            <Home size={18} />
+            Back to Dashboard
+          </button>
+          <button className="btn-next-quiz">
+            <ChevronRight size={18} />
+            Take Another Quiz
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Helper: Render cognitive level analysis cards
+ */
+function renderCognitiveAnalysis(analysis) {
+  if (!analysis || !analysis.levels) return null;
+
+  return analysis.levels.map((level, idx) => (
+    <motion.div
+      key={idx}
+      className="analysis-card"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: idx * 0.1 }}
+    >
+      <h3>{level.name}</h3>
+      <div className="score-display">
+        <span className="score">{level.score}%</span>
+      </div>
+      <div className="mini-bar">
+        <div className="mini-fill" style={{ width: `${level.score}%` }}></div>
+      </div>
+      <p className="level-status">{level.status}</p>
+      {level.questionCount && (
+        <p className="detail">
+          {level.correct}/{level.questionCount} correct
+        </p>
+      )}
+    </motion.div>
+  ));
+}
+
+/**
+ * Helper: Get cognitive level display
+ */
+function getCognitiveLevelDisplay(level) {
+  const labels = {
+    1: { name: 'Knowledge', icon: '📚', color: '#3b82f6' },
+    2: { name: 'Comprehension', icon: '💡', color: '#f59e0b' },
+    3: { name: 'Application', icon: '🔧', color: '#8b5cf6' },
+    4: { name: 'Analysis', icon: '🧠', color: '#ef4444' }
+  };
+
+  const info = labels[level] || labels[1];
+  return (
+    <span className="cognitive-badge" style={{ '--badge-color': info.color }}>
+      {info.icon} Level {level}: {info.name}
+    </span>
+  );
+}
+
+/**
+ * Helper: Get difficulty label
+ */
+function getDifficultyLabel(level) {
+  const labels = {
+    1: 'Basic (Knowledge)',
+    2: 'Intermediate (Understanding)',
+    3: 'Advanced (Application)',
+    4: 'Expert (Analysis)'
+  };
+  return labels[level] || 'Unknown';
+}
