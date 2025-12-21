@@ -57,21 +57,28 @@ app.get('/', (req, res) => {
 });
 
 // Routes - Order matters! More specific routes first
-// Support both /auth and /backend/auth for compatibility with deployed frontend
+// Support multiple path prefixes for compatibility
+// /auth, /api/auth, /backend/auth, /api/backend/auth
 app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/backend/auth', authRoutes);
+app.use('/api/backend/auth', authRoutes);
 
 app.use('/api/history', historyRoutes);  // Must come BEFORE /api for /summary to work
 app.use('/backend/api/history', historyRoutes);
+app.use('/api/backend/api/history', historyRoutes);
 
 app.use('/api/ml', mlAnalyticsRoutes);   // ML Analytics routes
 app.use('/backend/api/ml', mlAnalyticsRoutes);
+app.use('/api/backend/api/ml', mlAnalyticsRoutes);
 
 app.use('/api', quizRoutes);
 app.use('/backend/api', quizRoutes);
+app.use('/api/backend/api', quizRoutes);
 
 app.use('/api/results', resultsRoutes);
 app.use('/backend/api/results', resultsRoutes);
+app.use('/api/backend/api/results', resultsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
