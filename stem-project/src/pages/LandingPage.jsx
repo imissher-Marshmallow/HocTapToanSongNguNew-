@@ -25,7 +25,7 @@ export default function LandingPage() {
             <p>{t.hero.subtitle}</p>
 
             <div className="hero-buttons">
-              <button className="btn-primary" onClick={() => navigate("/quizzes")}>
+              <button className="btn-primary" onClick={() => navigate("/study")}>
                 {t.hero.startLearning}
               </button>
               <button
@@ -102,7 +102,7 @@ export default function LandingPage() {
         <div className="cta-box">
           <h2>{t.cta.title}</h2>
           <p>{t.cta.subtitle}</p>
-          <button className="btn-primary btn-lg" onClick={() => navigate("/quizzes")}>
+          <button className="btn-primary btn-lg" onClick={() => navigate("/study")}>
             {t.cta.button}
           </button>
         </div>

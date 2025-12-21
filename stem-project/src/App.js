@@ -1,61 +1,89 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthProvider } from './contexts/AuthContext';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import LandingPage from './pages/LandingPage';
 import QuizList from './pages/QuizList';
 import QuizPage from './pages/QuizPage';
 import ResultPage from './pages/ResultPage';
-import LearningProfile from './pages/LearningProfile';
-import AdaptiveQuiz from './pages/AdaptiveQuiz';
+import LearningHome from './pages/LearningHome';
+import Study from './pages/Study';
+import Resources from './pages/Resources';
+import History from './pages/History';
+import Signup from './components/Signup';
+import Signin from './components/Signin';
+import ProtectedRoute from './components/ProtectedRoute';
 import './styles.css';
-import './styles/LearningProfile.css';
-import './styles/AdaptiveQuiz.css';
 
 function App() {
-  // Get userId from localStorage or auth context
-  // This should be replaced with your actual auth system
-  const [userId] = useState(() => {
-    return localStorage.getItem('userId') || 'user123';
-  });
-
-  const handleQuizComplete = (results) => {
-    console.log('Quiz completed with results:', results);
-    // You can add logic here to update state or redirect
-  };
-
   return (
     <LanguageProvider>
-      <Router>
-        <div className="app">
-          <NavBar />
-          <main>
-            <Routes>
-              {/* Original Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/quizzes" element={<QuizList />} />
-              <Route path="/quiz/:id" element={<QuizPage />} />
-              <Route path="/result" element={<ResultPage />} />
-              
-              {/* Adaptive Learning Routes */}
-              <Route 
-                path="/adaptive/profile/:userId" 
-                element={<LearningProfile userId={userId} />} 
-              />
-              <Route 
-                path="/adaptive/profile" 
-                element={<LearningProfile userId={userId} />} 
-              />
-              <Route 
-                path="/adaptive/quiz" 
-                element={<AdaptiveQuiz userId={userId} onComplete={handleQuizComplete} />} 
-              />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <div className="app">
+            <NavBar />
+            <main>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/quizzes" element={<QuizList />} />
+                <Route
+                  path="/study"
+                  element={
+                    <ProtectedRoute>
+                      <LearningHome />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/study-mode"
+                  element={
+                    <ProtectedRoute>
+                      <Study />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/resources"
+                  element={
+                    <ProtectedRoute>
+                      <Resources />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/history"
+                  element={
+                    <ProtectedRoute>
+                      <History />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/quiz/:id"
+                  element={
+                    <ProtectedRoute>
+                      <QuizPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/result"
+                  element={
+                    <ProtectedRoute>
+                      <ResultPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/signin" element={<Signin />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </AuthProvider>
     </LanguageProvider>
   );
 }

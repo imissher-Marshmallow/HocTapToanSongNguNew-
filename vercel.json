@@ -1,33 +1,16 @@
 {
   "version": 2,
   "name": "stem-project",
-  "builds": [
+  "buildCommand": "cd stem-project && npm install && npm run build",
+  "outputDirectory": "stem-project/build",
+  "rewrites": [
     {
-      "src": "stem-project/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "zeroConfig": false,
-        "buildCommand": "npm run build",
-        "distDir": "build",
-        "outputDirectory": "stem-project/build"
-      }
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "src": "api/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "stem-project/build/$1"
+      "source": "/(.*)",
+      "destination": "/stem-project/build/index.html"
     }
   ]
 }

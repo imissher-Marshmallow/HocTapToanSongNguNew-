@@ -1,31 +1,48 @@
 const fs = require('fs');
 const path = require('path');
-// Load .env here as a defensive measure so analyzer can detect env vars even if required directly.
+const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const OpenAI = require('openai');
+const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
+const { dbHelpers } = require('../database');
 
-let openai;
+// Initialize OpenAI clients for different agents (separate to avoid RPM limits)
+// OPENAI_API_KEY_SUMMARY: For generating AI summary and feedback
+// OPENAI_API_KEY_RESOURCES: For web search and resource recommendations
+// OPENAI_API_KEY: Fallback/default API key
+let openaiSummary, openaiResources;
+
 try {
-  // Prefer an environment variable; fall back to a (placeholder) embedded key if present.
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+  const summaryKey = process.env.OPENAI_API_KEY_SUMMARY || process.env.OPENAI_API_KEY || '';
+  openaiSummary = new OpenAI({ apiKey: summaryKey });
 } catch (error) {
-  console.warn('Failed to initialize OpenAI client:', error);
+  console.warn('Failed to initialize OpenAI Summary client:', error);
 }
 
-// Diagnostic help: show whether the OPENAI_API_KEY was found in the environment
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY not found in environment. LLM functionality will fall back to the built-in stub/fallback responses.\n' +
-    'To enable LLM, add OPENAI_API_KEY to backend/.env or set the environment variable and restart the server.');
+try {
+  const resourcesKey = process.env.OPENAI_API_KEY_RESOURCES || process.env.OPENAI_API_KEY || '';
+  openaiResources = new OpenAI({ apiKey: resourcesKey });
+} catch (error) {
+  console.warn('Failed to initialize OpenAI Resources client:', error);
+}
+
+if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES && !process.env.OPENAI_API_KEY) {
+  console.warn('No OpenAI API keys found in environment. LLM functionality will fall back to built-in responses.');
+  console.warn('  Set OPENAI_API_KEY_SUMMARY for AI summary generation');
+  console.warn('  Set OPENAI_API_KEY_RESOURCES for resource recommendations');
+  console.warn('  Or set OPENAI_API_KEY as fallback for both');
 } else {
-  console.log('OPENAI_API_KEY detected in environment.');
+  if (process.env.OPENAI_API_KEY_SUMMARY) console.log('✓ OPENAI_API_KEY_SUMMARY detected');
+  if (process.env.OPENAI_API_KEY_RESOURCES) console.log('✓ OPENAI_API_KEY_RESOURCES detected');
+  if (process.env.OPENAI_API_KEY) console.log('✓ OPENAI_API_KEY (fallback) detected');
 }
 
-// Prefer updated questions file if present (user may be editing questions_updated.json)
+// Prefer updated questions file
 const defaultQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
 const updatedQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
 const questionsPath = fs.existsSync(updatedQuestionsPath) ? updatedQuestionsPath : defaultQuestionsPath;
 
-// Utility: Fisher-Yates shuffle (in-place)
+// Fisher-Yates shuffle
 function shuffleArray(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -34,90 +51,100 @@ function shuffleArray(arr) {
   return arr;
 }
 
-// Load questions for a quiz (supports new `contests` format in questions.json)
+// Load questions for a quiz
 function loadQuestionsForQuiz(quizId) {
   const data = fs.readFileSync(questionsPath, 'utf8');
   const parsed = JSON.parse(data);
-  // Support two shapes for parsed.contests:
-  // - Array: parsed.contests = [ [...contest1...], [...contest2...], ... ]
-  // - Object: parsed.contests = { "contest1": [...], "contest2": [...], ... }
+  
+  // Support multiple top-level container names. Prefer 'contests' but fall back to first object key
+  let containerName = null;
+  let container = null;
   if (parsed && parsed.contests) {
-    // If contests is an array (legacy), keep existing numeric selection behavior
-    if (Array.isArray(parsed.contests)) {
-      // Support selecting from contests 1-5 randomly
-      let contestKey;
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        // Randomly select from contest1 to contest5
-        const contestNum = Math.floor(Math.random() * 5) + 1;
-        contestKey = `contest${contestNum}`;
-        console.log(`loadQuestionsForQuiz: selected random ${contestKey}`);
-      } else {
-        const parsedId = parseInt(quizId, 10);
-        if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= 5) {
-          contestKey = `contest${parsedId}`;
-        } else {
-          // fallback to random contest if the provided id is invalid
-          const contestNum = Math.floor(Math.random() * 5) + 1;
-          contestKey = `contest${contestNum}`;
-          console.log(`loadQuestionsForQuiz: invalid quizId "${quizId}", selecting random contest`);
+    containerName = 'contests';
+    container = parsed.contests;
+  } else if (parsed && typeof parsed === 'object') {
+    // find first key whose value looks like a contests map (object with arrays)
+    const keys = Object.keys(parsed);
+    for (const k of keys) {
+      if (parsed[k] && typeof parsed[k] === 'object') {
+        // heuristic: value has child keys mapping to arrays of question objects
+        const childKeys = Object.keys(parsed[k] || {});
+        if (childKeys.length > 0 && childKeys.every(ck => Array.isArray(parsed[k][ck]))) {
+          containerName = k;
+          container = parsed[k];
+          break;
         }
       }
-      const contest = parsed.contests[contestKey] || [];
+    }
+  }
+
+  if (container) {
+    if (Array.isArray(parsed.contests)) {
+      let idx = 0;
+      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
+        // Use crypto.randomInt when available for more robust randomness
+        idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
+      } else {
+        const parsedId = parseInt(quizId, 10);
+        if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) {
+          idx = parsedId - 1;
+        } else {
+          idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
+        }
+      }
+      const contest = parsed.contests[idx] || [];
       const shuffled = shuffleArray([...contest]);
-      // Return all 20 questions with randomized order
-      return shuffled;
+      return { questions: shuffled, contestKey: `contest${idx + 1}`, contestIndex: idx + 1, contestId: idx + 1, contestName: parsed.name || null };
     }
 
-    // If contests is an object with named contests, support selecting by name, numeric index or random
-    if (typeof parsed.contests === 'object') {
-      // Prefer explicit named contest keys that match the pattern 'contest<NUMBER>' so we only select
-      // among contest1..contestN. This avoids picking unrelated keys if the object has other fields.
-      const allKeys = Object.keys(parsed.contests);
+    if (typeof container === 'object') {
+      const allKeys = Object.keys(container);
       const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
         const na = parseInt((a.match(/\d+/) || [0])[0], 10);
         const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
         return na - nb;
       });
-      const keys = namedKeys.length ? namedKeys : allKeys; // fallback to all keys if no contestN keys found
+      const keys = namedKeys.length ? namedKeys : allKeys;
 
-      if (keys.length === 0) return [];
+      if (keys.length === 0) return { questions: [], contestKey: 'none' };
       let chosenKey;
-      // treat several forms of 'random' as a request to pick a random contest
       if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        const idx = Math.floor(Math.random() * keys.length);
+        const idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, keys.length) : Math.floor(Math.random() * keys.length);
         chosenKey = keys[idx];
-        console.log(`loadQuestionsForQuiz: selected random named contest "${chosenKey}"`);
       } else if (parsed.contests.hasOwnProperty(quizId)) {
-        // user passed a named contest key like 'contest3'
         chosenKey = quizId;
       } else {
-        // try numeric mapping: 1 -> contest1, 2 -> contest2, etc.
         const parsedId = parseInt(quizId, 10);
         if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= keys.length) {
           chosenKey = keys[parsedId - 1];
         } else {
           chosenKey = keys[0];
-          console.log(`loadQuestionsForQuiz: invalid quizId "${quizId}", defaulting to first named contest "${chosenKey}"`);
         }
       }
-      const contest = parsed.contests[chosenKey] || [];
+      const contest = container[chosenKey] || [];
       const shuffled = shuffleArray([...contest]);
-      return shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+      const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
+      // Ensure english fields present for frontend (fallback to original fields)
+      const normalized = trimmed.map(q => ({
+        ...q,
+        english_question: q.english_question || q.question,
+        english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
+      }));
+      // derive numeric index from chosenKey if possible
+      let contestIndex = null;
+      const m = String(chosenKey).match(/contest(\d+)/);
+      if (m) contestIndex = parseInt(m[1], 10);
+      return { questions: normalized, contestKey: chosenKey, contestIndex, contestId: contestIndex, contestName: parsed.name || containerName };
     }
   }
-  // backwards compatibility: if file is a plain array of questions
-  if (Array.isArray(parsed)) {
-    const shuffled = shuffleArray([...parsed]);
-    return shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
-  }
-  return [];
+  return { questions: [], contestKey: 'none' };
 }
 
-// Load questions grouped by topic categories for a specific quiz
+// Load grouped questions
 function loadGroupedQuestionsForQuiz(quizId) {
-  const data = fs.readFileSync(questionsPath, 'utf8');
-  const parsed = JSON.parse(data);
-  // Helper to map topic strings to buckets
+  const loadResult = loadQuestionsForQuiz(quizId);
+  const questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
+  
   const mapTopicToBucket = (topicStr) => {
     if (!topicStr || typeof topicStr !== 'string') return 'other';
     const s = topicStr.toLowerCase();
@@ -125,317 +152,271 @@ function loadGroupedQuestionsForQuiz(quizId) {
     if (s.includes('thông hiểu') || s.includes('comprehension')) return 'comprehension';
     if (s.includes('vận dụng thấp') || s.includes('low application')) return 'lowApplication';
     if (s.includes('vận dụng cao') || s.includes('high application')) return 'highApplication';
-    // fallback: try to detect '(Knowledge)' style
-    if (s.includes('knowledge')) return 'knowledge';
-    if (s.includes('comprehension')) return 'comprehension';
-    if (s.includes('low')) return 'lowApplication';
-    if (s.includes('high')) return 'highApplication';
     return 'other';
   };
 
-  // pick contest similarly to loadQuestionsForQuiz
-  let contestArray = [];
-  if (parsed && parsed.contests) {
-    if (Array.isArray(parsed.contests)) {
-      // numeric or random selection
-      let idx;
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        idx = Math.floor(Math.random() * parsed.contests.length);
-      } else {
-        const parsedId = parseInt(quizId, 10);
-        idx = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) ? parsedId - 1 : 0;
-      }
-      contestArray = parsed.contests[idx] || [];
-    } else if (typeof parsed.contests === 'object') {
-      const allKeys = Object.keys(parsed.contests);
-      const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
-        const na = parseInt((a.match(/\d+/) || [0])[0], 10);
-        const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
-        return na - nb;
-      });
-      const keys = namedKeys.length ? namedKeys : allKeys;
-      if (keys.length === 0) return { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
-      let chosenKey;
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        const idx = Math.floor(Math.random() * keys.length);
-        chosenKey = keys[idx];
-      } else if (parsed.contests.hasOwnProperty(quizId)) {
-        chosenKey = quizId;
-      } else {
-        const parsedId = parseInt(quizId, 10);
-        chosenKey = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= keys.length) ? keys[parsedId - 1] : keys[0];
-      }
-      contestArray = parsed.contests[chosenKey] || [];
-    }
-  }
-
-  // group into buckets
   const buckets = { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
-  for (const q of contestArray) {
+  for (const q of questions) {
     const b = mapTopicToBucket(q.topic);
     buckets[b].push(q);
   }
-
   return buckets;
 }
 
-// Helper to get weak areas
+// Get weak areas from topic stats
 function getWeakAreas(topicStats) {
-  const weakAreas = [];
-  for (const [topic, stats] of Object.entries(topicStats)) {
-    const total = stats.total || 0;
-    const wrong = stats.wrong || 0;
-    const correct = stats.correct || 0;
-    const rate = total > 0 ? wrong / total : 0;
-    const percentage = Math.round((total > 0 ? (wrong / total) * 100 : 0));
-    let severity = 'low';
-    if (rate > 0.5) severity = 'high';
-    else if (rate > 0.25) severity = 'medium';
-    weakAreas.push({
-      topic,
-      severity,
-      rate,
-      percentage,
-      wrong,
-      total,
-      correct,
-    });
-  }
-  return weakAreas.sort((a, b) => b.rate - a.rate);
-}
-
-// Basic subtopic detection from question text/topic to give students concrete labels
-function detectSubtopic(text) {
-  if (!text || typeof text !== 'string') return 'General';
-  const s = text.toLowerCase();
-  // mapping of simple keyword -> subtopic label (Vietnamese)
-  const map = [
-    { k: ['đa thức', 'đa thức', 'thu gọn', 'rút gọn', 'đa thức'], v: 'Đa thức / Biểu thức' },
-    { k: ['hình', 'tam giác', 'hình học', 'đường', 'điểm', 'góc'], v: 'Hình học' },
-    { k: ['phép nhân', 'phép chia', 'nhân', 'chia', 'tổng', 'hiệu'], v: 'Toán cơ bản (phép toán)' },
-    { k: ['bậc', 'độ', 'degree', 'coefficient'], v: 'Bậc / Hệ số' },
-    { k: ['tìm x', 'tìm giá trị', 'giá trị lớn nhất', 'giá trị nhỏ nhất', 'tìm giá trị'], v: 'Tối ưu / Giá trị cực trị' },
-    { k: ['hằng đẳng thức', 'hằng đẳng thức đáng nhớ'], v: 'Hằng đẳng thức' },
-    { k: ['phương trình', 'hệ phương trình', 'equation'], v: 'Phương trình' },
-    { k: ['chia', 'chia cho'], v: 'Chia / Phân tích' },
-  ];
-
-  for (const item of map) {
-    for (const kw of item.k) {
-      if (s.includes(kw)) return item.v;
+  const weak = [];
+  for (const topic in topicStats) {
+    const stats = topicStats[topic];
+    const errorRate = stats.total > 0 ? (stats.wrong / stats.total) : 0;
+    const percentage = Math.round(errorRate * 100);
+    
+    if (percentage > 0) {
+      let severity = 'low';
+      if (percentage >= 70) severity = 'high';
+      else if (percentage >= 40) severity = 'medium';
+      
+      weak.push({
+        topic,
+        severity,
+        rate: errorRate,
+        percentage,
+        wrong: stats.wrong,
+        total: stats.total,
+        correct: stats.correct || (stats.total - stats.wrong)
+      });
     }
   }
-  // fallback: try to detect keywords like 'number' or 'số'
-  if (s.includes('số') || s.includes('number')) return 'Số học';
-  return 'General';
+  return weak.sort((a, b) => b.percentage - a.percentage);
 }
 
-// Sample function for recommendations
-function recommendNextQuestions(weakAreas, allQuestions) {
-  const rec = [];
-  // Difficulty in questions uses numeric strings ("1".."4"). We'll pick easier ones first.
-  for (const area of weakAreas) {
-    const candidates = allQuestions.filter(q => q.topic === area.topic);
-    // sort by numeric difficulty ascending (easier first)
-    const sorted = candidates.slice().sort((a, b) => (parseInt(a.difficulty || '2', 10) - parseInt(b.difficulty || '2', 10)));
-    const pick = sorted.slice(0, 5).map(q => q.id);
-    rec.push({
-      topic: area.topic,
-      nextQuestions: pick,
-      resources: [],
-    });
+// Detect subtopic from question content
+function detectSubtopic(text) {
+  const lowerText = text.toLowerCase();
+  if (lowerText.includes('phương trình')) return 'Phương trình';
+  if (lowerText.includes('hình học') || lowerText.includes('tam giác')) return 'Hình học';
+  if (lowerText.includes('đa thức')) return 'Đa thức';
+  if (lowerText.includes('hằng đẳng thức')) return 'Hằng đẳng thức';
+  if (lowerText.includes('phân số') || lowerText.includes('số học')) return 'Số học';
+  if (lowerText.includes('tối ưu') || lowerText.includes('cực trị')) return 'Tối ưu / Giá trị cực trị';
+  return 'Toán cơ bản (phép toán)';
+}
+
+// Recommend next questions
+function recommendNextQuestions(weakAreas, questions) {
+  const recommendations = [];
+  if (!weakAreas || weakAreas.length === 0) return recommendations;
+  
+  const topWeakTopics = weakAreas.slice(0, 2).map(w => w.topic);
+  for (const topic of topWeakTopics) {
+    const relatedQuestions = questions
+      .filter(q => q.topic === topic)
+      .map(q => q.id)
+      .slice(0, 5);
+    if (relatedQuestions.length > 0) {
+      recommendations.push({
+        topic,
+        nextQuestions: relatedQuestions
+      });
+    }
   }
-  return rec;
+  return recommendations;
 }
 
-// Stub for fetching resources
-async function fetchResourcesFor(weakAreas) {
-  // Placeholder: integrate PressAI scraper here
-  return weakAreas.map(area => ({
-    topic: area.topic,
-    resources: [
-      {
-        title: `Bài giảng về ${area.topic}`,
-        url: `https://example.com/${area.topic}`,
-      },
-    ],
-  }));
-}
-
-// LLM call for feedback
-async function callLLMGenerateFeedback(q, selectedOption) {
-  const options = q.options.map((opt, idx) => `${String.fromCharCode(65 + idx)}: ${opt}`).join('; ');
-  const correctLetter = String.fromCharCode(65 + q.answerIndex);
-  const studentLetter = String.fromCharCode(65 + q.options.indexOf(selectedOption));
-
-  const prompt = `Bạn là giáo viên Toán trung học; nhiệm vụ: phân tích vì sao học sinh trả lời sai.
-Input:
-Question: "${q.question}"
-Options: ${options}
-CorrectOption: "${correctLetter}"
-StudentChoice: "${studentLetter}"
-
-Yêu cầu:
-Trả về một duy nhất JSON không có chữ thừa với keys:
-- reason: ngắn gọn (<=120 chars)
-- hint: gợi ý ngắn (<=80 chars)
-- mini_steps: array tối đa 3 bước
-Example:
-{"reason":"...", "hint":"...", "mini_steps":["..."]}`;
+// Call LLM to generate comprehensive summary with timeout (uses OPENAI_API_KEY_SUMMARY or fallback)
+async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered, performanceLabel }, timeoutMs = 8000) {
+  if (!openaiSummary) {
+    console.log('[Summary] OpenAI Summary client not initialized. Using fallback.');
+    return null;
+  }
 
   try {
-    // Ask the LLM to respond in Vietnamese and include actionable improvement items
-    const enhancedPrompt = `Bạn là giáo viên Toán trung học, vui lòng trả lời bằng TIẾNG VIỆT.
-Hãy phân tích tại sao học sinh trả lời sai và trả về một JSON duy nhất (không kèm văn bản khác) có các keys sau:
-- reason: mô tả ngắn gọn (<=120 ký tự) — vì sao sai
-- improve: một câu tóm tắt nói học sinh cần cải thiện điều gì (<=100 ký tự)
-- suggestions: mảng các chủ đề hoặc kỹ năng nên ôn (tối đa 5 mục)
-- mini_steps: mảng tối đa 3 bước hành động cụ thể để sửa lỗi
-- resources: mảng các tài nguyên (title, url) gợi ý để ôn luyện
-Ví dụ JSON:
-{"reason":"...","improve":"...","suggestions":["phương trình bậc 2","định nghĩa delta"],"mini_steps":["Bước 1..."],"resources":[{"title":"Giải thích...","url":"https://..."}]}
+    const weakAreasList = weakAreas.slice(0, 3).map(w => `${w.topic} (${w.percentage}% sai)`).join(', ');
+    
+    // Comprehensive prompt to generate full analysis with a clear 5-step plan and start actions
+    const prompt = `Bạn là một giáo viên toán giỏi và huấn luyện viên học tập. Học sinh vừa hoàn thành bài kiểm tra với kết quả ${score}/10 (${performanceLabel}).
+Điểm yếu chính: ${weakAreasList || 'không có'}.
 
-Input gốc:
-Question: "${q.question}"
-Options: ${options}
-CorrectOption: "${correctLetter}"
-StudentChoice: "${studentLetter}"
+Yêu cầu (rất quan trọng):
+- Trả về JSON duy nhất (không chứa markdown fencing).
+- Bao gồm các trường:
+  - "overall": một thông điệp tổng hợp 1-4 câu bằng tiếng Việt chi tiết.
+  - "start_here": một câu hướng dẫn rõ ràng để học sinh BẮT ĐẦU ngay (ví dụ: "Ôn 15 phút phần X trên VietJack, sau đó làm 5 bài tập").
+  - "strengths": mảng các điểm mạnh (ngắn gọn).
+  - "weaknesses": mảng các điểm yếu chi tiết (bao gồm % sai nếu có).
+  - "plan": một mảng 5 bước chi tiết, mỗi bước là một object với: {"step": "mô tả hành động cụ thể","duration": "thời lượng (ví dụ: '15 phút')","action":"việc làm cụ thể","resource_suggestion": {"type":"article|video|exercise","name":"tên nguồn (ví dụ: VietJack bài X hoặc YouTube video tiêu đề)"} }.
+  - "priority": mảng short list (1-3) những việc cần làm NGAY.
+  - "motivationalMessage": một lời động viên cụ thể 3 câu theo cảm nhận cá nhân về học sinh này.
+
+Ví dụ:
+{
+  "overall":"...",
+  "start_here":"Ôn 15 phút phần Đa thức - Bài 2 trên VietJack, sau đó làm 5 bài tập tương tự.",
+  "strengths":["..."],
+  "weaknesses":["..."],
+  "plan":[{"step":"Ôn lại khái niệm...","duration":"15 phút","action":"đọc bài và  làm 3 bài tập","resource_suggestion":{"type":"article","name":"VietJack - Đa thức"}}, ...],
+  "priority":["Ôn phần X", "Làm 5 bài tập"],
+  "motivationalMessage":"..."
+}
 `;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: enhancedPrompt }],
-      max_tokens: 300,
+    // Create promise with timeout
+    const summaryPromise = openaiSummary.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 800,
+      temperature: 0.7
     });
-    const raw = response.choices[0].message.content.trim();
-    console.log('LLM Raw Response:', raw);
-    // Robust parsing
-    const jsonMatch = raw.match(/\{.*\}/s);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+
+    // Race against timeout
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('LLM_TIMEOUT')), timeoutMs)
+    );
+
+    const message = await Promise.race([summaryPromise, timeoutPromise]);
+    const responseText = message.choices[0]?.message?.content || '{}';
+
+    // Parse JSON response (handling cases where LLM adds markdown wrapping)
+    let parsed;
+    try {
+      const cleanedText = responseText.replace(/```json\s?/g, '').replace(/```\s?/g, '').trim();
+      parsed = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.warn('[Summary] Failed to parse LLM JSON response, using fallback:', parseError.message);
+      return null;
     }
-    throw new Error('No JSON found');
-  } catch (error) {
-    console.error('LLM Error:', error);
-    // Fallback
+
+    console.log('[Summary] OpenAI generated: overall, strengths, weaknesses, plan');
+    // Normalize plan: if items are objects keep them, otherwise convert strings to {step: string}
+    let planOut = [];
+    if (Array.isArray(parsed.plan) && parsed.plan.length > 0) {
+      planOut = parsed.plan.map(p => {
+        if (typeof p === 'string') return { step: p };
+        return p;
+      });
+    }
+
     return {
-      reason: 'Không thể tạo phản hồi chi tiết.',
-      hint: 'Xem lại giải thích cơ bản.',
-      mini_steps: ['Bước 1: Đọc lại câu hỏi', 'Bước 2: Tính toán cẩn thận'],
+      overall: parsed.overall || '',
+      start_here: parsed.start_here || '',
+      strengths: Array.isArray(parsed.strengths) && parsed.strengths.length > 0 ? parsed.strengths : [],
+      weaknesses: Array.isArray(parsed.weaknesses) && parsed.weaknesses.length > 0 ? parsed.weaknesses : weakAreas.slice(0, 3).map(w => `${w.topic}: ${w.percentage}% sai`),
+      plan: planOut,
+      priority: Array.isArray(parsed.priority) ? parsed.priority : [],
+      motivationalMessage: parsed.motivationalMessage || ''
     };
+  } catch (error) {
+    const errorMsg = error && (error.message || String(error));
+    console.warn(`[Summary] OpenAI failed (${errorMsg}). Using fallback.`);
+    return null;
   }
 }
 
-// LLM call for overall summary of the quiz
-async function callLLMGenerateSummary({ score, weakAreas, feedback, recommendations, rulesTriggered }) {
-  // Prepare a strict prompt that asks for JSON ONLY. We'll still fall back to a programmatic summary if the LLM fails
-  const topWeak = (weakAreas || []).slice(0, 6).map(w => `${w.topic} (${w.percentage ?? Math.round((w.rate||0)*100)}%)`).join(', ');
-  const feedbackBrief = (feedback || []).slice(0, 8).map(f => `Câu ${f.questionId}: ${f.reason || ''}`).join('; ');
+// Fallback summary without LLM
+function getFallbackSummary(score, performanceLabel, weakAreas) {
+  let overall = '';
+  if (score >= 8) {
+    overall = `Tuyệt vời! Bạn đã đạt điểm ${score}/10 (${performanceLabel}). Tiếp tục nỗ lực!`;
+  } else if (score >= 6) {
+    overall = `Tốt lắm! Bạn đạt ${score}/10 (${performanceLabel}). Chỉ cần ôn lại các phần còn yếu.`;
+  } else if (score >= 5) {
+    overall = `Bạn đạt ${score}/10 (${performanceLabel}). Hãy tập trung vào các phần yếu để cải thiện.`;
+  } else {
+    overall = `Bạn đạt ${score}/10 (${performanceLabel}). Đừng nản chí - hãy bắt đầu ôn từ những phần cơ bản.`;
+  }
 
-  const systemMessage = `You are an experienced Vietnamese high-school math teacher. Output EXACTLY one JSON object and nothing else. Do NOT add any explanatory text.`;
+  const motivation = generateMotivationalFeedback(score, performanceLabel, weakAreas);
 
-  const userMessage = `Hãy phân tích kết quả bài kiểm tra sau và trả về duy nhất một JSON (không kèm văn bản khác) với các keys: overall (string), strengths (array of strings), weaknesses (array of strings), plan (array of strings). Mỗi mục trong strengths/weaknesses phải cụ thể, có số liệu: "[Chủ đề]: Đúng X/Y (Z%). [Nhận xét]." Plan phải là các bước học cụ thể, có thời lượng và tài liệu.
-
-Dữ liệu đầu vào:
-Score: ${score}/10
-Top weak areas: ${topWeak}
-Sample feedback: ${feedbackBrief}
-Recommendations: ${ (recommendations || []).map(r => r.topic).join(', ') }
-Rules: ${ (rulesTriggered || []).join(', ') }
-
-Trả về JSON ví dụ:
-{"overall":"...","strengths":["..."],"weaknesses":["..."],"plan":["..."]}`;
-
-  try {
-    if (!openai) throw new Error('OpenAI client not initialized');
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: userMessage }
-      ],
-      temperature: 0,
-      max_tokens: 600,
-    });
-
-    const raw = (response && response.choices && response.choices[0] && response.choices[0].message && response.choices[0].message.content) ? response.choices[0].message.content.trim() : '';
-    console.log('LLM Summary Raw Response:', raw);
-
-    // Try to extract JSON object from the response
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch (e) {
-        console.error('JSON parse error from LLM output:', e, 'raw:', jsonMatch[0]);
-      }
+  // Build detailed weaknesses list
+  const detailedWeaknesses = weakAreas.slice(0, 5).map(w => {
+    const errorRate = Math.round(w.percentage || 0);
+    if (errorRate >= 75) {
+      return `${w.topic}: ${errorRate}% sai - Cần ôn tập gấp cấp!`;
+    } else if (errorRate >= 50) {
+      return `${w.topic}: ${errorRate}% sai - Cần luyện tập thêm`;
+    } else {
+      return `${w.topic}: ${errorRate}% sai - Ôn lại một vài phần`;
     }
-  } catch (err) {
-    console.error('LLM summary error:', err && (err.message || err));
+  });
+
+  // Build detailed strengths list based on performance
+  // Always generate meaningful strengths even if student has weak areas
+  let strengths = [];
+  if (score >= 8) {
+    strengths = ['Khả năng hiểu bài toán rất tốt', 'Nắm vững kiến thức cơ bản'];
+  } else if (score >= 6) {
+    const topicsCorrect = Math.floor(score * 0.6); // estimate topics with correct answers
+    strengths = [`Làm đúng ${topicsCorrect} chủ đề`, 'Hiểu được các phần kiến thức chính'];
+  } else if (score >= 4) {
+    strengths = ['Đã nắm được một số kiến thức cơ bản', 'Khả năng giải quyết vấn đề đang phát triển'];
+  } else {
+    strengths = ['Bạn đã cố gắng hoàn thành bài kiểm tra', 'Đây là điểm khởi đầu cho sự cải thiện'];
   }
 
-  // Fallback: generate a deterministic, detailed summary programmatically
-  const fallback = {};
-  // overall
-  const topList = (weakAreas || []).slice(0, 3).map(w => `${w.topic} (${w.percentage}%)`).join(', ') || 'không rõ';
-  fallback.overall = `Bạn đạt ${score}/10. Điểm yếu chính: ${topList}. Hãy theo kế hoạch bên dưới để cải thiện.`;
-
-  // strengths: topics with low error rate
-  fallback.strengths = (weakAreas || []).filter(w => (w.rate || 0) <= 0.25).slice(0,5).map(w => `${w.topic}: Đúng ${w.correct || 0}/${w.total || 0} (${100 - (w.percentage||0)}%). Tiếp tục phát huy.`);
-
-  // weaknesses: topics with highest error rates
-  fallback.weaknesses = (weakAreas || []).filter(w => (w.rate || 0) > 0).slice(0,6).map(w => `${w.topic}: Sai ${w.wrong}/${w.total} (${w.percentage}%). Nguyên nhân có thể là ${w.rate > 0.5 ? 'chưa nắm vững kiến thức cơ bản' : 'cần thêm luyện tập'}.`);
-
-  // plan: actionable steps
-  const plan = [];
-  let day = 1;
-  for (const w of (weakAreas || []).slice(0,4)) {
-    const dur = w.rate > 0.5 ? '2-3 ngày' : '1-2 ngày';
-    plan.push(`Ngày ${day}-${day + (w.rate > 0.5 ? 2 : 1)}: Ôn ${w.topic} - Tài liệu: sách giáo khoa + 10-20 bài tập mức độ tương ứng - Thời lượng: ${w.rate > 0.5 ? '2-3 giờ/ngày' : '1-2 giờ/ngày'}`);
-    day += (w.rate > 0.5 ? 3 : 2);
+  // Ensure strengths is never empty
+  if (!strengths || strengths.length === 0) {
+    strengths = ['Bạn đã hoàn thành bài kiểm tra'];
   }
-  if (plan.length === 0) plan.push('Ôn lại các chủ đề cơ bản và làm 10 bài tập tổng hợp trong 2 ngày.');
-  fallback.plan = plan;
 
-  return fallback;
+  // Build learning plan
+  const learningPlan = weakAreas.slice(0, 3).map((w, idx) => {
+    const topic = w.topic || w.subtopic;
+    const dayNum = idx + 1;
+    return `Ngày ${dayNum}: Ôn ${topic} (xem bài giảng + làm bài tập)`;
+  });
+
+  return {
+    overall,
+    strengths, // Now guaranteed to have at least 1 element
+    weaknesses: detailedWeaknesses,
+    plan: learningPlan.length > 0 ? learningPlan : ['Hãy tiếp tục ôn tập toàn bộ các phần'],
+    motivationalMessage: motivation.overallMessage,
+    detailedFeedback: `Bạn sai ${Math.max(0, 10 - score)} trong 10 câu. Hãy tập trung vào: ${weakAreas.slice(0, 3).map(w => w.topic || w.subtopic).join(', ')}`
+  };
 }
 
 // Main analyze function
 async function analyzeQuiz(payload) {
-  const { userId, quizId, answers } = payload;
-  const questions = loadQuestionsForQuiz(quizId);
+  const { userId, quizId, answers, isAutoSubmitted } = payload;
+  const loadResult = loadQuestionsForQuiz(quizId);
+  const questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
+  const contestKey = loadResult && loadResult.contestKey ? loadResult.contestKey : quizId;
+  const contestName = loadResult && loadResult.contestName ? loadResult.contestName : null;
+  
   let correct = 0;
   const perQuestionFeedback = [];
   const topicStats = {};
-  const subtopicStats = {}; // track finer-grained subtopics
+  const subtopicStats = {};
   const rulesTriggered = [];
+  
+  // Add auto-submit to rules if detected (for anti-cheat flagging)
+  if (isAutoSubmitted) {
+    rulesTriggered.push('auto_submitted');
+  }
 
   for (const ans of answers) {
     const q = questions.find(x => x.id === ans.questionId);
     if (!q) continue;
+    
     const selectedIndex = q.options.indexOf(ans.selectedOption);
     const isCorrect = selectedIndex === q.answerIndex;
     if (isCorrect) correct++;
 
-  // Ensure topic stats exist and update totals
-  topicStats[q.topic] = topicStats[q.topic] || { wrong: 0, total: 0, correct: 0 };
-  if (!isCorrect) topicStats[q.topic].wrong++;
-  else topicStats[q.topic].correct++;
-  topicStats[q.topic].total++;
+    topicStats[q.topic] = topicStats[q.topic] || { wrong: 0, total: 0, correct: 0 };
+    if (!isCorrect) topicStats[q.topic].wrong++;
+    else topicStats[q.topic].correct++;
+    topicStats[q.topic].total++;
 
-  // Detect and track subtopic (more actionable label for students)
-  const sub = detectSubtopic(`${q.topic} ${q.question} ${q.english_question || ''}`);
-  subtopicStats[sub] = subtopicStats[sub] || { wrong: 0, total: 0, correct: 0 };
-  if (!isCorrect) subtopicStats[sub].wrong++;
-  else subtopicStats[sub].correct++;
-  subtopicStats[sub].total++;
+    const sub = detectSubtopic(`${q.topic} ${q.question} ${q.english_question || ''}`);
+    subtopicStats[sub] = subtopicStats[sub] || { wrong: 0, total: 0, correct: 0 };
+    if (!isCorrect) subtopicStats[sub].wrong++;
+    else subtopicStats[sub].correct++;
+    subtopicStats[sub].total++;
 
-    // Rule-based detection (only for wrong answers)
     if (!isCorrect) {
       if (ans.timeTakenSec < 10) rulesTriggered.push('quick_guess_detected');
       if (topicStats[q.topic].wrong > 1) rulesTriggered.push('topic_repeat_errors');
 
-        // Add only basic explanation if available
       if (q.explanation) {
         perQuestionFeedback.push({
           questionId: q.id,
@@ -445,8 +426,29 @@ async function analyzeQuiz(payload) {
     }
   }
 
-  const score = answers.length > 0 ? Math.round((correct / answers.length) * 10) : 0; // integer 0-10
-  // Keep full weak area details (topic, severity, rate, percentage, wrong, total, correct)
+  const score = answers.length > 0 ? Math.round((correct / answers.length) * 10) : 0;
+  
+  // Detect anti-cheat flags: auto-submit with incomplete answers suggests cheating
+  // If user only answered few questions and got high score, it's suspicious
+  let isFlaggedForCheating = false;
+  let cheatReason = '';
+  
+  if (rulesTriggered.includes('auto_submitted')) {
+    const answeredPercentage = (answers.length / Math.max(10, questions.length)) * 100;
+    if (answeredPercentage < 50) {
+      // Only answered <50% of questions but auto-submitted = likely cheating
+      isFlaggedForCheating = true;
+      cheatReason = `Auto-submitted with only ${answers.length}/${questions.length} answers`;
+    }
+  }
+  
+  // Correct grade mapping
+  let performanceLabel = 'Không đạt';
+  if (score >= 8) performanceLabel = 'Giỏi';
+  else if (score >= 6) performanceLabel = 'Đạt';
+  else if (score >= 5) performanceLabel = 'Trung bình';
+  else performanceLabel = 'Không đạt';
+  
   const weakAreas = getWeakAreas(Object.assign({}, topicStats, subtopicStats));
   const feedbackOut = perQuestionFeedback.map(f => ({
     questionId: f.questionId,
@@ -458,26 +460,72 @@ async function analyzeQuiz(payload) {
   }));
   const recommendations = recommendNextQuestions(weakAreas, questions).map(rec => ({ topic: rec.topic, nextQuestions: rec.nextQuestions }));
 
-  // Generate an overall AI summary (friendly Vietnamese) to show on the result page
+  // Generate summary
   let summary = null;
   try {
-    summary = await callLLMGenerateSummary({ score, weakAreas, feedback: feedbackOut, recommendations, rulesTriggered });
+    summary = await callLLMGenerateSummary({ score, weakAreas, feedback: feedbackOut, recommendations, rulesTriggered, performanceLabel });
   } catch (e) {
     console.error('Error generating summary:', e);
   }
 
-  // Derive a performance label based on the requested mapping.
-  // Assumption (interpreting the user's overlapping ranges into integer-friendly buckets):
-  // - score <= 5: 'Not passed'
-  // - score > 5 and <= 7: 'Average'
-  // - score > 7 and <= 8: 'Đạt'
-  // - score > 8: 'GIỏi'
-  // This maps integer scores as: 0-5 Not passed, 6-7 Average, 8 Đạt, 9-10 GIỏi.
-  let performanceLabel = 'Không đạt';
-  if (score <= 5) performanceLabel = 'Không đạt';
-  else if (score > 5 && score <= 7) performanceLabel = 'Trung bình';
-  else if (score > 7 && score <= 8) performanceLabel = 'Đạt';
-  else if (score > 8) performanceLabel = 'Giỏi';
+  // Fallback if no summary
+  if (!summary) {
+    summary = getFallbackSummary(score, performanceLabel, weakAreas);
+  }
+
+  // Fetch recent user history (if available) to personalize feedback
+  let historyScores = [];
+  try {
+    if (userId && dbHelpers && typeof dbHelpers.getUserResults === 'function') {
+      const recent = await dbHelpers.getUserResults(userId, 5);
+      if (Array.isArray(recent) && recent.length > 0) {
+        // Extract numeric scores (if stored as string, coerce)
+        historyScores = recent.map(r => (typeof r.score === 'number' ? r.score : parseInt(r.score, 10))).filter(s => !Number.isNaN(s));
+      }
+    }
+  } catch (e) {
+    // ignore history errors
+    historyScores = [];
+  }
+
+  // Generate motivational feedback using OpenAI (personalized with history)
+  let motivationalFeedback = null;
+  try {
+    motivationalFeedback = await generateMotivationalFeedback(score, performanceLabel, weakAreas, historyScores);
+  } catch (error) {
+    console.warn(`[Analyzer] Motivational feedback error: ${error.message}`);
+  }
+
+  // Generate resource links for weak areas
+  const resourceLinks = [];
+  if (weakAreas && weakAreas.length > 0) {
+    const topWeakAreas = weakAreas.slice(0, 3);
+    for (const area of topWeakAreas) {
+      const topic = area.topic || area.subtopic;
+      try {
+        // find a sample incorrect question for this topic to provide context to the resource search
+        let questionContext = null;
+        const sampleQ = questions.find(q => q.topic === topic && answers.some(a => a.questionId === q.id && q.options.indexOf(a.selectedOption) !== q.answerIndex));
+        if (sampleQ) {
+          const userAns = answers.find(a => a.questionId === sampleQ.id);
+          questionContext = {
+            question: sampleQ.question || sampleQ.english_question || '',
+            correctAnswer: sampleQ.options[sampleQ.answerIndex],
+            userAnswer: userAns ? userAns.selectedOption : ''
+          };
+        }
+
+        // getResourcesForTopic accepts questionContext to craft targeted search queries
+        // eslint-disable-next-line no-await-in-loop
+        const resources = await getResourcesForTopic(topic, 'medium', questionContext);
+        if (resources && resources.length > 0) {
+          resourceLinks.push(...resources);
+        }
+      } catch (e) {
+        console.warn(`Resource lookup failed for topic "${topic}":`, e && (e.message || e));
+      }
+    }
+  }
 
   // Add answer comparison data
   const answerComparison = answers.map(ans => {
@@ -500,7 +548,16 @@ async function analyzeQuiz(payload) {
     feedback: feedbackOut,
     recommendations,
     summary,
-    answerComparison, // Add the answer comparison data
+    answerComparison,
+    motivationalFeedback,
+    resourceLinks,
+    // Anti-cheat flags
+    isFlaggedForCheating,
+    cheatReason: isFlaggedForCheating ? cheatReason : null,
+    isAutoSubmitted: isAutoSubmitted || false,
+    contestKey,
+    contestName
+
   };
 }
 

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
+import Spinner from '../components/Spinner';
+import Toast from '../components/Toast';
 import { quizTranslations } from '../translations/quizTranslations';
+import { trackQuizAttempt } from '../helpers/learningHomeIntegration';
 import '../styles/AzotaQuiz.css';
 import classNames from 'classnames';
 
@@ -27,34 +31,148 @@ function QuizPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { language } = useLanguage();
+  const { token, getUserId } = useAuth();
   const t = quizTranslations[language];
   const [started, setStarted] = useState(false);
   const [questions, setQuestions] = useState([]);
+  const [selectedContestKey, setSelectedContestKey] = useState(null);
+  const [selectedContestIndex, setSelectedContestIndex] = useState(null);
+  const [selectedContestName, setSelectedContestName] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [questionStartTime, setQuestionStartTime] = useState(null);
+  const [quizStartAt, setQuizStartAt] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const lastSubmitAtRef = React.useRef(0);
   const [isReviewMode, setIsReviewMode] = useState(false);
+  const containerRef = React.useRef(null);
+
+  // Anti-cheat state
+  const [infractions, setInfractions] = useState(0);
+  const infractionsRef = React.useRef(0);
+  const lastInfractionAt = React.useRef(0);
+  const autoSubmittedRef = React.useRef(false);
 
   useEffect(() => {
-    if (started) {
-      // Always request a random contest when starting a test so each attempt is varied
-      fetch(`http://localhost:5000/api/questions/random`)
-        .then(res => res.json())
-        .then(data => {
-          // Keep questions in state and ensure they have consistent shapes
+    if (!started) return;
+    // Request questions for the selected quiz id when provided, otherwise fall back to 'random'
+    const quizKey = id || 'random';
+    const apiBaseUrl = getApiBase();
+    const endpoint = `${apiBaseUrl}/api/questions/${quizKey}`;
+
+    fetch(endpoint)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        // API returns { questions, contestKey } now. Support both shapes for compatibility.
+        if (data && data.questions && Array.isArray(data.questions)) {
+          setQuestions(data.questions);
+          setSelectedContestKey(data.contestKey || (id || 'random'));
+          setSelectedContestIndex(data.contestIndex || null);
+          setSelectedContestName(data.contestName || null);
+        } else if (Array.isArray(data)) {
           setQuestions(data);
-          setQuestionStartTime(Date.now());
-        })
-        .catch(err => console.error('Error fetching questions:', err));
-    }
+          setSelectedContestKey(id || 'random');
+          setSelectedContestIndex(null);
+          setSelectedContestName(null);
+        } else {
+          // unexpected shape
+          console.warn('Unexpected questions payload shape', data);
+          setQuestions([]);
+          setSelectedContestKey(id || 'random');
+        }
+        setQuestionStartTime(Date.now());
+      })
+      .catch(err => console.error('Error fetching questions:', err));
   }, [started, id]);
+
+  // Anti-cheat: monitor visibility, focus and fullscreen changes
+  useEffect(() => {
+    if (!started) return;
+
+    const MIN_INFRACTION_GAP_MS = 1500;
+
+    function recordInfraction(reason) {
+      const now = Date.now();
+      if (now - lastInfractionAt.current < MIN_INFRACTION_GAP_MS) return; // debounce repeated events
+      lastInfractionAt.current = now;
+      infractionsRef.current += 1;
+      setInfractions(infractionsRef.current);
+      // show quick warning
+      try { window.navigator && window.navigator.vibrate && window.navigator.vibrate(200); } catch (e) {}
+      // If reached limit, auto-submit
+      if (infractionsRef.current >= 3 && !autoSubmittedRef.current) {
+        autoSubmittedRef.current = true;
+        // small timeout so UI can update before submit
+        setTimeout(() => {
+          submitQuiz(answersRef.current);
+        }, 300);
+      }
+      console.warn('Cheat infraction recorded:', reason, 'count=', infractionsRef.current);
+    }
+
+    function onVisibilityChange() {
+      if (document.hidden) recordInfraction('visibility:hidden');
+    }
+
+    function onBlur() {
+      recordInfraction('window:blur');
+    }
+
+    function onFullscreenChange() {
+      // If user exits fullscreen during exam, count as infraction
+      if (!document.fullscreenElement) recordInfraction('fullscreen:exit');
+    }
+
+    function onKeyDown(e) {
+      // Best-effort detection of Alt+Tab or switching keys. Browsers may not expose Alt+Tab reliably,
+      // but we can watch for common modifier combos (Alt, Meta) plus Tab or Escape.
+      if (e.altKey && e.key === 'Tab') {
+        recordInfraction('alt+tab');
+      }
+      // detect Meta/Command+Tab on Mac (best-effort)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Tab') {
+        recordInfraction('meta+tab');
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [started]);
 
   // Countdown timer (default 30 minutes = 1800 seconds)
   const [remainingSec, setRemainingSec] = useState(30 * 60);
   const answersRef = React.useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
+
+  // Start handler requests fullscreen on user gesture then starts the quiz
+  const handleStart = async () => {
+    try {
+      const el = containerRef.current || document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch (e) {
+      console.warn('Failed to enter fullscreen:', e);
+    }
+    setStarted(true);
+    setQuizStartAt(Date.now());
+  };
   useEffect(() => {
     if (!started) return;
     // reset timer when quiz starts
@@ -126,22 +244,103 @@ function QuizPage() {
   };
 
   const submitQuiz = async (finalAnswers) => {
+    if (isSubmitting) {
+      console.warn('Submission already in progress — skipping duplicate submit');
+      return;
+    }
+    // client-side debounce (2s)
+    const now = Date.now();
+    if (now - lastSubmitAtRef.current < 2000) {
+      console.warn('Debounced duplicate submit');
+      return;
+    }
+    lastSubmitAtRef.current = now;
+    setIsSubmitting(true);
+    const userId = getUserId();
+    const isAutoSubmitted = autoSubmittedRef.current;
     const payload = {
-      userId: 'user1',
-      quizId: id,
+      userId,
+      quizId: selectedContestKey || id || 'random',
       answers: finalAnswers,
+      questions: questions,
+      isAutoSubmitted: isAutoSubmitted
     };
+    // attach contest metadata when available so backend and history can record it
+    if (selectedContestIndex) payload.contestIndex = selectedContestIndex;
+    if (selectedContestName) payload.contestName = selectedContestName;
     try {
-      const res = await fetch('http://localhost:5000/api/analyze-quiz', {
+      const apiBaseUrl = getApiBase();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // 1. Analyze quiz for AI feedback
+      // Mark analyze request as skipSave so backend will not persist here (we'll persist once below)
+      // generate a submissionId to make server-side saves idempotent
+      const submissionId = (window && window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : `sid-${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+      const analyzePayload = { ...payload, skipSave: true, submissionId };
+    const res = await fetch(`${apiBaseUrl}/api/analyze-quiz`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers,
+        body: JSON.stringify(analyzePayload),
       });
-  const result = await res.json();
-  // pass result object directly in location.state (not nested) for ResultPage
-  navigate('/result', { state: result });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const result = await res.json();
+
+        <Toast message={toastMessage} onClose={() => setToastMessage('')} />
+      // 2. Save result to /api/results so it appears in history
+      const timeTaken = quizStartAt ? Math.floor((Date.now() - quizStartAt) / 1000) : Math.floor((Date.now() - questionStartTime) / 1000);
+      const savePayload = {
+        userId,
+        quizId: selectedContestKey || id || 'random',
+        quizName: selectedContestKey || id || 'random',
+        answers: finalAnswers,
+        questions: questions,
+        score: result.score || 0,
+        percentage: result.percentage || 0,
+        ai_analysis: result,
+        timeTaken,
+        isAutoSubmitted: isAutoSubmitted
+      };
+      // attach submissionId so server can dedupe
+      savePayload.submissionId = submissionId;
+      const saveRes = await fetch(`${apiBaseUrl}/api/results`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(savePayload),
+      });
+      if (!saveRes.ok) {
+        throw new Error(`Failed to save result! status: ${saveRes.status}`);
+      }
+      const savedResult = await saveRes.json();
+
+      // Track quiz attempt for learning home (automatically updates weak areas, daily stats, etc.)
+      if (userId && result.percentage !== undefined) {
+        const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
+        await trackQuizAttempt(
+          userId,
+          selectedContestKey || id || 'random',
+          result.score || 0,
+          result.percentage / 100,
+          timeTaken,
+          finalAnswers,
+          questions,
+          apiBaseUrl
+        );
+      }
+
+      // Pass result object directly in location.state for ResultPage
+      setToastMessage('Submitted successfully');
+      navigate('/result', { state: result });
+      return;
     } catch (err) {
       console.error('Error submitting quiz:', err);
+      setIsSubmitting(false);
+      setToastMessage('Submission failed. Please try again.');
     }
   };
 
@@ -151,7 +350,7 @@ function QuizPage() {
         <h1 className="text-3xl font-bold mb-4">{t.test} {id}</h1>
         <p className="text-gray-600 mb-6">{t.ready}</p>
         <button
-          onClick={() => setStarted(true)}
+          onClick={handleStart}
           className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors"
         >
           {t.startTest}
@@ -172,7 +371,7 @@ function QuizPage() {
   };
 
   return (
-    <div className={classNames('quiz-container', { 'review-mode': isReviewMode })}>
+    <div ref={containerRef} className={classNames('quiz-container', { 'review-mode': isReviewMode })}>
       <div className="quiz-header">
         <h1 className="quiz-title">{t.test} {id}</h1>
         <div className="quiz-progress">
@@ -182,6 +381,18 @@ function QuizPage() {
           <TimerDisplay seconds={remainingSec} />
         </div>
       </div>
+
+      {/* Anti-cheat banner */}
+      {infractions > 0 && infractions < 3 && (
+        <div className="anti-cheat-banner" style={{background:'#fee2e2',color:'#991b1b',padding:'8px',borderRadius:6,margin:'8px 0'}}>
+          Cảnh báo: Phát hiện rời khỏi bài kiểm tra {infractions} lần. Hết cảnh báo sau {3 - infractions} lần nữa sẽ tự động nộp bài.
+        </div>
+      )}
+      {infractions >= 3 && (
+        <div className="anti-cheat-banner" style={{background:'#fecaca',color:'#7f1d1d',padding:'8px',borderRadius:6,margin:'8px 0'}}>
+          Bài kiểm tra đang được nộp tự động do vi phạm chính sách thi.
+        </div>
+      )}
 
       <div className="topics-section">
         <div className="topic-tabs">
@@ -290,9 +501,10 @@ function QuizPage() {
           </button>
           <button
             className="nav-button submit"
-            onClick={() => setShowSubmitDialog(true)}
+            onClick={() => !isSubmitting && setShowSubmitDialog(true)}
+            disabled={isSubmitting}
           >
-            {t.submit}
+            {isSubmitting ? (<><Spinner size={14} color="#fff" />&nbsp;{t.submitting || 'Submitting'}</>) : t.submit}
           </button>
           <button
             className="nav-button"
@@ -327,9 +539,10 @@ function QuizPage() {
                 </button>
                 <button
                   className="submit-button"
-                  onClick={() => submitQuiz(answers)}
+                  onClick={() => { if (!isSubmitting) submitQuiz(answers); }}
+                  disabled={isSubmitting}
                 >
-                  {t.confirmSubmit}
+                  {isSubmitting ? (<><Spinner size={16} color="#fff" />&nbsp;{t.submitting || 'Submitting...'}</>) : t.confirmSubmit}
                 </button>
                 <button
                   className="cancel-button"
