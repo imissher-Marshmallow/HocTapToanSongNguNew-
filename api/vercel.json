@@ -1,7 +1,13 @@
 {
   "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs18.x"
+    "api/[...path].js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
     }
+  },
+  "env": {
+    "BACKEND_URL": "@backend_url",
+    "DATABASE_URL": "@database_url",
+    "FRONTEND_ORIGINS": "@frontend_origins"
   }
 }

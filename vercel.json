@@ -3,14 +3,24 @@
   "name": "stem-project",
   "buildCommand": "cd stem-project && npm install && npm run build",
   "outputDirectory": "stem-project/build",
+  "functions": {
+    "api/[...path].js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/[...path].js"
     },
     {
       "source": "/(.*)",
       "destination": "/stem-project/build/index.html"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

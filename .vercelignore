@@ -1,0 +1,45 @@
+# Vercel Ignore - Prevents unnecessary serverless functions from being deployed
+
+# Individual API route files (handled by catch-all)
+api/analyze-quiz.js
+api/questions.js
+api/quiz-submit.js
+api/submit-quiz.js
+api/user-history.js
+api/index.js
+api/backend.js
+api/database.js
+
+# Subdirectories with routes (use main Express server instead)
+api/ai/
+api/debug/
+api/backend/
+api/data/
+
+# Node modules
+node_modules/
+stem-project/node_modules/
+stem-project/backend/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.example
+
+# Build artifacts
+build/
+dist/
+*.log
+
+# Development
+.git/
+.gitignore
+*.md
+src/
+public/
+
+# Python AI engine (separate service)
+ai_engine/
+python/
+venv/
