@@ -27,6 +27,8 @@ function NavBar() {
     { to: '/', label: t.home, icon: <BookOpen className="w-4 h-4" /> },
     { to: '/study', label: t.study || (language === 'vi' ? 'Học' : 'Study'), icon: <BookOpen className="w-4 h-4" /> },
     { to: '/quizzes', label: t.quizzes, icon: <Trophy className="w-4 h-4" /> },
+    { to: '/adaptive-quiz', label: language === 'vi' ? 'Bài tập Thích Ứng' : 'Adaptive Quiz', icon: <Trophy className="w-4 h-4" /> },
+    { to: '/learning-profile', label: language === 'vi' ? 'Hồ Sơ Học Tập' : 'Learning Profile', icon: <User className="w-4 h-4" /> },
   ];
 
   return (

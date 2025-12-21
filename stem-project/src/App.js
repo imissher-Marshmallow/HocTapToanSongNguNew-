@@ -12,6 +12,8 @@ import LearningHome from './pages/LearningHome';
 import Study from './pages/Study';
 import Resources from './pages/Resources';
 import History from './pages/History';
+import AdaptiveQuiz from './pages/AdaptiveQuiz';
+import LearningProfile from './pages/LearningProfile';
 import Signup from './components/Signup';
 import Signin from './components/Signin';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -73,6 +75,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ResultPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/adaptive-quiz"
+                  element={
+                    <ProtectedRoute>
+                      <AdaptiveQuiz />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/learning-profile"
+                  element={
+                    <ProtectedRoute>
+                      <LearningProfile />
                     </ProtectedRoute>
                   }
                 />
