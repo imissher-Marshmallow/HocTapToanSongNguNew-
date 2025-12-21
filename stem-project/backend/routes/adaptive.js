@@ -192,7 +192,7 @@ router.get('/quiz/personalized', async (req, res) => {
  * POST /api/adaptive/analyze
  * Analyze quiz and update learning profile
  */
-router.post('/analyze', quizLimiter, async (req, res) => {
+router.post('/analyze', async (req, res) => {
   try {
     const { quizId, answers, personalizedQuizData } = req.body
 
@@ -466,7 +466,7 @@ router.get('/questions/:quizId', (req, res) => {
 })
 
 // POST /api/analyze-quiz (EXISTING - UPGRADED)
-router.post('/analyze-quiz', quizLimiter, async (req, res) => {
+router.post('/analyze-quiz', async (req, res) => {
   try {
     const { quizId, answers } = req.body
 

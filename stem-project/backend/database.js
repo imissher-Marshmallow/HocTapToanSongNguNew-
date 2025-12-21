@@ -12,21 +12,33 @@
 
 require('dotenv').config();
 
-// Initialize Supabase client for non-query operations
+// Initialize Supabase client for non-query operations (optional)
 let supabase = null;
 try {
-  const { createClient } = require('@supabase/supabase-js');
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+  // Safely try to require Supabase - it's optional
+  let supabseModule;
+  try {
+    supabseModule = require('@supabase/supabase-js');
+  } catch (e) {
+    supabseModule = null;
+  }
   
-  if (SUPABASE_URL && SUPABASE_KEY) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('[DB] ✅ Supabase client initialized');
+  if (supabseModule) {
+    const { createClient } = supabseModule;
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+    
+    if (SUPABASE_URL && SUPABASE_KEY) {
+      supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log('[DB] ✅ Supabase client initialized');
+    } else {
+      console.log('[DB] ⚠️ Supabase credentials not found - using PostgreSQL only');
+    }
   } else {
-    console.log('[DB] ⚠️ Supabase credentials not found - adaptive features may not work');
+    console.log('[DB] ⚠️ @supabase/supabase-js not installed - adaptive features unavailable');
   }
 } catch (err) {
-  console.log('[DB] Supabase not available (optional):', err.message);
+  console.log('[DB] Supabase initialization note:', err.message);
 }
 
 // Determine which database to use

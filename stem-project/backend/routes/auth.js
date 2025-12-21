@@ -120,7 +120,10 @@ router.post('/signin', async (req, res) => {
     });
   } catch (err) {
     console.error('Signin error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    });
   }
 });
 
@@ -170,6 +173,15 @@ router.post('/verify-token', (req, res) => {
   } catch (err) {
     res.status(401).json({ valid: false });
   }
+});
+
+// GET /auth/health - Health check
+router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Auth service is running',
+    timestamp: new Date()
+  });
 });
 
 module.exports = router;
