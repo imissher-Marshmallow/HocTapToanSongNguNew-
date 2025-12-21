@@ -165,9 +165,12 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   }
 
   const question = quiz.questions[currentQuestion];
-  const isAnswered = answers[question.id] !== undefined;
-  const allAnswered = Object.keys(answers).length === quiz.questions.length;
-  const progressPercent = ((currentQuestion + 1) / quiz.questions.length) * 100;
+  const isAnswered = answers[question.id] !== undefined && answers[question.id] !== null;
+  // Count only valid (non-null, non-undefined) answers
+  const answeredCount = Object.values(answers).filter(ans => ans !== null && ans !== undefined).length;
+  const allAnswered = answeredCount === quiz.questions.length;
+  // Progress based on answered questions, not current question
+  const progressPercent = ((answeredCount) / quiz.questions.length) * 100;
 
   return (
     <div className="adaptive-quiz">
@@ -280,19 +283,23 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
           </button>
 
           <div className="question-indicators">
-            {quiz.questions.map((_, idx) => (
+            {quiz.questions.map((_, idx) => {
+              const answerValue = answers[quiz.questions[idx].id];
+              const isQuestionAnswered = answerValue !== null && answerValue !== undefined;
+              return (
               <motion.button
                 key={idx}
                 className={`indicator ${
                   idx === currentQuestion ? 'active' : ''
-                } ${answers[quiz.questions[idx].id] ? 'answered' : ''}`}
+                } ${isQuestionAnswered ? 'answered' : ''}`}
                 onClick={() => setCurrentQuestion(idx)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
                 {idx + 1}
               </motion.button>
-            ))}
+              );
+            })}
           </div>
 
           {currentQuestion < quiz.questions.length - 1 ? (
@@ -312,10 +319,10 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
         {/* Answer Summary */}
         <div className="answer-summary">
-          <p>Answered: {Object.keys(answers).length} / {quiz.questions.length}</p>
+          <p>Answered: {answeredCount} / {quiz.questions.length}</p>
           {!allAnswered && (
             <p className="warning">
-              Answer all questions before submitting
+              Answer all {quiz.questions.length - answeredCount} remaining questions before submitting
             </p>
           )}
         </div>

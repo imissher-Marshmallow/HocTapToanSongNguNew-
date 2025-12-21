@@ -348,60 +348,132 @@ router.get('/quiz/personalized', async (req, res) => {
 /**
  * POST /api/adaptive/analyze
  * Analyze quiz and update learning profile
+ * Body: { userId, quizId, answers: [{questionId, answer}], timeSpent }
  */
 router.post('/analyze', async (req, res) => {
   try {
-    const { quizId, answers, personalizedQuizData } = req.body
+    const { userId, quizId, answers, personalizedQuizData, timeSpent } = req.body
 
     // Validate input
-    if (!validateQuizId(quizId)) {
+    if (!userId || userId === 'undefined') {
+      return res.status(400).json({ error: 'User ID is required' })
+    }
+
+    if (!quizId || !validateQuizId(quizId)) {
       return res.status(400).json({ error: 'Invalid quiz ID' })
     }
 
-    if (!validateAnswers(answers)) {
+    if (!Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ error: 'Invalid answers format' })
     }
 
-    // Load questions
+    // Load questions - try both standard quiz and personalized data
     const questionData = require('../data/questions_updated.json')
     let questions = []
 
     if (personalizedQuizData && Array.isArray(personalizedQuizData)) {
       // Use provided quiz data (personalized quiz)
       questions = personalizedQuizData
-    } else {
-      // Use standard quiz
-      questions = questionData.contests[quizId] || []
+    } else if (quizId !== 'personalized') {
+      // Use standard quiz from contests
+      const quizIndex = parseInt(quizId.replace('contest', '')) - 1
+      if (quizIndex >= 0 && quizIndex < questionData.contests.length) {
+        questions = questionData.contests[quizIndex]
+      }
     }
 
     if (questions.length === 0) {
-      return res.status(400).json({ error: 'No questions found' })
+      return res.status(400).json({ error: 'No questions found for quiz' })
     }
+
+    // Convert answers from object format {questionId, answer} to array format for assessment
+    const answerArray = answers.map(a => {
+      const question = questions.find(q => q.id === a.questionId)
+      if (!question) return -1
+      // Find the index of the selected answer
+      const answerIndex = question.options.indexOf(a.answer)
+      return answerIndex >= 0 ? answerIndex : -1
+    })
 
     // ============================================
     // ADAPTIVE ASSESSMENT
     // ============================================
 
     // Calculate scores across cognitive levels
-    const assessment = AssessmentEngine.assessPerformance(questions, answers)
+    const assessment = AssessmentEngine.assessPerformance(questions, answerArray)
 
     // ============================================
     // AI ANALYSIS & FEEDBACK
     // ============================================
 
     // Get AI-powered feedback
-    const aiAnalysis = await analyzeQuiz({ quizId, answers })
+    const aiAnalysis = await analyzeQuiz({ quizId, answers: answerArray })
 
     // ============================================
-    // LEARNING PROFILE UPDATE
+    // LEARNING PROFILE UPDATE & SAVE TO SUPABASE
     // ============================================
 
-    // TODO: Fetch actual profile from database
-    // For now, create new profile
-    const learningProfile = LearningProfileManager.createProfile(
-      'user123', // TODO: Get from auth
-      assessment
-    )
+    // Fetch current profile from Supabase
+    let currentProfile = null
+    if (supabase) {
+      try {
+        const { data } = await supabase
+          .from('user_learning_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+        currentProfile = data
+      } catch (err) {
+        console.log('[Analyze] No existing profile for user:', userId)
+      }
+    }
+
+    // Create/update learning profile
+    const learningProfile = currentProfile
+      ? LearningProfileManager.updateProfile(currentProfile, assessment)
+      : LearningProfileManager.createProfile(userId, assessment)
+
+    // Save to Supabase if available
+    if (supabase && learningProfile) {
+      try {
+        if (currentProfile) {
+          // Update existing profile
+          await supabase
+            .from('user_learning_profiles')
+            .update({
+              cognitive_levels: learningProfile.scores,
+              proficiency_status: learningProfile.proficiency,
+              weak_areas: learningProfile.weakAreas,
+              strong_areas: learningProfile.strongAreas,
+              recommendations: learningProfile.recommendations,
+              learning_path: learningProfile.learningPath,
+              quizzes_taken: (currentProfile.quizzes_taken || 0) + 1,
+              last_updated: new Date().toISOString()
+            })
+            .eq('user_id', userId)
+        } else {
+          // Create new profile
+          await supabase
+            .from('user_learning_profiles')
+            .insert({
+              user_id: userId,
+              cognitive_levels: learningProfile.scores,
+              proficiency_status: learningProfile.proficiency,
+              weak_areas: learningProfile.weakAreas,
+              strong_areas: learningProfile.strongAreas,
+              recommendations: learningProfile.recommendations,
+              learning_path: learningProfile.learningPath,
+              quizzes_taken: 1,
+              created_at: new Date().toISOString(),
+              last_updated: new Date().toISOString()
+            })
+        }
+        console.log('[Analyze] Profile saved to Supabase for user:', userId)
+      } catch (err) {
+        console.error('[Analyze] Error saving to Supabase:', err.message)
+        // Continue even if Supabase save fails
+      }
+    }
 
     // ============================================
     // RESPONSE
@@ -409,63 +481,67 @@ router.post('/analyze', async (req, res) => {
 
     res.json({
       // Basic results
-      score: assessment.overallScore,
+      overallScore: assessment.overallScore,
       totalQuestions: questions.length,
+      correctAnswers: assessment.correctCount,
       
       // Cognitive level breakdown
       cognitiveAnalysis: {
-        level1: {
-          name: 'Knowledge (Recognition)',
-          score: assessment.scores.level1,
-          status: assessment.proficiency.level1,
-          questions: assessment.levelData[1].total,
-          correct: assessment.levelData[1].correct
-        },
-        level2: {
-          name: 'Comprehension (Understanding)',
-          score: assessment.scores.level2,
-          status: assessment.proficiency.level2,
-          questions: assessment.levelData[2].total,
-          correct: assessment.levelData[2].correct
-        },
-        level3: {
-          name: 'Application (Low-level)',
-          score: assessment.scores.level3,
-          status: assessment.proficiency.level3,
-          questions: assessment.levelData[3].total,
-          correct: assessment.levelData[3].correct
-        },
-        level4: {
-          name: 'Analysis (High-level)',
-          score: assessment.scores.level4,
-          status: assessment.proficiency.level4,
-          questions: assessment.levelData[4].total,
-          correct: assessment.levelData[4].correct
-        }
+        levels: [
+          {
+            name: 'Knowledge (Recognition)',
+            score: assessment.scores.level1,
+            status: assessment.proficiency.level1,
+            questionCount: assessment.levelData[1]?.total || 0,
+            correct: assessment.levelData[1]?.correct || 0
+          },
+          {
+            name: 'Comprehension (Understanding)',
+            score: assessment.scores.level2,
+            status: assessment.proficiency.level2,
+            questionCount: assessment.levelData[2]?.total || 0,
+            correct: assessment.levelData[2]?.correct || 0
+          },
+          {
+            name: 'Application (Low-level)',
+            score: assessment.scores.level3,
+            status: assessment.proficiency.level3,
+            questionCount: assessment.levelData[3]?.total || 0,
+            correct: assessment.levelData[3]?.correct || 0
+          },
+          {
+            name: 'Analysis (High-level)',
+            score: assessment.scores.level4,
+            status: assessment.proficiency.level4,
+            questionCount: assessment.levelData[4]?.total || 0,
+            correct: assessment.levelData[4]?.correct || 0
+          }
+        ]
       },
       
-      // Learning profile
+      // Updated learning profile
       learningProfile: {
-        weakAreas: assessment.weakAreas.slice(0, 2),
-        strongAreas: assessment.strongAreas,
-        recommendations: learningProfile.recommendations,
-        learningPath: learningProfile.learningPath
+        userId,
+        weakAreas: learningProfile.weakAreas || [],
+        strongAreas: learningProfile.strongAreas || [],
+        recommendations: learningProfile.recommendations || [],
+        learningPath: learningProfile.learningPath,
+        quizzesTaken: (currentProfile?.quizzes_taken || 0) + 1
       },
       
       // AI feedback
-      feedback: aiAnalysis.feedback,
-      improvementAreas: aiAnalysis.improvementAreas,
+      strengths: aiAnalysis.strengths || [],
+      areasToImprove: aiAnalysis.improvementAreas || [],
+      feedback: aiAnalysis.feedback || 'Great job! Keep practicing to improve further.',
       
       // Next steps
-      nextSteps: {
-        message: 'Your personalized learning path is ready',
-        primaryFocus: assessment.weakAreas[0]?.levelName || 'Continue practice',
-        nextQuizType: 'personalized',
-        estimatedReadyTime: 'After 3-5 more practice quizzes'
-      }
+      nextSteps: aiAnalysis.nextSteps || `Focus on improving ${learningProfile.weakAreas?.[0] || 'overall performance'}.`,
+      recommendations: learningProfile.recommendations || [],
+      
+      // Success message
+      message: 'Quiz analyzed and profile updated successfully',
+      savedToDatabase: !!supabase
     })
-
-    // TODO: Save profile to database
   } catch (error) {
     console.error('Error analyzing quiz:', error)
     res.status(500).json({ error: 'Internal server error' })
