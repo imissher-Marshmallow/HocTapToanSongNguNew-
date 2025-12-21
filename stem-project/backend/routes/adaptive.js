@@ -40,6 +40,32 @@ router.get('/profile/:userId', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' })
     }
 
+    // If Supabase is not available, return default profile
+    if (!supabase) {
+      const defaultProfile = {
+        userId,
+        scores: {
+          level1: 0,
+          level2: 0,
+          level3: 0,
+          level4: 0
+        },
+        proficiency: {
+          level1: 'NOT_STARTED',
+          level2: 'NOT_STARTED',
+          level3: 'NOT_STARTED',
+          level4: 'NOT_STARTED'
+        },
+        weakAreas: [],
+        strongAreas: [],
+        recommendations: ['Take your first quiz to see personalized recommendations'],
+        learningPath: null,
+        quizzesTaken: 0,
+        message: 'Supabase not available. Using default profile. Adaptive features will be available after setup.'
+      }
+      return res.json(defaultProfile)
+    }
+
     // Fetch user's learning profile from Supabase
     const { data, error } = await supabase
       .from('user_learning_profiles')
@@ -125,35 +151,53 @@ router.get('/quiz/personalized', async (req, res) => {
       allQuestions.push(...contest)
     })
 
-    // Fetch real profile from Supabase
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_learning_profiles')
-      .select('cognitive_levels, weak_areas, strong_areas')
-      .eq('user_id', userId)
-      .single()
-
-    // Use Supabase data if available, otherwise use mock for first-time users
+    // Fetch real profile from Supabase (if available)
     let userProfile
-    if (profileData) {
-      userProfile = {
-        userId,
-        scores: profileData.cognitive_levels || {},
-        weakAreas: profileData.weak_areas || [],
-        strongAreas: profileData.strong_areas || []
+    
+    if (supabase) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_learning_profiles')
+        .select('cognitive_levels, weak_areas, strong_areas')
+        .eq('user_id', userId)
+        .single()
+
+      // Use Supabase data if available
+      if (profileData) {
+        userProfile = {
+          userId,
+          scores: profileData.cognitive_levels || {},
+          weakAreas: profileData.weak_areas || [],
+          strongAreas: profileData.strong_areas || []
+        }
+      } else {
+        // First-time user - provide assessment quiz
+        userProfile = {
+          userId,
+          scores: {
+            level1: 50,
+            level2: 50,
+            level3: 50,
+            level4: 50
+          },
+          weakAreas: [],
+          strongAreas: [],
+          isFirstTime: true
+        }
       }
     } else {
-      // First-time user - provide assessment quiz to gauge level
+      // Supabase not available - use default profile
       userProfile = {
         userId,
         scores: {
-          level1: 50,  // Default middle ground
+          level1: 50,
           level2: 50,
           level3: 50,
           level4: 50
         },
         weakAreas: [],
         strongAreas: [],
-        isFirstTime: true
+        isFirstTime: true,
+        message: 'Using default proficiency levels (Supabase not available)'
       }
     }
 
