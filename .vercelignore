@@ -36,8 +36,8 @@ dist/
 .git/
 .gitignore
 *.md
-src/
-# Note: stem-project/public is needed for React build - NOT ignored
+/src/
+# Note: stem-project/src is needed for React build - NOT ignored
 
 # Python AI engine (separate service)
 ai_engine/
