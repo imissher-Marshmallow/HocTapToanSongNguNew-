@@ -16,7 +16,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "/stem-project/build/index.html"
+      "destination": "/index.html"
     }
   ],
   "env": {
