@@ -54,12 +54,21 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       if (!response.ok) throw new Error('Failed to load quiz');
       
       const data = await response.json();
-      // Handle both formats: direct array or {quiz: [...]}
-      const quizData = data.quiz ? data : { questions: data, ...data };
+      // Backend returns {quiz: [...], questionCount, userId, message}
+      const questions = data.quiz || data.questions || data;
+      
+      // Ensure each question has a unique ID (use index as fallback)
+      const questionsWithIds = Array.isArray(questions) ? questions.map((q, idx) => ({
+        ...q,
+        id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}` // Ensure unique ID even if missing
+      })) : [];
+      
+      console.log('[AdaptiveQuiz] Loaded questions:', questionsWithIds.length, 'IDs:', questionsWithIds.map(q => q.id));
+      
       setQuiz({
-        questions: Array.isArray(data.quiz) ? data.quiz : data,
+        questions: questionsWithIds,
         userId: finalUserId,
-        questionCount: data.questionCount || (Array.isArray(data.quiz) ? data.quiz.length : data.length)
+        questionCount: questionsWithIds.length
       });
       setTimeStarted(Date.now());
     } catch (err) {
@@ -71,9 +80,13 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   };
 
   const handleAnswerSelect = (questionId, selectedAnswer) => {
-    setAnswers({
-      ...answers,
-      [questionId]: selectedAnswer
+    setAnswers(prev => {
+      const updated = {
+        ...prev,
+        [questionId]: selectedAnswer
+      };
+      console.log('[AdaptiveQuiz] Answer selected - Q:', questionId, 'Answer:', selectedAnswer, 'All Answers:', updated);
+      return updated;
     });
   };
 
@@ -284,17 +297,21 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
           <div className="question-indicators">
             {quiz.questions.map((_, idx) => {
-              const answerValue = answers[quiz.questions[idx].id];
+              const question = quiz.questions[idx];
+              const answerValue = answers[question.id];
               const isQuestionAnswered = answerValue !== null && answerValue !== undefined;
               return (
               <motion.button
                 key={idx}
+                data-question-id={question.id}
+                data-is-answered={isQuestionAnswered}
                 className={`indicator ${
                   idx === currentQuestion ? 'active' : ''
                 } ${isQuestionAnswered ? 'answered' : ''}`}
                 onClick={() => setCurrentQuestion(idx)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
+                title={`Q${idx + 1} (ID: ${question.id}) - ${isQuestionAnswered ? 'Answered' : 'Not answered'}`}
               >
                 {idx + 1}
               </motion.button>
