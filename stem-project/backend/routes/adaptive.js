@@ -778,8 +778,12 @@ router.post('/analyze', async (req, res) => {
       // Updated learning profile
       learningProfile: {
         userId,
-        weakAreas: learningProfile.weakAreas || [],
-        strongAreas: learningProfile.strongAreas || [],
+        weakAreas: Object.entries(topicFeedback || {})
+          .filter(([_, data]) => data.performance === 'WEAK')
+          .map(([topic]) => topic),
+        strongAreas: Object.entries(topicFeedback || {})
+          .filter(([_, data]) => data.performance === 'STRONG')
+          .map(([topic]) => topic),
         recommendations: learningProfile.recommendations || [],
         learningPath: learningProfile.learningPath,
         quizzesTaken: (currentProfile?.quizzes_taken || 0) + 1
