@@ -399,27 +399,55 @@ router.post('/analyze', async (req, res) => {
     const questionData = require('../data/questions_updated.json')
     let questions = []
 
+    console.log('[Analyze] Question data structure:', {
+      hasContests: !!questionData.contests,
+      contestsIsArray: Array.isArray(questionData.contests),
+      contestsIsObject: typeof questionData.contests === 'object' && !Array.isArray(questionData.contests),
+      contestKeys: questionData.contests ? Object.keys(questionData.contests) : []
+    })
+
     if (personalizedQuizData && Array.isArray(personalizedQuizData)) {
       // Use provided quiz data (personalized quiz)
       questions = personalizedQuizData
+      console.log('[Analyze] Using personalizedQuizData, questions count:', questions.length)
     } else if (quizId === 'personalized') {
-      // For personalized quiz without quiz data provided, load from contests and select matching
-      // This shouldn't happen in normal flow, but provide fallback
-      if (questionData.contests && Array.isArray(questionData.contests)) {
-        questionData.contests.forEach(contest => {
-          questions.push(...contest)
-        })
+      // For personalized quiz without quiz data provided, load from contests and flatten all
+      if (questionData.contests) {
+        if (Array.isArray(questionData.contests)) {
+          // If contests is an array (shouldn't be based on current data)
+          questionData.contests.forEach(contest => {
+            questions.push(...contest)
+          })
+        } else if (typeof questionData.contests === 'object') {
+          // Contests is an object with keys like 'contest1', 'contest2', etc.
+          Object.values(questionData.contests).forEach(contestQuestions => {
+            if (Array.isArray(contestQuestions)) {
+              questions.push(...contestQuestions)
+            }
+          })
+        }
       }
+      console.log('[Analyze] Loaded from file fallback, questions count:', questions.length)
     } else {
       // Use standard quiz from contests
       const quizIndex = parseInt(quizId.replace('contest', '')) - 1
-      if (quizIndex >= 0 && quizIndex < questionData.contests.length) {
-        questions = questionData.contests[quizIndex]
+      if (questionData.contests) {
+        if (Array.isArray(questionData.contests) && quizIndex >= 0 && quizIndex < questionData.contests.length) {
+          // If contests is an array
+          questions = questionData.contests[quizIndex]
+        } else if (typeof questionData.contests === 'object') {
+          // If contests is an object, try to get by key
+          const contestKey = `contest${quizIndex + 1}`
+          if (questionData.contests[contestKey]) {
+            questions = questionData.contests[contestKey]
+          }
+        }
       }
+      console.log('[Analyze] Loaded standard quiz', quizId, ', questions count:', questions.length)
     }
 
     if (questions.length === 0) {
-      console.error('[Analyze] No questions found for quiz:', quizId, 'personalizedQuizData:', !!personalizedQuizData)
+      console.error('[Analyze] No questions found for quiz:', quizId, 'personalizedQuizData:', !!personalizedQuizData, 'questions:', questions)
       return res.status(400).json({ error: 'No questions found for quiz' })
     }
 
