@@ -15,7 +15,7 @@ const { supabase } = require('../database')
 const router = express.Router()
 
 // Validate quiz ID whitelist
-const ALLOWED_QUIZ_IDS = ['contest1', 'contest2', 'contest3', 'contest4', 'contest5', 'random']
+const ALLOWED_QUIZ_IDS = ['contest1', 'contest2', 'contest3', 'contest4', 'contest5', 'random', 'personalized']
 
 // Validate input
 function validateQuizId(quizId) {
@@ -406,8 +406,17 @@ router.post('/analyze', async (req, res) => {
     // AI ANALYSIS & FEEDBACK
     // ============================================
 
-    // Get AI-powered feedback
-    const aiAnalysis = await analyzeQuiz({ quizId, answers: answerArray })
+    // Get AI-powered feedback - pass questions and answers directly for personalized quiz
+    const aiAnalysis = await analyzeQuiz({ 
+      userId, 
+      quizId, 
+      answers: answers.map((a, idx) => ({
+        questionId: a.questionId,
+        selectedOption: a.answer
+      })),
+      questions: questions,
+      isAutoSubmitted: false
+    })
 
     // ============================================
     // LEARNING PROFILE UPDATE & SAVE TO SUPABASE

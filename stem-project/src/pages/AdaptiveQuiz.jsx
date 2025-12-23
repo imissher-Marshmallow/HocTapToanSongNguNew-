@@ -402,6 +402,111 @@ function QuizResults({ results, timeSpent }) {
           </div>
         </motion.section>
 
+        {/* Weak Areas */}
+        {results.learningProfile?.weakAreas && results.learningProfile.weakAreas.length > 0 && (
+          <motion.section
+            className="weak-areas"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >
+            <h2>⚠️ Areas Needing Improvement</h2>
+            <div className="weak-areas-list">
+              {results.learningProfile.weakAreas.map((area, idx) => (
+                <div key={idx} className="weak-area-item">
+                  <span className="weak-area-topic">{area}</span>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Strong Areas */}
+        {results.learningProfile?.strongAreas && results.learningProfile.strongAreas.length > 0 && (
+          <motion.section
+            className="strong-areas"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+          >
+            <h2>✨ Your Strengths</h2>
+            <div className="strong-areas-list">
+              {results.learningProfile.strongAreas.map((area, idx) => (
+                <div key={idx} className="strong-area-item">
+                  <span className="strong-area-topic">{area}</span>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Feedback */}
+        {results.feedback && (
+          <motion.section
+            className="ai-feedback"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.36 }}
+          >
+            <h2>💬 Feedback from AI Coach</h2>
+            <div className="feedback-content">
+              <p>{results.feedback}</p>
+            </div>
+          </motion.section>
+        )}
+
+        {/* Learning Roadmap */}
+        {results.learningProfile?.learningPath && (
+          <motion.section
+            className="learning-roadmap"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+          >
+            <h2>📚 Your Personalized Learning Roadmap</h2>
+            <div className="roadmap-content">
+              {typeof results.learningProfile.learningPath === 'string' ? (
+                <p>{results.learningProfile.learningPath}</p>
+              ) : (
+                <div className="roadmap-steps">
+                  {Array.isArray(results.learningProfile.learningPath) ? (
+                    results.learningProfile.learningPath.map((step, idx) => (
+                      <div key={idx} className="roadmap-step">
+                        <div className="step-number">{idx + 1}</div>
+                        <div className="step-content">
+                          {typeof step === 'string' ? (
+                            <p>{step}</p>
+                          ) : (
+                            <>
+                              <h4>{step.title || step.topic || 'Step ' + (idx + 1)}</h4>
+                              <p>{step.description || step.action || ''}</p>
+                              {step.resources && (
+                                <div className="step-resources">
+                                  <small>Resources: {step.resources}</small>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    Object.entries(results.learningProfile.learningPath).map(([key, value], idx) => (
+                      <div key={idx} className="roadmap-step">
+                        <div className="step-number">{idx + 1}</div>
+                        <div className="step-content">
+                          <h4>{key}</h4>
+                          <p>{value}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.section>
+        )}
+
         {/* Strengths */}
         {results.strengths && results.strengths.length > 0 && (
           <motion.section

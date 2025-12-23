@@ -377,11 +377,20 @@ function getFallbackSummary(score, performanceLabel, weakAreas) {
 
 // Main analyze function
 async function analyzeQuiz(payload) {
-  const { userId, quizId, answers, isAutoSubmitted } = payload;
-  const loadResult = loadQuestionsForQuiz(quizId);
-  const questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
-  const contestKey = loadResult && loadResult.contestKey ? loadResult.contestKey : quizId;
-  const contestName = loadResult && loadResult.contestName ? loadResult.contestName : null;
+  const { userId, quizId, answers, questions: providedQuestions, isAutoSubmitted } = payload;
+  
+  // Use provided questions if available (for personalized quizzes), otherwise load from file
+  let questions = providedQuestions || [];
+  let contestKey = quizId;
+  let contestName = null;
+  
+  if (!questions || questions.length === 0) {
+    // Fallback: load from file
+    const loadResult = loadQuestionsForQuiz(quizId);
+    questions = Array.isArray(loadResult) ? loadResult : (loadResult.questions || []);
+    contestKey = loadResult && loadResult.contestKey ? loadResult.contestKey : quizId;
+    contestName = loadResult && loadResult.contestName ? loadResult.contestName : null;
+  }
   
   let correct = 0;
   const perQuestionFeedback = [];
