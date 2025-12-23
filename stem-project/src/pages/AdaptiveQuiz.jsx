@@ -79,13 +79,13 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     }
   };
 
-  const handleAnswerSelect = (questionId, selectedAnswer) => {
+  const handleAnswerSelect = (questionIndex, selectedAnswer) => {
     setAnswers(prev => {
       const updated = {
         ...prev,
-        [questionId]: selectedAnswer
+        [questionIndex]: selectedAnswer
       };
-      console.log('[AdaptiveQuiz] Answer selected - Q:', questionId, 'Answer:', selectedAnswer, 'All Answers:', updated);
+      console.log('[AdaptiveQuiz] Answer selected - Index:', questionIndex, 'Answer:', selectedAnswer, 'All Answers:', updated);
       return updated;
     });
   };
@@ -106,10 +106,11 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     try {
       setAnalyzing(true);
 
-      // Prepare answers in expected format
-      const formattedAnswers = quiz.questions.map(q => ({
+      // Prepare answers in expected format for backend
+      // Convert from index-based answers to question ID format
+      const formattedAnswers = quiz.questions.map((q, idx) => ({
         questionId: q.id,
-        answer: answers[q.id] || null
+        answer: answers[idx] || null
       }));
 
       const response = await fetch('/api/adaptive/analyze', {
@@ -178,8 +179,8 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   }
 
   const question = quiz.questions[currentQuestion];
-  const isAnswered = answers[question.id] !== undefined && answers[question.id] !== null;
-  // Count only valid (non-null, non-undefined) answers
+  const isAnswered = answers[currentQuestion] !== undefined && answers[currentQuestion] !== null;
+  // Count only valid (non-null, non-undefined) answers using indices
   const answeredCount = Object.values(answers).filter(ans => ans !== null && ans !== undefined).length;
   const allAnswered = answeredCount === quiz.questions.length;
   // Progress based on answered questions, not current question
@@ -250,7 +251,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                 <motion.label
                   key={idx}
                   className={`option ${
-                    answers[question.id] === option ? 'selected' : ''
+                    answers[currentQuestion] === option ? 'selected' : ''
                   }`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -258,11 +259,11 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                 >
                   <input
                     type="radio"
-                    name={`question-${question.id}`}
+                    name={`question-${currentQuestion}`}
                     value={option}
-                    checked={answers[question.id] === option}
+                    checked={answers[currentQuestion] === option}
                     onChange={(e) =>
-                      handleAnswerSelect(question.id, e.target.value)
+                      handleAnswerSelect(currentQuestion, e.target.value)
                     }
                   />
                   <span className="option-content">{option}</span>
@@ -297,13 +298,12 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
           <div className="question-indicators">
             {quiz.questions.map((_, idx) => {
-              const question = quiz.questions[idx];
-              const answerValue = answers[question.id];
+              const answerValue = answers[idx];
               const isQuestionAnswered = answerValue !== null && answerValue !== undefined;
               return (
               <motion.button
                 key={idx}
-                data-question-id={question.id}
+                data-question-index={idx}
                 data-is-answered={isQuestionAnswered}
                 className={`indicator ${
                   idx === currentQuestion ? 'active' : ''
@@ -311,7 +311,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                 onClick={() => setCurrentQuestion(idx)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                title={`Q${idx + 1} (ID: ${question.id}) - ${isQuestionAnswered ? 'Answered' : 'Not answered'}`}
+                title={`Q${idx + 1} - ${isQuestionAnswered ? 'Answered' : 'Not answered'}`}
               >
                 {idx + 1}
               </motion.button>
