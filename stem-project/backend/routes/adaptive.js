@@ -785,9 +785,15 @@ router.post('/analyze', async (req, res) => {
         quizzesTaken: (currentProfile?.quizzes_taken || 0) + 1
       },
       
-      // AI feedback - extract from analysis or use defaults
-      strengths: learningProfile.strongAreas || [],
-      areasToImprove: learningProfile.weakAreas || [],
+      // AI feedback - extract topics from topicFeedback instead of old structures
+      // Extract topic names with WEAK performance for areas to improve
+      areasToImprove: Object.entries(topicFeedback || {})
+        .filter(([_, data]) => data.performance === 'WEAK')
+        .map(([topic]) => topic),
+      // Extract topic names with STRONG performance for strengths
+      strengths: Object.entries(topicFeedback || {})
+        .filter(([_, data]) => data.performance === 'STRONG')
+        .map(([topic]) => topic),
       feedback: aiAnalysis.motivationalFeedback || 'Great job! Keep practicing to improve further.',
       
       // Detailed topic feedback
