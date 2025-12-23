@@ -354,17 +354,45 @@ router.post('/analyze', async (req, res) => {
   try {
     const { userId, quizId, answers, personalizedQuizData, timeSpent } = req.body
 
+    console.log('[Analyze] Request received:', {
+      userId,
+      quizId,
+      answersCount: answers?.length,
+      hasPersonalizedData: !!personalizedQuizData,
+      timeSpent
+    })
+
     // Validate input
     if (!userId || userId === 'undefined') {
+      console.error('[Analyze] Missing userId')
       return res.status(400).json({ error: 'User ID is required' })
     }
 
-    if (!quizId || !validateQuizId(quizId)) {
-      return res.status(400).json({ error: 'Invalid quiz ID' })
+    if (!quizId) {
+      console.error('[Analyze] Missing quizId')
+      return res.status(400).json({ error: 'Quiz ID is required' })
     }
 
-    if (!Array.isArray(answers) || answers.length === 0) {
-      return res.status(400).json({ error: 'Invalid answers format' })
+    if (!validateQuizId(quizId)) {
+      console.error('[Analyze] Invalid quizId:', quizId)
+      return res.status(400).json({ error: `Invalid quiz ID: ${quizId}. Must be one of: contest1-5, personalized, random` })
+    }
+
+    if (!Array.isArray(answers)) {
+      console.error('[Analyze] Answers is not an array:', typeof answers)
+      return res.status(400).json({ error: 'Answers must be an array' })
+    }
+
+    if (answers.length === 0) {
+      console.error('[Analyze] No answers provided')
+      return res.status(400).json({ error: 'At least one answer is required' })
+    }
+
+    // Validate answer format
+    const invalidAnswers = answers.filter((a, idx) => !a.questionId || a.answer === null || a.answer === undefined)
+    if (invalidAnswers.length > 0) {
+      console.error('[Analyze] Invalid answer format:', invalidAnswers)
+      return res.status(400).json({ error: `Invalid answer format. Each answer must have questionId and answer. Found ${invalidAnswers.length} invalid answers.` })
     }
 
     // Load questions - try both standard quiz and personalized data

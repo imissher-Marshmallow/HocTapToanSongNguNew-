@@ -113,11 +113,37 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         answer: answers[idx] || null
       }));
 
-      console.log('[AdaptiveQuiz] Submitting quiz:', {
+      // Filter out any null answers (unanswered questions)
+      const answeredQuestions = formattedAnswers.filter(a => a.answer !== null);
+
+      console.log('[AdaptiveQuiz] Quiz submission details:', {
+        totalQuestions: quiz.questions.length,
+        answeredQuestions: answeredQuestions.length,
+        unansweredQuestions: quiz.questions.length - answeredQuestions.length,
+        allAnswers: formattedAnswers.map(a => ({ id: a.questionId, answered: a.answer !== null }))
+      });
+
+      // Require at least one answer before submitting
+      if (answeredQuestions.length === 0) {
+        alert('Please answer at least one question before submitting.');
+        setAnalyzing(false);
+        return;
+      }
+
+      const payload = {
         userId,
         quizId: 'personalized',
-        answerCount: formattedAnswers.length,
+        answers: formattedAnswers, // Send all answers including nulls - backend will handle them
         timeSpent: elapsedTime
+      };
+
+      console.log('[AdaptiveQuiz] Sending payload:', {
+        userId: payload.userId,
+        quizId: payload.quizId,
+        answersCount: payload.answers.length,
+        timeSpent: payload.timeSpent,
+        firstAnswer: payload.answers[0],
+        lastAnswer: payload.answers[payload.answers.length - 1]
       });
 
       const response = await fetch('/api/adaptive/analyze', {
@@ -125,21 +151,25 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId,
-          quizId: 'personalized',
-          answers: formattedAnswers,
-          timeSpent: elapsedTime
-        })
+        body: JSON.stringify(payload)
       });
 
+      const responseText = await response.text();
+      console.log('[AdaptiveQuiz] Response status:', response.status);
+      console.log('[AdaptiveQuiz] Response body:', responseText);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[AdaptiveQuiz] Backend error:', errorData);
-        throw new Error(errorData.message || 'Failed to analyze quiz');
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { error: responseText };
+        }
+        console.error('[AdaptiveQuiz] Backend error response:', errorData);
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: Failed to analyze quiz`);
       }
 
-      const analysisResults = await response.json();
+      const analysisResults = JSON.parse(responseText);
       console.log('[AdaptiveQuiz] Analysis successful:', {
         overallScore: analysisResults.overallScore,
         correctAnswers: analysisResults.correctAnswers,
