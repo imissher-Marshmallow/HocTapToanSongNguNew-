@@ -490,6 +490,127 @@ function QuizResults({ results, timeSpent }) {
           </motion.section>
         )}
 
+        {/* Topic-Level Detailed Feedback */}
+        {results.topicFeedback && Object.keys(results.topicFeedback).length > 0 && (
+          <motion.section
+            className="topic-feedback"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2>📖 Detailed Feedback by Topic</h2>
+            <div className="feedback-cards">
+              {Object.entries(results.topicFeedback).map(([topicName, feedback], idx) => (
+                <motion.div
+                  key={`feedback-${topicName}`}
+                  className={`feedback-card topic-${feedback.performance.toLowerCase()}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + idx * 0.08 }}
+                >
+                  <div className="feedback-header">
+                    <h3>{topicName}</h3>
+                    <span className="feedback-score">{feedback.percentage}%</span>
+                  </div>
+                  <p className="feedback-summary">{feedback.summary}</p>
+                  
+                  <div className="feedback-section">
+                    <h4>✅ Strengths:</h4>
+                    <ul>
+                      {feedback.strengths.map((strength, i) => (
+                        <li key={i}>{strength}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  {feedback.weaknesses.length > 0 && (
+                    <div className="feedback-section">
+                      <h4>⚠️ Areas to Improve:</h4>
+                      <ul>
+                        {feedback.weaknesses.map((weakness, i) => (
+                          <li key={i}>{weakness}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  <div className="feedback-section">
+                    <h4>🎯 Next Steps:</h4>
+                    <ul>
+                      {feedback.improvements.map((improvement, i) => (
+                        <li key={i}>{improvement}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="feedback-section">
+                    <h4>🔍 Search & Learn:</h4>
+                    <ul>
+                      {feedback.resources.map((resource, i) => (
+                        <li key={i}>{resource}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Answer Review Section */}
+        {results.answerDetails && results.answerDetails.length > 0 && (
+          <motion.section
+            className="answer-review"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <h2>📋 Review Your Answers</h2>
+            <div className="answer-list">
+              {results.answerDetails.map((answer, idx) => (
+                <motion.div
+                  key={`answer-${idx}`}
+                  className={`answer-item ${answer.isCorrect ? 'correct' : 'incorrect'}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.25 + idx * 0.03 }}
+                >
+                  <div className="answer-header">
+                    <div className="answer-status">
+                      {answer.isCorrect ? <span className="badge-correct">✓ Correct</span> : <span className="badge-incorrect">✗ Incorrect</span>}
+                    </div>
+                    <div className="answer-metadata">
+                      <span className="topic-tag">{answer.topic}</span>
+                      <span className="difficulty-tag">Difficulty: {answer.difficulty === '1' ? 'Easy' : answer.difficulty === '2' ? 'Medium' : answer.difficulty === '3' ? 'Hard' : 'Expert'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="question-text">
+                    <strong>Question {idx + 1}:</strong> {answer.questionText}
+                  </div>
+                  
+                  <div className="answer-details">
+                    <div className="student-answer">
+                      <p><strong>Your Answer:</strong> {answer.options[answer.studentAnswer] || 'Not answered'}</p>
+                    </div>
+                    {!answer.isCorrect && (
+                      <div className="correct-answer">
+                        <p><strong>Correct Answer:</strong> {answer.options[answer.correctAnswer]}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {answer.explanation && (
+                    <div className="explanation">
+                      <p><strong>💡 Explanation:</strong> {answer.explanation}</p>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
         {/* Weak Areas */}
         {results.learningProfile?.weakAreas && results.learningProfile.weakAreas.length > 0 && (
           <motion.section
@@ -754,7 +875,7 @@ function renderCognitiveAnalysis(analysis) {
 
   return analysis.levels.map((level, idx) => (
     <motion.div
-      key={idx}
+      key={`level-${level.name}-${idx}`}
       className="analysis-card"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -762,7 +883,7 @@ function renderCognitiveAnalysis(analysis) {
     >
       <h3>{level.name}</h3>
       <div className="score-display">
-        <span className="score">{level.score}%</span>
+        <span className="score">{Math.round(level.score)}%</span>
       </div>
       <div className="mini-bar">
         <div className="mini-fill" style={{ width: `${level.score}%` }}></div>

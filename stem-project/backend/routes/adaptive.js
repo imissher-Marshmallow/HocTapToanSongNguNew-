@@ -27,6 +27,81 @@ function generateMotivationalFeedback(score) {
   return "🎯 Start with the basics. Review and practice regularly to improve."
 }
 
+// Helper: Generate detailed feedback for each topic
+function generateTopicFeedback(topicAnalysis, cognitiveScores) {
+  const feedback = {}
+  
+  topicAnalysis.forEach(topic => {
+    const { topic: topicName, percentage, correct, total, performance } = topic
+    
+    // Generate strengths
+    let strengths = []
+    if (percentage >= 80) {
+      strengths.push(`You demonstrated strong understanding of ${topicName}`)
+      strengths.push(`High accuracy rate (${percentage}%) shows solid mastery`)
+    } else if (percentage >= 60) {
+      strengths.push(`You have a good foundation in ${topicName}`)
+    }
+    
+    // Generate weaknesses
+    let weaknesses = []
+    if (percentage < 70) {
+      weaknesses.push(`${topicName} needs more focused practice`)
+      weaknesses.push(`${total - correct} out of ${total} questions were incorrect`)
+    }
+    if (percentage < 50) {
+      weaknesses.push(`This is a critical area for improvement`)
+    }
+    
+    // Generate improvement suggestions
+    let improvements = []
+    if (percentage < 60) {
+      improvements.push(`Review the fundamental concepts of ${topicName}`)
+      improvements.push(`Practice basic problems before advanced ones`)
+      improvements.push(`Use step-by-step problem solving approaches`)
+    } else if (percentage < 80) {
+      improvements.push(`Work on more challenging ${topicName} problems`)
+      improvements.push(`Focus on edge cases and special scenarios`)
+      improvements.push(`Practice time management on ${topicName} questions`)
+    } else {
+      improvements.push(`Maintain your current level with regular practice`)
+      improvements.push(`Try advanced problems to deepen your understanding`)
+    }
+    
+    // Generate resources
+    let resources = []
+    if (percentage < 50) {
+      resources.push(`Search: "${topicName} fundamentals"`)
+      resources.push(`Search: "${topicName} tutorial"`)
+      resources.push(`Search: "${topicName} practice problems"`)
+    } else if (percentage < 70) {
+      resources.push(`Search: "${topicName} advanced concepts"`)
+      resources.push(`Search: "${topicName} worked examples"`)
+    } else {
+      resources.push(`Search: "${topicName} challenging problems"`)
+      resources.push(`Search: "${topicName} competitive problems"`)
+    }
+    
+    feedback[topicName] = {
+      percentage,
+      performance,
+      correct,
+      total,
+      strengths: strengths.length > 0 ? strengths : ["Good effort on this topic"],
+      weaknesses: weaknesses.length > 0 ? weaknesses : ["No major weaknesses identified"],
+      improvements,
+      resources,
+      summary: `You scored ${percentage}% on ${topicName}. ${
+        percentage >= 80 ? 'Excellent! Keep it up.' : 
+        percentage >= 60 ? 'Good progress. More practice needed.' :
+        'This topic needs more focus. Review and practice more.'
+      }`
+    }
+  })
+  
+  return feedback
+}
+
 // Validate input
 function validateQuizId(quizId) {
   return typeof quizId === 'string' && ALLOWED_QUIZ_IDS.includes(quizId.toLowerCase())
@@ -513,6 +588,9 @@ router.post('/analyze', async (req, res) => {
     const weakTopics = topicsArray.filter(t => t.percentage < 70)
     const strongTopics = topicsArray.filter(t => t.percentage >= 80)
 
+    // Generate detailed topic feedback for each topic
+    const topicFeedback = generateTopicFeedback(topicsArray, assessment.scores)
+
     // Generate quick feedback without OpenAI
     const aiAnalysis = {
       motivationalFeedback: generateMotivationalFeedback(assessment.overallScore),
@@ -533,6 +611,11 @@ router.post('/analyze', async (req, res) => {
     }
 
     console.log('[Analyze] Fast analysis completed - topics analyzed:', Object.keys(topicAnalysis).length)
+
+    // Calculate total correct answers
+    const totalCorrect = questions.reduce((sum, q, i) => {
+      return sum + (q.answerIndex === answerArray[i] ? 1 : 0)
+    }, 0)
 
     // ============================================
     // LEARNING PROFILE UPDATE & SAVE TO SUPABASE
@@ -594,6 +677,42 @@ router.post('/analyze', async (req, res) => {
             })
         }
         console.log('[Analyze] Profile saved to Supabase for user:', userId)
+        
+        // Also save full quiz attempt details for review
+        try {
+          await supabase
+            .from('quiz_attempts')
+            .insert({
+              user_id: userId,
+              quiz_id: quizId,
+              overall_score: assessment.overallScore,
+              correct_answers: totalCorrect,
+              total_questions: questions.length,
+              time_spent_seconds: timeSpent,
+              answers: questions.map((q, idx) => ({
+                questionId: q.id,
+                questionText: q.text,
+                topic: q.topic || 'General',
+                studentAnswer: answerArray[idx],
+                correctAnswer: q.answerIndex,
+                isCorrect: q.answerIndex === answerArray[idx]
+              })),
+              cognitive_analysis: assessment,
+              topic_analysis: topicsArray,
+              topic_feedback: topicFeedback,
+              overall_feedback: aiAnalysis.motivationalFeedback,
+              cognitive_levels: learningProfile.scores,
+              proficiency_status: learningProfile.proficiency,
+              weak_areas: learningProfile.weakAreas,
+              strong_areas: learningProfile.strongAreas,
+              recommendations: learningProfile.recommendations,
+              created_at: new Date().toISOString()
+            })
+          console.log('[Analyze] Quiz attempt saved to Supabase for user:', userId)
+        } catch (quizErr) {
+          console.log('[Analyze] Note: quiz_attempts table may not exist yet. Create it using the provided SQL.')
+          // This is not critical - continue without saving to quiz_attempts
+        }
       } catch (err) {
         console.error('[Analyze] Error saving to Supabase:', err.message)
         // Continue even if Supabase save fails
@@ -603,11 +722,6 @@ router.post('/analyze', async (req, res) => {
     // ============================================
     // RESPONSE
     // ============================================
-    
-    // Calculate total correct answers
-    const totalCorrect = questions.reduce((sum, q, i) => {
-      return sum + (q.answerIndex === answerArray[i] ? 1 : 0)
-    }, 0)
 
     res.json({
       // Basic results
@@ -664,12 +778,28 @@ router.post('/analyze', async (req, res) => {
       areasToImprove: learningProfile.weakAreas || [],
       feedback: aiAnalysis.motivationalFeedback || 'Great job! Keep practicing to improve further.',
       
+      // Detailed topic feedback
+      topicFeedback: topicFeedback || {},
+      
       // Next steps - create from AI summary or defaults
       nextSteps: aiAnalysis.summary?.start_here || `Focus on improving ${learningProfile.weakAreas?.[0] || 'overall performance'}.`,
       recommendations: learningProfile.recommendations || aiAnalysis.summary?.plan || [],
       
       // Topic-by-topic analysis
       topicAnalysis: aiAnalysis.topicAnalysis || [],
+      
+      // Answer details for review
+      answerDetails: questions.map((question, idx) => ({
+        questionId: question.id,
+        questionText: question.text,
+        topic: question.topic || 'General',
+        difficulty: question.difficulty || '1',
+        studentAnswer: answerArray[idx],
+        correctAnswer: question.answerIndex,
+        options: question.options,
+        isCorrect: question.answerIndex === answerArray[idx],
+        explanation: question.explanation || 'No explanation available'
+      })),
       
       // Additional AI insights
       aiSummary: aiAnalysis.summary,
