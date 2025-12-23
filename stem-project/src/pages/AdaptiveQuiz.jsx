@@ -450,6 +450,46 @@ function QuizResults({ results, timeSpent }) {
           </div>
         </motion.section>
 
+        {/* Topic Analysis */}
+        {results.topicAnalysis && results.topicAnalysis.length > 0 && (
+          <motion.section
+            className="topic-analysis"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <h2>📊 Performance by Topic</h2>
+            <div className="topics-grid">
+              {results.topicAnalysis.map((topic, idx) => (
+                <motion.div
+                  key={idx}
+                  className={`topic-card topic-${topic.performance.toLowerCase()}`}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.15 + idx * 0.05 }}
+                >
+                  <h3>{topic.topic}</h3>
+                  <div className="topic-score">
+                    <span className="score">{topic.percentage}%</span>
+                    <span className={`performance-badge ${topic.performance.toLowerCase()}`}>
+                      {topic.performance}
+                    </span>
+                  </div>
+                  <div className="topic-bar">
+                    <div className="topic-fill" style={{ width: `${topic.percentage}%` }}></div>
+                  </div>
+                  <p className="topic-result">{topic.correct}/{topic.total} correct</p>
+                  {topic.performance !== 'EXCELLENT' && topic.searchSuggestion && (
+                    <p className="search-suggestion">
+                      💡 Search for: <strong>{topic.searchSuggestion}</strong>
+                    </p>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
         {/* Weak Areas */}
         {results.learningProfile?.weakAreas && results.learningProfile.weakAreas.length > 0 && (
           <motion.section

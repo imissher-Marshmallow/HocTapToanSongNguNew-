@@ -17,6 +17,16 @@ const router = express.Router()
 // Validate quiz ID whitelist
 const ALLOWED_QUIZ_IDS = ['contest1', 'contest2', 'contest3', 'contest4', 'contest5', 'random', 'personalized']
 
+// Helper: Generate quick motivational feedback based on score
+function generateMotivationalFeedback(score) {
+  if (score >= 90) return "🌟 Outstanding performance! You've mastered this material!"
+  if (score >= 80) return "👏 Excellent work! You're doing great. Keep it up!"
+  if (score >= 70) return "👍 Good job! You're making solid progress. A bit more practice will help."
+  if (score >= 60) return "💪 You're making progress! Focus on the weak areas to improve."
+  if (score >= 50) return "📚 Keep practicing! Review the fundamentals and try again."
+  return "🎯 Start with the basics. Review and practice regularly to improve."
+}
+
 // Validate input
 function validateQuizId(quizId) {
   return typeof quizId === 'string' && ALLOWED_QUIZ_IDS.includes(quizId.toLowerCase())
@@ -468,34 +478,61 @@ router.post('/analyze', async (req, res) => {
     const assessment = AssessmentEngine.assessPerformance(questions, answerArray)
 
     // ============================================
-    // AI ANALYSIS & FEEDBACK
+    // FAST TOPIC-BASED ANALYSIS (No OpenAI/Web Search)
     // ============================================
 
-    // Get AI-powered feedback - pass questions and answers directly for personalized quiz
-    let aiAnalysis = {}
-    try {
-      aiAnalysis = await analyzeQuiz({ 
-        userId, 
-        quizId, 
-        answers: answers.map((a, idx) => ({
-          questionId: a.questionId,
-          selectedOption: a.answer
-        })),
-        questions: questions,
-        isAutoSubmitted: false
-      })
-      console.log('[Analyze] AI analysis completed successfully')
-    } catch (err) {
-      console.error('[Analyze] AI analysis error:', err.message)
-      // Fallback response if AI analysis fails
-      aiAnalysis = {
-        motivationalFeedback: 'Great job completing the quiz! Keep practicing to improve.',
-        summary: {
-          overall: 'Quiz completed. Analysis temporarily unavailable.',
-          start_here: 'Review your weak areas and practice similar problems.'
+    // Analyze performance by topic
+    const topicAnalysis = {}
+    questions.forEach((question, idx) => {
+      const topic = question.topic || 'General'
+      if (!topicAnalysis[topic]) {
+        topicAnalysis[topic] = {
+          total: 0,
+          correct: 0,
+          percentage: 0,
+          difficulty: question.difficulty || '1'
         }
       }
+      topicAnalysis[topic].total += 1
+      const isCorrect = question.answerIndex === answerArray[idx]
+      if (isCorrect) {
+        topicAnalysis[topic].correct += 1
+      }
+      topicAnalysis[topic].percentage = Math.round((topicAnalysis[topic].correct / topicAnalysis[topic].total) * 100)
+    })
+
+    // Convert to array and sort by performance
+    const topicsArray = Object.entries(topicAnalysis).map(([topic, stats]) => ({
+      topic,
+      ...stats,
+      performance: stats.percentage >= 80 ? 'EXCELLENT' : stats.percentage >= 60 ? 'GOOD' : stats.percentage >= 40 ? 'NEEDS_WORK' : 'WEAK',
+      suggestedTopics: [] // Topics to search for
+    }))
+
+    // Identify weak topics that need search suggestions
+    const weakTopics = topicsArray.filter(t => t.percentage < 70)
+    const strongTopics = topicsArray.filter(t => t.percentage >= 80)
+
+    // Generate quick feedback without OpenAI
+    const aiAnalysis = {
+      motivationalFeedback: generateMotivationalFeedback(assessment.overallScore),
+      summary: {
+        overall: `You scored ${Math.round(assessment.overallScore)}%. Review the weak areas below for improvement.`,
+        start_here: weakTopics.length > 0 
+          ? `Focus on: ${weakTopics.map(t => t.topic).join(', ')}`
+          : 'Great work! Keep practicing to maintain your level.',
+        plan: topicsArray.map((t, idx) => ({
+          step: t.topic,
+          duration: '15 mins',
+          action: t.performance === 'WEAK' ? 'Study fundamentals' : t.performance === 'NEEDS_WORK' ? 'Practice problems' : 'Review and reinforce',
+          performance: t.performance,
+          searchSuggestion: t.topic // Student should search for this topic
+        }))
+      },
+      topicAnalysis: topicsArray
     }
+
+    console.log('[Analyze] Fast analysis completed - topics analyzed:', Object.keys(topicAnalysis).length)
 
     // ============================================
     // LEARNING PROFILE UPDATE & SAVE TO SUPABASE
@@ -625,11 +662,14 @@ router.post('/analyze', async (req, res) => {
       // AI feedback - extract from analysis or use defaults
       strengths: learningProfile.strongAreas || [],
       areasToImprove: learningProfile.weakAreas || [],
-      feedback: aiAnalysis.motivationalFeedback || aiAnalysis.summary?.overall || 'Great job! Keep practicing to improve further.',
+      feedback: aiAnalysis.motivationalFeedback || 'Great job! Keep practicing to improve further.',
       
       // Next steps - create from AI summary or defaults
       nextSteps: aiAnalysis.summary?.start_here || `Focus on improving ${learningProfile.weakAreas?.[0] || 'overall performance'}.`,
       recommendations: learningProfile.recommendations || aiAnalysis.summary?.plan || [],
+      
+      // Topic-by-topic analysis
+      topicAnalysis: aiAnalysis.topicAnalysis || [],
       
       // Additional AI insights
       aiSummary: aiAnalysis.summary,

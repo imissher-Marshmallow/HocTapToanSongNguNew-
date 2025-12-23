@@ -617,7 +617,149 @@
 }
 
 /* ==========================================
-   WEAK & STRONG AREAS
+   TOPIC ANALYSIS
+   ========================================== */
+
+.topic-analysis {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.topic-analysis h2 {
+  color: #3b82f6;
+  margin-bottom: 1.5rem;
+}
+
+.topics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.topic-card {
+  padding: 1.5rem;
+  border-radius: 10px;
+  border-left: 4px solid #3b82f6;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.topic-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.topic-card h3 {
+  margin: 0 0 1rem 0;
+  color: #1e293b;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.topic-card.topic-excellent {
+  background: #dcfce7;
+  border-left-color: #10b981;
+}
+
+.topic-card.topic-good {
+  background: #dbeafe;
+  border-left-color: #3b82f6;
+}
+
+.topic-card.topic-needs_work {
+  background: #fef3c7;
+  border-left-color: #f59e0b;
+}
+
+.topic-card.topic-weak {
+  background: #fee2e2;
+  border-left-color: #ef4444;
+}
+
+.topic-score {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.topic-score .score {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  min-width: 60px;
+}
+
+.performance-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.performance-badge.excellent {
+  background: #10b981;
+  color: white;
+}
+
+.performance-badge.good {
+  background: #3b82f6;
+  color: white;
+}
+
+.performance-badge.needs_work {
+  background: #f59e0b;
+  color: white;
+}
+
+.performance-badge.weak {
+  background: #ef4444;
+  color: white;
+}
+
+.topic-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.topic-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1e40af);
+  transition: width 0.5s ease;
+}
+
+.topic-result {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0.5rem 0;
+  font-weight: 600;
+}
+
+.search-suggestion {
+  font-size: 0.85rem;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.5rem;
+  border-radius: 6px;
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+
+.search-suggestion strong {
+  color: #047857;
+}
+
+/* ==========================================
+   SECTIONS
+   ========================================== */
    ========================================== */
 
 .weak-areas,
