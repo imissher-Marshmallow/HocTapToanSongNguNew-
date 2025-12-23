@@ -456,7 +456,7 @@ function QuizResults({ results, timeSpent }) {
         )}
 
         {/* Learning Roadmap */}
-        {results.learningProfile?.learningPath && (
+        {(results.learningProfile?.learningPath || results.aiSummary?.plan) && (
           <motion.section
             className="learning-roadmap"
             initial={{ opacity: 0, y: 20 }}
@@ -465,11 +465,47 @@ function QuizResults({ results, timeSpent }) {
           >
             <h2>📚 Your Personalized Learning Roadmap</h2>
             <div className="roadmap-content">
-              {typeof results.learningProfile.learningPath === 'string' ? (
-                <p>{results.learningProfile.learningPath}</p>
-              ) : (
+              {results.aiSummary?.plan ? (
                 <div className="roadmap-steps">
-                  {Array.isArray(results.learningProfile.learningPath) ? (
+                  {Array.isArray(results.aiSummary.plan) ? (
+                    results.aiSummary.plan.map((step, idx) => (
+                      <div key={idx} className="roadmap-step">
+                        <div className="step-number">{idx + 1}</div>
+                        <div className="step-content">
+                          {typeof step === 'string' ? (
+                            <p>{step}</p>
+                          ) : (
+                            <>
+                              <h4>{step.step || step.title || step.topic || 'Step ' + (idx + 1)}</h4>
+                              {step.duration && <p className="duration">⏱️ {step.duration}</p>}
+                              <p>{step.description || step.action || ''}</p>
+                              {(step.resource_suggestion || step.resources) && (
+                                <div className="step-resources">
+                                  {step.resource_suggestion ? (
+                                    <>
+                                      <small>
+                                        <strong>📎 {step.resource_suggestion.type}:</strong> {step.resource_suggestion.name}
+                                      </small>
+                                    </>
+                                  ) : (
+                                    <small>Resources: {step.resources}</small>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p>{typeof results.aiSummary.plan === 'string' ? results.aiSummary.plan : 'AI-generated learning plan available'}</p>
+                  )}
+                </div>
+              ) : results.learningProfile?.learningPath ? (
+                <div className="roadmap-steps">
+                  {typeof results.learningProfile.learningPath === 'string' ? (
+                    <p>{results.learningProfile.learningPath}</p>
+                  ) : Array.isArray(results.learningProfile.learningPath) ? (
                     results.learningProfile.learningPath.map((step, idx) => (
                       <div key={idx} className="roadmap-step">
                         <div className="step-number">{idx + 1}</div>
@@ -502,7 +538,27 @@ function QuizResults({ results, timeSpent }) {
                     ))
                   )}
                 </div>
-              )}
+              ) : null}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Priority Actions from AI */}
+        {results.aiSummary?.priority && results.aiSummary.priority.length > 0 && (
+          <motion.section
+            className="priority-actions"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.47 }}
+          >
+            <h2>🚀 Priority Actions (Do These First)</h2>
+            <div className="priority-list">
+              {results.aiSummary.priority.map((action, idx) => (
+                <div key={idx} className="priority-item">
+                  <div className="priority-number">{idx + 1}</div>
+                  <div className="priority-text">{action}</div>
+                </div>
+              ))}
             </div>
           </motion.section>
         )}

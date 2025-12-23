@@ -538,14 +538,18 @@ router.post('/analyze', async (req, res) => {
         quizzesTaken: (currentProfile?.quizzes_taken || 0) + 1
       },
       
-      // AI feedback
-      strengths: aiAnalysis.strengths || [],
-      areasToImprove: aiAnalysis.improvementAreas || [],
-      feedback: aiAnalysis.feedback || 'Great job! Keep practicing to improve further.',
+      // AI feedback - extract from analysis or use defaults
+      strengths: learningProfile.strongAreas || [],
+      areasToImprove: learningProfile.weakAreas || [],
+      feedback: aiAnalysis.motivationalFeedback || aiAnalysis.summary?.overall || 'Great job! Keep practicing to improve further.',
       
-      // Next steps
-      nextSteps: aiAnalysis.nextSteps || `Focus on improving ${learningProfile.weakAreas?.[0] || 'overall performance'}.`,
-      recommendations: learningProfile.recommendations || [],
+      // Next steps - create from AI summary or defaults
+      nextSteps: aiAnalysis.summary?.start_here || `Focus on improving ${learningProfile.weakAreas?.[0] || 'overall performance'}.`,
+      recommendations: learningProfile.recommendations || aiAnalysis.summary?.plan || [],
+      
+      // Additional AI insights
+      aiSummary: aiAnalysis.summary,
+      resourceLinks: aiAnalysis.resourceLinks || [],
       
       // Success message
       message: 'Quiz analyzed and profile updated successfully',
