@@ -131,7 +131,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       }
 
       const payload = {
-        userId,
+        userId: finalUserId,  // Use finalUserId which is either from prop or auth context
         quizId: 'personalized',
         answers: formattedAnswers, // Send all answers including nulls - backend will handle them
         timeSpent: elapsedTime
