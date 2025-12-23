@@ -763,7 +763,7 @@ function QuizResults({ results, timeSpent }) {
             <h2>🚀 Priority Actions (Do These First)</h2>
             <div className="priority-list">
               {results.aiSummary.priority.map((action, idx) => (
-                <div key={idx} className="priority-item">
+                <div key={`priority-${idx}`} className="priority-item">
                   <div className="priority-number">{idx + 1}</div>
                   <div className="priority-text">{action}</div>
                 </div>
@@ -783,7 +783,7 @@ function QuizResults({ results, timeSpent }) {
             <h2>🌟 Your Strengths</h2>
             <div className="strengths-list">
               {results.strengths.map((strength, idx) => (
-                <div key={idx} className="strength-item">
+                <div key={`strength-${idx}`} className="strength-item">
                   <p>{strength}</p>
                 </div>
               ))}
@@ -802,7 +802,7 @@ function QuizResults({ results, timeSpent }) {
             <h2>📈 Areas to Improve</h2>
             <div className="improve-list">
               {results.areasToImprove.map((area, idx) => (
-                <div key={idx} className="improve-item">
+                <div key={`area-${idx}`} className="area-item">
                   <p>{area}</p>
                 </div>
               ))}

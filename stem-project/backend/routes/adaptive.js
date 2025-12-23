@@ -537,12 +537,14 @@ router.post('/analyze', async (req, res) => {
     }
 
     // Convert answers from object format {questionId, answer} to array format for assessment
-    const answerArray = answers.map(a => {
-      const question = questions.find(q => q.id === a.questionId)
-      if (!question) return -1
-      // Find the index of the selected answer
-      const answerIndex = question.options.indexOf(a.answer)
-      return answerIndex >= 0 ? answerIndex : -1
+    // Convert answers from {questionId, answer} format to array of indices
+    // answer field should contain the index directly from frontend
+    const answerArray = answers.map((a, idx) => {
+      // Frontend sends answer as the index (0, 1, 2, or 3)
+      // If it's null or undefined, return -1 (unanswered)
+      if (a.answer === null || a.answer === undefined) return -1
+      // Ensure it's a number
+      return Number.isInteger(a.answer) ? a.answer : -1
     })
 
     // ============================================
@@ -614,8 +616,18 @@ router.post('/analyze', async (req, res) => {
 
     // Calculate total correct answers
     const totalCorrect = questions.reduce((sum, q, i) => {
-      return sum + (q.answerIndex === answerArray[i] ? 1 : 0)
+      const studentAnswer = answerArray[i]
+      const isCorrect = q.answerIndex === studentAnswer
+      return sum + (isCorrect ? 1 : 0)
     }, 0)
+    
+    console.log('[Analyze] Answer comparison:', {
+      totalQuestions: questions.length,
+      totalCorrect,
+      answerArrayLength: answerArray.length,
+      sampleAnswers: answerArray.slice(0, 3),
+      sampleQuestions: questions.slice(0, 3).map(q => ({ id: q.id, correctIndex: q.answerIndex }))
+    })
 
     // ============================================
     // LEARNING PROFILE UPDATE & SAVE TO SUPABASE
