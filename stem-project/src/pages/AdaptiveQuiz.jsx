@@ -113,6 +113,13 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         answer: answers[idx] || null
       }));
 
+      console.log('[AdaptiveQuiz] Submitting quiz:', {
+        userId,
+        quizId: 'personalized',
+        answerCount: formattedAnswers.length,
+        timeSpent: elapsedTime
+      });
+
       const response = await fetch('/api/adaptive/analyze', {
         method: 'POST',
         headers: {
@@ -126,17 +133,26 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to analyze quiz');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[AdaptiveQuiz] Backend error:', errorData);
+        throw new Error(errorData.message || 'Failed to analyze quiz');
+      }
 
       const analysisResults = await response.json();
+      console.log('[AdaptiveQuiz] Analysis successful:', {
+        overallScore: analysisResults.overallScore,
+        correctAnswers: analysisResults.correctAnswers,
+        cognitiveAnalysis: analysisResults.cognitiveAnalysis
+      });
       setResults(analysisResults);
 
       if (onComplete) {
         onComplete(analysisResults);
       }
     } catch (err) {
-      console.error('Error submitting quiz:', err);
-      alert('Error analyzing quiz. Please try again.');
+      console.error('[AdaptiveQuiz] Error submitting quiz:', err);
+      alert('Error analyzing quiz: ' + err.message);
     } finally {
       setAnalyzing(false);
     }

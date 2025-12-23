@@ -374,7 +374,15 @@ router.post('/analyze', async (req, res) => {
     if (personalizedQuizData && Array.isArray(personalizedQuizData)) {
       // Use provided quiz data (personalized quiz)
       questions = personalizedQuizData
-    } else if (quizId !== 'personalized') {
+    } else if (quizId === 'personalized') {
+      // For personalized quiz without quiz data provided, load from contests and select matching
+      // This shouldn't happen in normal flow, but provide fallback
+      if (questionData.contests && Array.isArray(questionData.contests)) {
+        questionData.contests.forEach(contest => {
+          questions.push(...contest)
+        })
+      }
+    } else {
       // Use standard quiz from contests
       const quizIndex = parseInt(quizId.replace('contest', '')) - 1
       if (quizIndex >= 0 && quizIndex < questionData.contests.length) {
@@ -383,6 +391,7 @@ router.post('/analyze', async (req, res) => {
     }
 
     if (questions.length === 0) {
+      console.error('[Analyze] No questions found for quiz:', quizId, 'personalizedQuizData:', !!personalizedQuizData)
       return res.status(400).json({ error: 'No questions found for quiz' })
     }
 
@@ -407,16 +416,30 @@ router.post('/analyze', async (req, res) => {
     // ============================================
 
     // Get AI-powered feedback - pass questions and answers directly for personalized quiz
-    const aiAnalysis = await analyzeQuiz({ 
-      userId, 
-      quizId, 
-      answers: answers.map((a, idx) => ({
-        questionId: a.questionId,
-        selectedOption: a.answer
-      })),
-      questions: questions,
-      isAutoSubmitted: false
-    })
+    let aiAnalysis = {}
+    try {
+      aiAnalysis = await analyzeQuiz({ 
+        userId, 
+        quizId, 
+        answers: answers.map((a, idx) => ({
+          questionId: a.questionId,
+          selectedOption: a.answer
+        })),
+        questions: questions,
+        isAutoSubmitted: false
+      })
+      console.log('[Analyze] AI analysis completed successfully')
+    } catch (err) {
+      console.error('[Analyze] AI analysis error:', err.message)
+      // Fallback response if AI analysis fails
+      aiAnalysis = {
+        motivationalFeedback: 'Great job completing the quiz! Keep practicing to improve.',
+        summary: {
+          overall: 'Quiz completed. Analysis temporarily unavailable.',
+          start_here: 'Review your weak areas and practice similar problems.'
+        }
+      }
+    }
 
     // ============================================
     // LEARNING PROFILE UPDATE & SAVE TO SUPABASE
@@ -487,12 +510,17 @@ router.post('/analyze', async (req, res) => {
     // ============================================
     // RESPONSE
     // ============================================
+    
+    // Calculate total correct answers
+    const totalCorrect = questions.reduce((sum, q, i) => {
+      return sum + (q.answerIndex === answerArray[i] ? 1 : 0)
+    }, 0)
 
     res.json({
       // Basic results
       overallScore: assessment.overallScore,
       totalQuestions: questions.length,
-      correctAnswers: assessment.correctCount,
+      correctAnswers: totalCorrect,
       
       // Cognitive level breakdown
       cognitiveAnalysis: {
@@ -556,8 +584,16 @@ router.post('/analyze', async (req, res) => {
       savedToDatabase: !!supabase
     })
   } catch (error) {
-    console.error('Error analyzing quiz:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error('[Analyze] Error analyzing quiz:', error)
+    console.error('[Analyze] Error stack:', error.stack)
+    console.error('[Analyze] Error message:', error.message)
+    
+    // Return more detailed error for debugging
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
   }
 })
 
