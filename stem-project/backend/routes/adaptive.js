@@ -480,7 +480,8 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: `Invalid answer format. Each answer must have questionId and answer. Found ${invalidAnswers.length} invalid answers.` })
     }
 
-    // Load questions - try both standard quiz and personalized data
+    // Load questions - ALWAYS from file to ensure we have answerIndex
+    // personalizedQuizData has answers stripped for security, so we rebuild from questionIds
     const questionData = require('../data/questions_updated.json')
     let questions = []
 
@@ -491,10 +492,38 @@ router.post('/analyze', async (req, res) => {
       contestKeys: questionData.contests ? Object.keys(questionData.contests) : []
     })
 
-    if (personalizedQuizData && Array.isArray(personalizedQuizData)) {
-      // Use provided quiz data (personalized quiz)
-      questions = personalizedQuizData
-      console.log('[Analyze] Using personalizedQuizData, questions count:', questions.length)
+    if (personalizedQuizData && Array.isArray(personalizedQuizData) && quizId === 'personalized') {
+      // For personalized quiz: use personalizedQuizData to get question IDs,
+      // then load full question data (with answerIndex) from file
+      console.log('[Analyze] Using personalizedQuizData IDs to rebuild questions from file')
+      
+      // Create a map of all questions in file by ID
+      const allQuestionsMap = {}
+      if (questionData.contests) {
+        if (typeof questionData.contests === 'object' && !Array.isArray(questionData.contests)) {
+          Object.values(questionData.contests).forEach(contestQuestions => {
+            if (Array.isArray(contestQuestions)) {
+              contestQuestions.forEach(q => {
+                allQuestionsMap[q.id] = q
+              })
+            }
+          })
+        }
+      }
+      
+      // Rebuild questions array using IDs from personalizedQuizData + data from file
+      personalizedQuizData.forEach(clientQ => {
+        if (allQuestionsMap[clientQ.id]) {
+          // Use the complete question with answerIndex from file
+          questions.push(allQuestionsMap[clientQ.id])
+        } else {
+          // Fallback to client data if not found in file
+          console.log('[Analyze] Question', clientQ.id, 'not found in file, using client data')
+          questions.push(clientQ)
+        }
+      })
+      
+      console.log('[Analyze] Rebuilt questions from file using personalizedQuizData IDs, questions count:', questions.length)
     } else if (quizId === 'personalized') {
       // For personalized quiz without quiz data provided, load from contests and flatten all
       if (questionData.contests) {

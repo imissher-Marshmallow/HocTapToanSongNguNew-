@@ -57,6 +57,47 @@ export default function History() {
     fetchAttempts();
   }, [user, token]);
 
+  // Auto-refresh when quiz is completed
+  useEffect(() => {
+    const checkForNewAttempt = () => {
+      const refreshNeeded = sessionStorage.getItem('profileRefreshNeeded');
+      if (refreshNeeded === 'true') {
+        console.log('[History] Refreshing after quiz completion');
+        sessionStorage.removeItem('profileRefreshNeeded');
+        // Re-fetch attempts
+        const refetchAttempts = async () => {
+          try {
+            const userId = getUserId();
+            if (!userId || userId === 'anonymous') return;
+
+            const apiBase = getApiBase();
+            const response = await fetch(`${apiBase}/api/history?userId=${userId}`, {
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && Array.isArray(data.data)) {
+                setAttempts(data.data);
+              }
+            }
+          } catch (error) {
+            console.error('[History] Error refreshing:', error.message);
+          }
+        };
+        refetchAttempts();
+      }
+    };
+
+    checkForNewAttempt();
+    window.addEventListener('focus', checkForNewAttempt);
+    
+    return () => window.removeEventListener('focus', checkForNewAttempt);
+  }, [user, token]);
+
   const formatDate = (date) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return new Intl.DateTimeFormat(language === 'vi' ? 'vi-VN' : 'en-US', {

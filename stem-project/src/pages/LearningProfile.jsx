@@ -31,6 +31,24 @@ export default function LearningProfile({ userId }) {
     }
   }, [finalUserId]);
 
+  // Auto-refresh when quiz is completed
+  useEffect(() => {
+    const checkForRefresh = () => {
+      const refreshNeeded = sessionStorage.getItem('profileRefreshNeeded');
+      if (refreshNeeded === 'true') {
+        console.log('[LearningProfile] Refreshing profile after quiz completion');
+        sessionStorage.removeItem('profileRefreshNeeded');
+        fetchLearningProfile();
+      }
+    };
+
+    // Check on mount and when window regains focus
+    checkForRefresh();
+    window.addEventListener('focus', checkForRefresh);
+    
+    return () => window.removeEventListener('focus', checkForRefresh);
+  }, [finalUserId]);
+
   const fetchLearningProfile = async () => {
     try {
       setLoading(true);

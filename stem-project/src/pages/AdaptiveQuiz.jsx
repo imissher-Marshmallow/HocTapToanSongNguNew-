@@ -177,6 +177,11 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         correctAnswers: analysisResults.correctAnswers,
         cognitiveAnalysis: analysisResults.cognitiveAnalysis
       });
+      
+      // Store results in session storage so other pages can access updated data
+      sessionStorage.setItem('lastQuizResults', JSON.stringify(analysisResults));
+      sessionStorage.setItem('profileRefreshNeeded', 'true');
+      
       setResults(analysisResults);
 
       if (onComplete) {
