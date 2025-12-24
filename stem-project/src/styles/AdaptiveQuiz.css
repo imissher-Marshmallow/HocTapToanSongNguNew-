@@ -1592,3 +1592,149 @@
     align-items: flex-start;
   }
 }
+
+/* ==========================================
+   QUESTION REVIEW SECTION
+   ========================================== */
+
+.question-review {
+  margin-top: 3rem;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.question-review h2 {
+  font-size: 1.5rem;
+  color: #1f2937;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.question-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.question-review-item {
+  padding: 1.5rem;
+  border-left: 5px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.question-review-item.correct {
+  border-left-color: #10b981;
+  background: #f0fdf4;
+}
+
+.question-review-item.incorrect {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.question-review-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.question-number-badge {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 1.1rem;
+  min-width: 120px;
+}
+
+.topic-badge {
+  display: inline-block;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.difficulty-badge {
+  display: inline-block;
+  background: #fed7aa;
+  color: #92400e;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.question-text {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: white;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+}
+
+.question-text p {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.question-answers {
+  margin-top: 1rem;
+}
+
+.answer-section {
+  margin: 0.8rem 0;
+  padding: 0.8rem;
+  background: white;
+  border-radius: 6px;
+}
+
+.answer-section p {
+  margin: 0.4rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.answer-status {
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.answer-status.correct {
+  color: #059669;
+}
+
+.answer-status.incorrect {
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .question-review {
+    padding: 1.5rem 1rem;
+  }
+
+  .question-review h2 {
+    font-size: 1.3rem;
+  }
+
+  .question-review-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topic-badge,
+  .difficulty-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+  }
+}

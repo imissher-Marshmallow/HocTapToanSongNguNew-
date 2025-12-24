@@ -13,6 +13,7 @@ import Study from './pages/Study';
 import Resources from './pages/Resources';
 import History from './pages/History';
 import AdaptiveQuiz from './pages/AdaptiveQuiz';
+import AdaptiveQuizSelect from './pages/AdaptiveQuizSelect';
 import LearningProfile from './pages/LearningProfile';
 import Signup from './components/Signup';
 import Signin from './components/Signin';
@@ -83,6 +84,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AdaptiveQuiz />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/adaptive-quiz-select"
+                  element={
+                    <ProtectedRoute>
+                      <AdaptiveQuizSelect />
                     </ProtectedRoute>
                   }
                 />

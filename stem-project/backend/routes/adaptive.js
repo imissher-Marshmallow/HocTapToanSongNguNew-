@@ -10,6 +10,8 @@ const {
   LearningProfileManager
 } = require('../ai/adaptiveEngine')
 const { analyzeQuiz } = require('../ai/analyzer')
+const { generateAISummary, generateDetailedTopicFeedback, generateLearningRoadmap } = require('../utils/aiSummary')
+const { saveQuizResult, getQuizRecommendation } = require('../services/quizResultsService')
 const { supabase } = require('../database')
 
 const router = express.Router()
@@ -349,6 +351,9 @@ router.get('/quiz/personalized', async (req, res) => {
       allQuestions.push(...contest)
     })
 
+    // Get user's quiz recommendation based on history
+    const quizRecommendation = await getQuizRecommendation(userId)
+
     // Fetch real profile from Supabase (if available)
     let userProfile
     
@@ -359,13 +364,14 @@ router.get('/quiz/personalized', async (req, res) => {
         .eq('user_id', userId)
         .single()
 
-      // Use Supabase data if available
+      // Use Supabase data if available, prioritize weak areas
       if (profileData) {
         userProfile = {
           userId,
           scores: profileData.cognitive_levels || {},
-          weakAreas: profileData.weak_areas || [],
-          strongAreas: profileData.strong_areas || []
+          weakAreas: quizRecommendation.weakTopics || profileData.weak_areas || [],
+          strongAreas: quizRecommendation.strongTopics || profileData.strong_areas || [],
+          recommendedLevel: quizRecommendation.recommendedLevel
         }
       } else {
         // First-time user - provide assessment quiz
@@ -383,7 +389,7 @@ router.get('/quiz/personalized', async (req, res) => {
         }
       }
     } else {
-      // Supabase not available - use default profile
+      // Supabase not available - use default profile with recommendation
       userProfile = {
         userId,
         scores: {
@@ -392,14 +398,15 @@ router.get('/quiz/personalized', async (req, res) => {
           level3: 50,
           level4: 50
         },
-        weakAreas: [],
-        strongAreas: [],
+        weakAreas: quizRecommendation.weakTopics || [],
+        strongAreas: quizRecommendation.strongTopics || [],
+        recommendedLevel: quizRecommendation.recommendedLevel,
         isFirstTime: true,
         message: 'Using default proficiency levels (Supabase not available)'
       }
     }
 
-    // Generate personalized quiz based on user's cognitive levels
+    // Generate personalized quiz based on user's cognitive levels AND weak areas
     const personalizedQuiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
       userProfile,
       allQuestions,
@@ -430,7 +437,8 @@ router.get('/quiz/personalized', async (req, res) => {
       quiz: quizForClient,
       questionCount: quizForClient.length,
       userId,
-      message: 'Personalized quiz generated based on your learning profile'
+      recommendation: quizRecommendation,
+      message: 'Bài kiểm tra được tạo theo khuyến nghị dựa trên kết quả trước'
     })
   } catch (error) {
     console.error('Error generating quiz:', error)
@@ -736,6 +744,79 @@ router.post('/analyze', async (req, res) => {
       ? LearningProfileManager.updateProfile(currentProfile, assessment)
       : LearningProfileManager.createProfile(userId, assessment)
 
+    // ============================================
+    // AI FEEDBACK GENERATION (Vietnamese)
+    // ============================================
+    
+    // Generate AI summary with OpenAI (fallback if fails)
+    const aiSummaryResult = await generateAISummary({
+      overallScore: assessment.overallScore,
+      correctAnswers: totalCorrect,
+      totalQuestions: questions.length,
+      topicFeedback
+    })
+
+    // Generate learning roadmap
+    const learningRoadmap = await generateLearningRoadmap(learningProfile, topicFeedback)
+
+    // ============================================
+    // SAVE COMPLETE RESULTS TO SUPABASE
+    // ============================================
+    
+    // Save quiz result for intelligent future quiz selection
+    await saveQuizResult(userId, {
+      quizId,
+      overallScore: assessment.overallScore,
+      correctAnswers: totalCorrect,
+      totalQuestions: questions.length,
+      cognitiveAnalysis: {
+        levels: [
+          {
+            name: 'Knowledge (Recognition)',
+            score: assessment.scores.level1,
+            status: assessment.proficiency.level1,
+            questionCount: assessment.levelData[1]?.total || 0,
+            correct: assessment.levelData[1]?.correct || 0
+          },
+          {
+            name: 'Comprehension (Understanding)',
+            score: assessment.scores.level2,
+            status: assessment.proficiency.level2,
+            questionCount: assessment.levelData[2]?.total || 0,
+            correct: assessment.levelData[2]?.correct || 0
+          },
+          {
+            name: 'Application (Low-level)',
+            score: assessment.scores.level3,
+            status: assessment.proficiency.level3,
+            questionCount: assessment.levelData[3]?.total || 0,
+            correct: assessment.levelData[3]?.correct || 0
+          },
+          {
+            name: 'Analysis (High-level)',
+            score: assessment.scores.level4,
+            status: assessment.proficiency.level4,
+            questionCount: assessment.levelData[4]?.total || 0,
+            correct: assessment.levelData[4]?.correct || 0
+          }
+        ]
+      },
+      topicFeedback,
+      timeSpent: req.body.timeSpent || 0,
+      answerDetails: questions.map((question, idx) => ({
+        questionId: question.id,
+        questionText: question.question || question.text,
+        topic: question.topic || 'Chung',
+        difficulty: question.difficulty || '1',
+        studentAnswer: answerArray[idx],
+        correctAnswer: question.answerIndex,
+        isCorrect: question.answerIndex === answerArray[idx]
+      }))
+    })
+
+    // Get next quiz recommendation
+    const nextQuizRecommendation = await getQuizRecommendation(userId)
+
     // Save to Supabase if available
     if (supabase && learningProfile) {
       try {
@@ -881,37 +962,46 @@ router.post('/analyze', async (req, res) => {
       strengths: Object.entries(topicFeedback || {})
         .filter(([_, data]) => data.performance === 'STRONG')
         .map(([topic]) => topic),
-      feedback: aiAnalysis.motivationalFeedback || 'Great job! Keep practicing to improve further.',
+      
+      // AI Coach Feedback (Vietnamese) - from OpenAI or fallback
+      aiCoachFeedback: aiSummaryResult.aiCoachFeedback,
+      aiSource: aiSummaryResult.source,
       
       // Detailed topic feedback
       topicFeedback: topicFeedback || {},
       
+      // Learning Roadmap (Vietnamese)
+      learningPath: learningRoadmap,
+      
       // Next steps - create from AI summary or defaults
-      nextSteps: aiAnalysis.summary?.start_here || `Focus on improving ${learningProfile.weakAreas?.[0] || 'overall performance'}.`,
+      nextSteps: aiAnalysis.summary?.start_here || `Tập trung vào: ${learningProfile.weakAreas?.[0] || 'cải thiện kỹ năng'}`,
       recommendations: learningProfile.recommendations || aiAnalysis.summary?.plan || [],
       
       // Topic-by-topic analysis
       topicAnalysis: aiAnalysis.topicAnalysis || [],
       
-      // Answer details for review
+      // Answer details for review (WITHOUT explanation - user requested removal)
       answerDetails: questions.map((question, idx) => ({
         questionId: question.id,
-        questionText: question.text,
-        topic: question.topic || 'General',
+        questionText: question.question || question.text,
+        topic: question.topic || 'Chung',
         difficulty: question.difficulty || '1',
         studentAnswer: answerArray[idx],
         correctAnswer: question.answerIndex,
         options: question.options,
-        isCorrect: question.answerIndex === answerArray[idx],
-        explanation: question.explanation || 'No explanation available'
+        isCorrect: question.answerIndex === answerArray[idx]
+        // explanation removed as requested
       })),
       
       // Additional AI insights
       aiSummary: aiAnalysis.summary,
       resourceLinks: aiAnalysis.resourceLinks || [],
       
+      // Next quiz recommendation (for intelligent quiz selection)
+      nextQuizRecommendation: nextQuizRecommendation || {},
+      
       // Success message
-      message: 'Quiz analyzed and profile updated successfully',
+      message: 'Bài kiểm tra đã được phân tích thành công',
       savedToDatabase: !!supabase
     })
   } catch (error) {
@@ -925,6 +1015,68 @@ router.post('/analyze', async (req, res) => {
       message: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
+  }
+})
+
+/**
+ * GET /api/adaptive/next-quiz-recommendation/:userId
+ * Get personalized next quiz recommendation based on history
+ */
+router.get('/next-quiz-recommendation/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+
+    const recommendation = await getQuizRecommendation(userId)
+
+    res.json({
+      userId,
+      ...recommendation,
+      suggestedQuizzes: [
+        {
+          type: 'personalized',
+          title: 'Bài kiểm tra cá nhân hóa',
+          description: recommendation.difficulty === 'ADVANCED_CHALLENGE' 
+            ? 'Bài kiểm tra khó giành cho những ai muốn thách thức bản thân'
+            : recommendation.difficulty === 'ADVANCED'
+            ? 'Bài kiểm tra nâng cao để cải thiện kỹ năng'
+            : recommendation.difficulty === 'INTERMEDIATE'
+            ? 'Bài kiểm tra trung bình để luyện tập'
+            : 'Bài kiểm tra cơ bản để nắm vững kiến thức nền tảng',
+          difficulty: recommendation.difficulty,
+          focus: recommendation.weakTopics.length > 0 
+            ? `Tập trung vào: ${recommendation.weakTopics.join(', ')}`
+            : 'Ôn tập toàn bộ nội dung',
+          estimatedTime: '15-20 phút',
+          questions: recommendation.recommendedLevel === 1 ? 15 : 20
+        },
+        {
+          type: 'targeted',
+          title: 'Bài kiểm tra theo chủ đề',
+          description: recommendation.weakTopics.length > 0
+            ? `Luyện tập chuyên sâu về: ${recommendation.weakTopics[0]}`
+            : 'Chọn một chủ đề để luyện tập',
+          difficulty: 'CUSTOM',
+          focusTopic: recommendation.weakTopics.length > 0 ? recommendation.weakTopics[0] : null,
+          focus: recommendation.weakTopics.length > 0 ? recommendation.weakTopics[0] : 'Bất kỳ',
+          estimatedTime: '10-15 phút',
+          questions: 10
+        },
+        {
+          type: 'reinforcement',
+          title: 'Bài kiểm tra củng cố',
+          description: recommendation.strongTopics.length > 0
+            ? `Duy trì và cải thiện: ${recommendation.strongTopics.join(', ')}`
+            : 'Ôn tập những điểm mạnh của bạn',
+          difficulty: 'ADVANCED',
+          focus: recommendation.strongTopics.length > 0 ? recommendation.strongTopics.join(', ') : 'Tất cả',
+          estimatedTime: '12-18 phút',
+          questions: 15
+        }
+      ]
+    })
+  } catch (error) {
+    console.error('Error getting quiz recommendation:', error)
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 

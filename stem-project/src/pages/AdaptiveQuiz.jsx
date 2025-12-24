@@ -1,24 +1,14 @@
-/**
- * Adaptive Quiz Component
- * Presents personalized quiz tailored to student's cognitive level proficiency
- * 
- * Features:
- * - Dynamically loaded questions based on proficiency
- * - Progress tracking
- * - Real-time feedback
- * - Adaptive question selection during quiz
- * - Performance analysis after completion
- */
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
 import '../styles/AdaptiveQuiz.css';
 
 export default function AdaptiveQuiz({ userId, onComplete }) {
   const { user: authUser } = useAuth();
   const finalUserId = userId || authUser?.id;
+  const location = useLocation();
   
   const [quiz, setQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -30,10 +20,32 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
-    if (finalUserId) {
+    // Check if quiz data was passed via navigation state
+    if (location.state?.quiz) {
+      console.log('[AdaptiveQuiz] Using quiz from location state');
+      const questionsWithIds = Array.isArray(location.state.quiz) 
+        ? location.state.quiz.map((q, idx) => ({
+            ...q,
+            id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`
+          }))
+        : location.state.quiz.questions?.map((q, idx) => ({
+            ...q,
+            id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`
+          })) || [];
+
+      setQuiz({
+        questions: questionsWithIds,
+        userId: finalUserId,
+        questionCount: questionsWithIds.length,
+        recommendation: location.state.recommendation,
+        quizType: location.state.quizType
+      });
+      setTimeStarted(Date.now());
+      setLoading(false);
+    } else if (finalUserId) {
       loadPersonalizedQuiz();
     }
-  }, [finalUserId]);
+  }, [finalUserId, location.state]);
 
   // Timer effect
   useEffect(() => {
@@ -49,7 +61,8 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const loadPersonalizedQuiz = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/adaptive/quiz/personalized?userId=${finalUserId}`);
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/api/adaptive/quiz/personalized?userId=${finalUserId}`);
       
       if (!response.ok) throw new Error('Failed to load quiz');
       
@@ -148,7 +161,8 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         lastAnswer: payload.answers[payload.answers.length - 1]
       });
 
-      const response = await fetch('/api/adaptive/analyze', {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/api/adaptive/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -654,65 +668,50 @@ function QuizResults({ results, timeSpent }) {
           </motion.section>
         )}
 
-        {/* Feedback */}
-        {results.feedback && (
+        {/* AI Coach Feedback */}
+        {results.aiCoachFeedback && (
           <motion.section
             className="ai-feedback"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.36 }}
           >
-            <h2>💬 Feedback from AI Coach</h2>
+            <h2>💬 Phản hồi từ AI Coach</h2>
             <div className="feedback-content">
-              <p>{results.feedback}</p>
+              <p>{results.aiCoachFeedback}</p>
+              <small style={{color: '#666', marginTop: '10px', display: 'block'}}>
+                {results.aiSource === 'openai' ? '(Được tạo bởi OpenAI)' : '(Được tạo tự động)'}
+              </small>
             </div>
           </motion.section>
         )}
 
         {/* Learning Roadmap */}
-        {(results.learningProfile?.learningPath || results.aiSummary?.plan) && (
+        {(results.learningPath || results.learningProfile?.learningPath) && (
           <motion.section
             className="learning-roadmap"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
           >
-            <h2>📚 Your Personalized Learning Roadmap</h2>
+            <h2>📚 Lộ trình học tập cá nhân hóa của bạn</h2>
             <div className="roadmap-content">
-              {results.aiSummary?.plan ? (
+              {results.learningPath ? (
                 <div className="roadmap-steps">
-                  {Array.isArray(results.aiSummary.plan) ? (
-                    results.aiSummary.plan.map((step, idx) => (
+                  {Array.isArray(results.learningPath) ? (
+                    results.learningPath.map((step, idx) => (
                       <div key={idx} className="roadmap-step">
-                        <div className="step-number">{idx + 1}</div>
+                        <div className="step-number">{step.week || idx + 1}</div>
                         <div className="step-content">
-                          {typeof step === 'string' ? (
-                            <p>{step}</p>
-                          ) : (
-                            <>
-                              <h4>{step.step || step.title || step.topic || 'Step ' + (idx + 1)}</h4>
-                              {step.duration && <p className="duration">⏱️ {step.duration}</p>}
-                              <p>{step.description || step.action || ''}</p>
-                              {(step.resource_suggestion || step.resources) && (
-                                <div className="step-resources">
-                                  {step.resource_suggestion ? (
-                                    <>
-                                      <small>
-                                        <strong>📎 {step.resource_suggestion.type}:</strong> {step.resource_suggestion.name}
-                                      </small>
-                                    </>
-                                  ) : (
-                                    <small>Resources: {step.resources}</small>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
+                          <h4>{step.focus || step.title || `Tuần ${idx + 1}`}</h4>
+                          {step.duration && <p className="duration">⏱️ {step.duration}</p>}
+                          <p><strong>Hành động:</strong> {step.action || step.description || ''}</p>
+                          <p><strong>Mục tiêu:</strong> {step.goal || ''}</p>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p>{typeof results.aiSummary.plan === 'string' ? results.aiSummary.plan : 'AI-generated learning plan available'}</p>
+                    <p>{typeof results.learningPath === 'string' ? results.learningPath : 'Lộ trình học tập được tạo tự động'}</p>
                   )}
                 </div>
               ) : results.learningProfile?.learningPath ? (
@@ -724,18 +723,12 @@ function QuizResults({ results, timeSpent }) {
                       <div key={idx} className="roadmap-step">
                         <div className="step-number">{idx + 1}</div>
                         <div className="step-content">
-                          {typeof step === 'string' ? (
-                            <p>{step}</p>
-                          ) : (
-                            <>
-                              <h4>{step.title || step.topic || 'Step ' + (idx + 1)}</h4>
-                              <p>{step.description || step.action || ''}</p>
-                              {step.resources && (
-                                <div className="step-resources">
-                                  <small>Resources: {step.resources}</small>
-                                </div>
-                              )}
-                            </>
+                          <h4>{step.title || step.topic || `Bước ${idx + 1}`}</h4>
+                          <p>{step.description || step.action || ''}</p>
+                          {step.resources && (
+                            <div className="step-resources">
+                              <small>Tài nguyên: {step.resources}</small>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -850,6 +843,56 @@ function QuizResults({ results, timeSpent }) {
                 >
                   <h4>{rec.title}</h4>
                   <p>{rec.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
+        {/* Question Review Section */}
+        {results.answerDetails && results.answerDetails.length > 0 && (
+          <motion.section
+            className="question-review"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <h2>Đánh giá chi tiết từng câu hỏi</h2>
+            <div className="question-review-list">
+              {results.answerDetails.map((detail, idx) => (
+                <motion.div
+                  key={idx}
+                  className={`question-review-item ${detail.isCorrect ? 'correct' : 'incorrect'}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + idx * 0.05 }}
+                >
+                  <div className="question-review-header">
+                    <div className="question-number-badge">
+                      {detail.isCorrect ? '✅' : '❌'} Câu {idx + 1}
+                    </div>
+                    <span className="topic-badge">{detail.topic}</span>
+                    <span className="difficulty-badge">Độ khó: {detail.difficulty}</span>
+                  </div>
+                  
+                  <div className="question-text">
+                    <p><strong>Nội dung:</strong> {detail.questionText}</p>
+                  </div>
+                  
+                  <div className="question-answers">
+                    <div className="answer-section">
+                      <p><strong>Câu trả lời của bạn:</strong> {detail.options && detail.options.length > 0 ? (detail.options[detail.studentAnswer] || 'Không trả lời') : 'Không trả lời'}</p>
+                      <p className={`answer-status ${detail.isCorrect ? 'correct' : 'incorrect'}`}>
+                        {detail.isCorrect ? ' Chính xác' : ' Chưa chính xác'}
+                      </p>
+                    </div>
+                    
+                    {!detail.isCorrect && (
+                      <div className="answer-section">
+                        <p><strong>Đáp án đúng:</strong> {detail.options && detail.options.length > 0 ? detail.options[detail.correctAnswer] : 'Không có'}</p>
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               ))}
             </div>

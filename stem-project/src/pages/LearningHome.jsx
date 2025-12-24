@@ -258,8 +258,8 @@ function LearningHome() {
             <div className="quick-actions-grid">
               <QuickActionButton
                 icon="📝"
-                label={language === 'vi' ? 'Làm Bài Kiểm Tra' : 'Take a Quiz'}
-                onClick={() => navigate('/quizzes')}
+                label={language === 'vi' ? 'Bài Kiểm Tra Thích Hợp' : 'Adaptive Quiz'}
+                onClick={() => navigate('/adaptive-quiz-select')}
               />
               <QuickActionButton
                 icon="📚"

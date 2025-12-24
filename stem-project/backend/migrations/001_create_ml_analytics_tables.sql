@@ -11,8 +11,7 @@ CREATE TABLE IF NOT EXISTS ml_student_profiles (
   confidence_score DECIMAL(5,2) DEFAULT 0,
   total_quizzes INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_user_id (user_id)
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 2. ML Performance Records (kết quả quiz chi tiết)
@@ -23,10 +22,7 @@ CREATE TABLE IF NOT EXISTS ml_performance_records (
   overall_score DECIMAL(5,2),
   category_performance JSONB DEFAULT '{}',
   difficulty_analysis JSONB DEFAULT '{}',
-  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_student_id (student_id),
-  INDEX idx_quiz_id (quiz_id),
-  INDEX idx_timestamp (timestamp)
+  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. ML Weaknesses (điểm yếu)
@@ -45,12 +41,7 @@ CREATE TABLE IF NOT EXISTS ml_weaknesses (
   description TEXT,
   
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  resolved_at TIMESTAMP,
-  
-  INDEX idx_student_id (student_id),
-  INDEX idx_weakness_type (weakness_type),
-  INDEX idx_severity (severity),
-  INDEX idx_concept (concept)
+  resolved_at TIMESTAMP
 );
 
 -- 4. ML Strengths (điểm mạnh)
@@ -65,11 +56,7 @@ CREATE TABLE IF NOT EXISTS ml_strengths (
   priority VARCHAR(20), -- LOW, MEDIUM, HIGH
   category VARCHAR(100),
   
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_student_id (student_id),
-  INDEX idx_priority (priority),
-  INDEX idx_category (category)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. ML Predictions (dự đoán)
@@ -83,10 +70,7 @@ CREATE TABLE IF NOT EXISTS ml_predictions (
   trend VARCHAR(20), -- improving, stable, declining
   intervention_needed BOOLEAN DEFAULT FALSE,
   
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_student_id (student_id),
-  INDEX idx_created_at (created_at)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. ML Learning Paths (lộ trình học tập)
@@ -102,11 +86,7 @@ CREATE TABLE IF NOT EXISTS ml_learning_paths (
   status VARCHAR(20) DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, ABANDONED
   
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  completed_at TIMESTAMP,
-  
-  INDEX idx_student_id (student_id),
-  INDEX idx_status (status),
-  INDEX idx_phase (phase)
+  completed_at TIMESTAMP
 );
 
 -- ========================================
