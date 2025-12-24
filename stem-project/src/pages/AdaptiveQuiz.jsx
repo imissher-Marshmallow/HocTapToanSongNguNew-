@@ -304,7 +304,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                 <motion.label
                   key={idx}
                   className={`option ${
-                    answers[currentQuestion] === option ? 'selected' : ''
+                    answers[currentQuestion] === idx ? 'selected' : ''
                   }`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -313,10 +313,10 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                   <input
                     type="radio"
                     name={`question-${currentQuestion}`}
-                    value={option}
-                    checked={answers[currentQuestion] === option}
+                    value={idx}
+                    checked={answers[currentQuestion] === idx}
                     onChange={(e) =>
-                      handleAnswerSelect(currentQuestion, e.target.value)
+                      handleAnswerSelect(currentQuestion, parseInt(e.target.value))
                     }
                   />
                   <span className="option-content">{option}</span>

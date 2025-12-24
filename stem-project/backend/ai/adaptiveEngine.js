@@ -222,31 +222,43 @@ class AdaptiveQuestionSelector {
    * Calculate how many questions from each cognitive level
    */
   static calculateDistribution(scores, total) {
-    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0 }
+    // Initialize with percentage-based allocation
+    let percentages = { 1: 0, 2: 0, 3: 0, 4: 0 }
 
     // Strategy: Focus on weak areas while maintaining some balance
     for (let level = 1; level <= 4; level++) {
       const score = scores[`level${level}`] || 0
       
       if (score < 40) {
-        // Not ready - minimal challenge
-        distribution[level] = Math.ceil(total * 0.35)
+        // Not ready - minimal challenge (35%)
+        percentages[level] = 0.35
       } else if (score < 60) {
-        // Needs work - focus here
-        distribution[level] = Math.ceil(total * 0.40)
+        // Needs work - focus here (40%)
+        percentages[level] = 0.40
       } else if (score < 80) {
-        // Developing - balanced
-        distribution[level] = Math.ceil(total * 0.25)
+        // Developing - balanced (15%)
+        percentages[level] = 0.15
       } else {
-        // Mastered - maintenance only
-        distribution[level] = Math.ceil(total * 0.15)
+        // Mastered - maintenance only (10%)
+        percentages[level] = 0.10
       }
     }
 
-    // Adjust for rounding errors
+    // Normalize percentages to sum to 1.0
+    const totalPercentage = Object.values(percentages).reduce((a, b) => a + b, 0)
+    for (let level = 1; level <= 4; level++) {
+      percentages[level] = percentages[level] / totalPercentage
+    }
+
+    // Calculate exact counts based on normalized percentages
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0 }
+    for (let level = 1; level <= 4; level++) {
+      distribution[level] = Math.round(total * percentages[level])
+    }
+
+    // Adjust for rounding errors to ensure exact total
     const totalAssigned = Object.values(distribution).reduce((a, b) => a + b, 0)
     if (totalAssigned !== total) {
-      // Add/remove from the most appropriate level
       distribution[1] += (total - totalAssigned)
     }
 

@@ -405,6 +405,14 @@ router.get('/quiz/personalized', async (req, res) => {
       allQuestions,
       20
     )
+    
+    console.log('[Quiz/Personalized] Generated personalized quiz:', {
+      requestedCount: 20,
+      actualCount: personalizedQuiz.length,
+      userProfileIsFirstTime: userProfile.isFirstTime,
+      allQuestionsTotal: allQuestions.length,
+      firstThreeIds: personalizedQuiz.slice(0, 3).map(q => q.id)
+    })
 
     // Remove answers from quiz before sending to client
     const quizForClient = personalizedQuiz.map(q => ({
