@@ -4,14 +4,19 @@ const { dbHelpers, db } = require('../database');
 const { analyzeQuiz } = require('../ai/analyzer');
 const MLAnalyticsService = require('../ai/MLAnalyticsService');
 const MLAnalyticsDB = require('../ai/MLAnalyticsDB');
-const { createClient } = require('@supabase/supabase-js');
 
 const router = express.Router();
 
-// Initialize Supabase client
-const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
-  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
-  : null;
+// Initialize Supabase client (optional - will be null if module not installed)
+let supabase = null;
+try {
+  const { createClient } = require('@supabase/supabase-js');
+  supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+    : null;
+} catch (err) {
+  console.warn('[Results] @supabase/supabase-js not available - Supabase save disabled:', err.message);
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
