@@ -444,7 +444,11 @@ router.post('/analyze', async (req, res) => {
       quizId,
       answersCount: answers?.length,
       hasPersonalizedData: !!personalizedQuizData,
-      timeSpent
+      personalizedDataIsArray: Array.isArray(personalizedQuizData),
+      personalizedDataLength: Array.isArray(personalizedQuizData) ? personalizedQuizData.length : 'N/A',
+      personalizedDataType: typeof personalizedQuizData,
+      timeSpent,
+      personalizedDataFirstItem: Array.isArray(personalizedQuizData) && personalizedQuizData.length > 0 ? { id: personalizedQuizData[0].id, topic: personalizedQuizData[0].topic } : 'N/A'
     })
 
     // Validate input
@@ -474,11 +478,18 @@ router.post('/analyze', async (req, res) => {
     }
 
     // Validate answer format
-    const invalidAnswers = answers.filter((a, idx) => !a.questionId || a.answer === null || a.answer === undefined)
-    if (invalidAnswers.length > 0) {
+    const invalidAnswers = answers.filter((a, idx) => !a.questionId || (a.answer === null && a.answer === undefined))
+    if (invalidAnswers.length > 0 && invalidAnswers.length === answers.length) {
       console.error('[Analyze] Invalid answer format:', invalidAnswers)
       return res.status(400).json({ error: `Invalid answer format. Each answer must have questionId and answer. Found ${invalidAnswers.length} invalid answers.` })
     }
+    
+    // Log the first few answers to debug
+    console.log('[Analyze] Sample answers received from frontend:', {
+      firstThree: answers.slice(0, 3),
+      totalAnswers: answers.length,
+      answersWithContent: answers.filter(a => a.answer !== null && a.answer !== undefined).length
+    })
 
     // Load questions - ALWAYS from file to ensure we have answerIndex
     // personalizedQuizData has answers stripped for security, so we rebuild from questionIds
@@ -490,6 +501,17 @@ router.post('/analyze', async (req, res) => {
       contestsIsArray: Array.isArray(questionData.contests),
       contestsIsObject: typeof questionData.contests === 'object' && !Array.isArray(questionData.contests),
       contestKeys: questionData.contests ? Object.keys(questionData.contests) : []
+    })
+
+    // DEBUG: Log the condition evaluation
+    const shouldRebuild = personalizedQuizData && Array.isArray(personalizedQuizData) && quizId === 'personalized'
+    console.log('[Analyze] CRITICAL CONDITION CHECK:', {
+      personalizedQuizDataBoolean: !!personalizedQuizData,
+      isArray: Array.isArray(personalizedQuizData),
+      quizIdValue: quizId,
+      quizIdMatch: quizId === 'personalized',
+      WILL_USE_REBUILD: shouldRebuild,
+      WILL_USE_FALLBACK: quizId === 'personalized' && !shouldRebuild
     })
 
     if (personalizedQuizData && Array.isArray(personalizedQuizData) && quizId === 'personalized') {
@@ -589,6 +611,16 @@ router.post('/analyze', async (req, res) => {
 
     // Analyze performance by topic
     const topicAnalysis = {}
+    
+    console.log('[Analyze] CRITICAL DEBUG - Before answer comparison:', {
+      questionsCount: questions.length,
+      answersCount: answerArray.length,
+      answerArraySample: answerArray.slice(0, 5),
+      firstQuestionId: questions.length > 0 ? questions[0].id : 'N/A',
+      firstQuestionAnswerIndex: questions.length > 0 ? questions[0].answerIndex : 'N/A',
+      firstQuestionTopic: questions.length > 0 ? questions[0].topic : 'N/A'
+    })
+    
     questions.forEach((question, idx) => {
       const topic = question.topic || 'General'
       if (!topicAnalysis[topic]) {
@@ -600,6 +632,20 @@ router.post('/analyze', async (req, res) => {
         }
       }
       topicAnalysis[topic].total += 1
+      
+      // Debug answer comparison
+      if (idx < 3) {
+        console.log(`[Analyze] Answer comparison debug for question ${idx}:`, {
+          questionId: question.id,
+          hasAnswerIndex: question.answerIndex !== undefined,
+          answerIndex: question.answerIndex,
+          answerArrayValue: answerArray[idx],
+          answerArrayType: typeof answerArray[idx],
+          isCorrect: question.answerIndex === answerArray[idx],
+          comparison: `${question.answerIndex} === ${answerArray[idx]}`
+        })
+      }
+      
       const isCorrect = question.answerIndex === answerArray[idx]
       if (isCorrect) {
         topicAnalysis[topic].correct += 1
