@@ -4,8 +4,14 @@ const { dbHelpers, db } = require('../database');
 const { analyzeQuiz } = require('../ai/analyzer');
 const MLAnalyticsService = require('../ai/MLAnalyticsService');
 const MLAnalyticsDB = require('../ai/MLAnalyticsDB');
+const { createClient } = require('@supabase/supabase-js');
 
 const router = express.Router();
+
+// Initialize Supabase client
+const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+  : null;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -279,6 +285,50 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
         learningPath: mlAnalysis.analysis.learningPath || {}
       } : {})
     };
+
+    // Save to Supabase for recommendations & profile updates (non-blocking)
+    if (supabase && finalUserId && finalUserId !== 'anonymous') {
+      (async () => {
+        try {
+          // Extract topic performance from aiResult if available
+          const topicPerf = {};
+          const cognitiveBreakdown = {};
+          
+          if (aiResult && aiResult.weakAreas && Array.isArray(aiResult.weakAreas)) {
+            aiResult.weakAreas.forEach(area => {
+              if (area.topic) {
+                topicPerf[area.topic] = { 
+                  score: area.score || 0,
+                  improvement_needed: area.recommendedLevel || 'intermediate'
+                };
+              }
+            });
+          }
+          
+          // Save quiz result to Supabase for unified data system
+          const { error } = await supabase.from('quiz_results').insert([{
+            user_id: finalUserId,
+            quiz_id: quizId || 'main-quiz',
+            overall_score: actualScore,
+            correct_answers: correct,
+            total_questions: totalQuestions,
+            time_spent_seconds: timeTaken || 0,
+            topic_performance: topicPerf,
+            cognitive_breakdown: cognitiveBreakdown,
+            answer_details: answers,
+            created_at: new Date().toISOString()
+          }]);
+          
+          if (error) {
+            console.warn('[Results] Supabase save (non-blocking):', error.message);
+          } else {
+            console.log('[Results] Saved to Supabase quiz_results for user', finalUserId);
+          }
+        } catch (err) {
+          console.warn('[Results] Supabase save exception (non-blocking):', err.message);
+        }
+      })();
+    }
 
     res.json(fullResult);
   } catch (error) {

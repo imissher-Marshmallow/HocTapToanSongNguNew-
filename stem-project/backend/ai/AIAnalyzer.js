@@ -236,5 +236,5 @@ class AIAnalyzer {
   }
 }
 
-// Export singleton instance
-module.exports = new AIAnalyzer();
+// Export the class (not an instance) so it can be instantiated where needed
+module.exports = AIAnalyzer;
