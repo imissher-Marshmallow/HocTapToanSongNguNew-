@@ -41,6 +41,15 @@ try {
   console.log('[DB] Supabase initialization note:', err.message);
 }
 
+// Log diagnostic info for environment
+console.log('[DB] Environment Diagnostic:');
+console.log('[DB] - SUPABASE_URL:', process.env.SUPABASE_URL ? '✅ Present' : '❌ Missing');
+console.log('[DB] - SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✅ Present' : '❌ Missing');
+console.log('[DB] - DATABASE_URL:', process.env.DATABASE_URL ? '✅ Present' : '❌ Missing');
+console.log('[DB] - POSTGRES_URL:', process.env.POSTGRES_URL ? '✅ Present' : '❌ Missing');
+console.log('[DB] - NODE_ENV:', process.env.NODE_ENV);
+console.log('[DB] - Supabase client available:', supabase ? 'Yes' : 'No');
+
 // Determine which database to use
 let USE_POSTGRES = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
 

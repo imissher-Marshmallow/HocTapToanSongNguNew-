@@ -36,6 +36,22 @@ function generateTopicFeedback(topicAnalysis, cognitiveScores) {
   topicAnalysis.forEach(topic => {
     const { topic: topicName, percentage, correct, total, performance } = topic
     
+    // Generate emoji feedback (AI-style with emoji)
+    let emojiFeedback = '';
+    if (percentage >= 90) {
+      emojiFeedback = `🌟 Xuất sắc ở ${topicName}! Đúng ${correct}/${total} câu. Tiếp tục phát huy!`;
+    } else if (percentage >= 80) {
+      emojiFeedback = `✅ Rất tốt ở ${topicName}! Đúng ${correct}/${total} câu. Thêm một chút luyện tập nữa!`;
+    } else if (percentage >= 70) {
+      emojiFeedback = `👍 Khá tốt ${topicName} (${correct}/${total}). Luyện tập thêm để hoàn thiện.`;
+    } else if (percentage >= 60) {
+      emojiFeedback = `📚 ${topicName}: Hiểu được ${correct}/${total}. Ôn tập thêm để vững kiến thức.`;
+    } else if (percentage >= 40) {
+      emojiFeedback = `⚠️ ${topicName}: Đúng ${correct}/${total}. Ôn tập lại từ cơ bản, làm thêm bài tập.`;
+    } else {
+      emojiFeedback = `❌ ${topicName}: Chỉ đúng ${correct}/${total}. Bắt đầu ôn từ những bài cơ bản.`;
+    }
+    
     // Generate strengths
     let strengths = []
     if (percentage >= 80) {
@@ -89,6 +105,7 @@ function generateTopicFeedback(topicAnalysis, cognitiveScores) {
       performance,
       correct,
       total,
+      feedback: emojiFeedback, // AI-style feedback with emoji
       strengths: strengths.length > 0 ? strengths : ["Good effort on this topic"],
       weaknesses: weaknesses.length > 0 ? weaknesses : ["No major weaknesses identified"],
       improvements,
@@ -114,6 +131,29 @@ function validateAnswers(answers) {
   if (answers.length === 0 || answers.length > 100) return false
   return answers.every(a => Number.isInteger(a) && a >= 0 && a <= 3)
 }
+
+/**
+ * GET /api/adaptive/diagnostics
+ * Check system health and Supabase connection
+ */
+router.get('/diagnostics', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    supabase: {
+      available: supabase ? true : false,
+      url: process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing',
+      key: process.env.SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'
+    },
+    database: {
+      postgres_url: process.env.DATABASE_URL || process.env.POSTGRES_URL ? '✅ Set' : '❌ Missing'
+    },
+    openai: {
+      api_key: process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing'
+    },
+    message: supabase ? 'System is ready for adaptive learning' : 'Supabase not configured - check environment variables'
+  })
+})
 
 /**
  * GET /api/adaptive/profile/:userId
