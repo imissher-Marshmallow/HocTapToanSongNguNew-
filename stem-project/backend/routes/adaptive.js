@@ -327,14 +327,41 @@ router.get('/dashboard/:userId', async (req, res) => {
           .single()
 
         if (data) {
+          // Parse weak_areas array properly - ensure they include topic names
+          const weakAreasArray = data.weak_areas || [];
+          const parsedWeakAreas = weakAreasArray.map((area, idx) => {
+            // If it's already an object (from recent saves), use it
+            if (typeof area === 'object' && area.topic) {
+              return area;
+            }
+            // Otherwise, parse from string representation
+            const topicMatch = area.toString().match(/([^:]+):\s*([\d.]+)%/);
+            if (topicMatch) {
+              return {
+                topic: topicMatch[1].trim(),
+                percentage: parseFloat(topicMatch[2]),
+                score: parseFloat(topicMatch[2]),
+                priority: idx + 1,
+                recommendation: `Hãy tập trung vào chủ đề này để cải thiện`
+              };
+            }
+            return {
+              topic: area,
+              percentage: 0,
+              score: 0,
+              priority: idx + 1,
+              recommendation: `Hãy tập trung vào ${area}`
+            };
+          });
+
           profile = {
             userId,
             scores: data.cognitive_levels || getDefaultProfile().scores,
             proficiency: data.proficiency_status || getDefaultProfile().proficiency,
-            weakAreas: data.weak_areas || [],
+            weakAreas: parsedWeakAreas, // Enhanced weak areas with topic names
             strongAreas: data.strong_areas || [],
             recommendations: data.recommendations || getDefaultProfile().recommendations,
-            learningPath: data.learning_path,
+            learningPath: data.learning_path, // AI-generated roadmap from Supabase
             quizzesTaken: data.quizzes_taken || 0,
             lastUpdated: data.last_updated,
             createdAt: data.created_at

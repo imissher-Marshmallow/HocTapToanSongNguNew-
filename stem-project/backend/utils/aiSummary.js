@@ -117,28 +117,41 @@ const generateDetailedTopicFeedback = async (topic, topicData) => {
   const apiKey = process.env.OPENAI_API_KEY;
   
   if (!apiKey) {
+    console.log('[DetailedTopicFeedback] No API key, using fallback');
     return generateFallbackTopicFeedback(topic, topicData);
   }
 
   try {
-    const prompt = `Hãy tóm tắt kinh nghiệm học tập về "${topic}":
-- Độ chính xác: ${topicData.percentage}%
-- Câu trả lời đúng: ${topicData.correct}/${topicData.total}
-Viết 1 câu khuyến nghị, tối đa 30 từ, tiếng Việt.`;
+    const percentage = topicData.percentage || 0;
+    const prompt = `Bạn là giáo viên toán. Học sinh có điểm ${percentage}% về chủ đề "${topic}" (${topicData.correct}/${topicData.total} đúng).
 
+Hãy cung cấp:
+1. Lý do tại sao điểm số thấp (1-2 khái niệm chính)
+2. Ví dụ cụ thể về bài toán cơ bản (với công thức)
+3. Lộ trình ôn tập 3 ngày (ngày 1: gì, ngày 2: gì, ngày 3: kiểm tra)
+
+Viết bằng tiếng Việt, súc tích, dễ hiểu.`;
+
+    console.log('[DetailedTopicFeedback] Calling OpenAI for topic:', topic);
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-      max_tokens: 60
+      temperature: 0.7,
+      max_tokens: 300
     }, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
-      timeout: 3000
+      timeout: 10000
     });
 
-    return response.data.choices[0].message.content.trim();
+    const feedback = response.data.choices[0]?.message?.content?.trim();
+    if (!feedback) {
+      throw new Error('Empty response from OpenAI');
+    }
+    
+    console.log('[DetailedTopicFeedback] ✅ Generated AI feedback for:', topic);
+    return feedback;
   } catch (error) {
-    console.error('[DetailedTopicFeedback] Error:', error.message);
+    console.error('[DetailedTopicFeedback] ❌ Error:', error.message);
     return generateFallbackTopicFeedback(topic, topicData);
   }
 };
@@ -173,51 +186,124 @@ const generateFallbackTopicFeedback = (topic, topicData) => {
 /**
  * Generate learning roadmap with AI (Vietnamese)
  */
-const generateLearningRoadmap = async (profile, topicFeedback) => {
-  const apiKey = process.env.OPENAI_API_KEY;
-
+const generateDefaultRoadmap = (topicFeedback) => {
   const weakTopics = Object.entries(topicFeedback || {})
     .filter(([_, data]) => data.percentage < 70)
     .map(([t]) => t)
     .slice(0, 2)
     .join(', ');
 
-  const defaultRoadmap = [
+  return [
     {
       week: 1,
       focus: `Ôn tập: ${weakTopics}`,
-      duration: '1 tuần',
-      action: 'Học lý thuyết, làm bài tập cơ bản',
+      duration: '30 phút/ngày',
+      action: 'Học lý thuyết, làm 5 bài cơ bản',
       goal: 'Nắm vững kiến thức cơ bản'
     },
     {
       week: 2,
       focus: 'Luyện tập nâng cao',
-      duration: '1 tuần',
-      action: 'Làm bài tập khó hơn, kiểm tra lại',
+      duration: '45 phút/ngày',
+      action: 'Làm bài tập khó, giải thích từng bước',
       goal: 'Đạt 70% trở lên'
     },
     {
       week: 3,
       focus: 'Ôn tập toàn bộ',
-      duration: '1 tuần',
-      action: 'Làm bài kiểm tra lại',
-      goal: 'Cải thiện thêm 10%'
+      duration: '60 phút/ngày',
+      action: 'Làm bài kiểm tra mẫu',
+      goal: 'Cải thiện 10-15%'
+    },
+    {
+      week: 4,
+      focus: 'Kiểm tra thành quả',
+      duration: '45 phút/ngày',
+      action: 'Làm đề thi toàn bộ',
+      goal: 'Đạt 80% trở lên'
     }
   ];
+};
 
+const generateLearningRoadmap = async (profile, topicFeedback) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
   if (!apiKey) {
-    console.log('[LearningRoadmap] Using default roadmap (no API key)');
-    return defaultRoadmap;
+    console.log('[LearningRoadmap] No API key, using default roadmap');
+    return generateDefaultRoadmap(topicFeedback);
   }
 
   try {
-    // Keep default roadmap - it's already optimized
-    // AI can enhance but default is good enough
-    return defaultRoadmap;
+    // Find weak topics (score < 50%)
+    const weakTopics = Object.entries(topicFeedback || {})
+      .filter(([_, data]) => (data.percentage || 0) < 50)
+      .map(([t, data]) => `${t} (${data.percentage}%)`)
+      .join(', ') || 'Toán cơ bản';
+
+    const overallScore = profile.overallScore || 0;
+
+    const prompt = `Bạn là giáo viên toán lập kế hoạch học tập. Học sinh:
+- Điểm chung: ${overallScore}%
+- Chủ đề yếu (< 50%): ${weakTopics}
+
+Tạo lộ trình ôn tập 4 tuần cụ thể (JSON array):
+[
+  {
+    "week": 1,
+    "focus": "Chủ đề ôn",
+    "duration": "30 phút/ngày",
+    "action": "Làm gì cụ thể",
+    "goal": "Kết quả cuối tuần"
+  },
+  ...tuần 2, 3, 4
+]
+
+Trả về CHỈ JSON array, không code block, có action cụ thể.`;
+
+    console.log('[LearningRoadmap] Calling OpenAI for personalized roadmap');
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.8,
+      max_tokens: 600
+    }, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      timeout: 15000
+    });
+
+    let content = response.data.choices[0]?.message?.content?.trim();
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    // Extract JSON - handle markdown code blocks
+    let jsonString = content;
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      jsonString = jsonMatch[0];
+    }
+
+    const roadmap = JSON.parse(jsonString);
+
+    if (!Array.isArray(roadmap) || roadmap.length === 0) {
+      throw new Error('Invalid roadmap structure from AI');
+    }
+
+    // Validate roadmap structure
+    const validRoadmap = roadmap.slice(0, 4).map((week, idx) => ({
+      week: week.week || idx + 1,
+      focus: week.focus || `Tuần ${idx + 1}`,
+      duration: week.duration || '30 phút/ngày',
+      action: week.action || 'Ôn tập và luyện tập',
+      goal: week.goal || 'Cải thiện kỹ năng'
+    }));
+
+    console.log('[LearningRoadmap] ✅ Generated AI roadmap with', validRoadmap.length, 'weeks');
+    return validRoadmap;
   } catch (error) {
-    console.error('[LearningRoadmap] Error:', error.message);
-    return defaultRoadmap;
+    console.error('[LearningRoadmap] ❌ Error:', error.message);
+    console.log('[LearningRoadmap] Using default roadmap as fallback');
+    return generateDefaultRoadmap(topicFeedback);
   }
 };
 

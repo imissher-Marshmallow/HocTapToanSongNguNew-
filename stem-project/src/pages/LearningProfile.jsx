@@ -1,13 +1,13 @@
 /**
  * Learning Profile Dashboard Component
- * Displays cognitive level performance and personalized insights
+ * Displays cognitive level performance and personalized insights (VIETNAMESE)
  * 
  * Shows:
  * - Cognitive level scores (4 levels: Knowledge, Comprehension, Application, Analysis)
  * - Proficiency status (Mastered, Developing, Needs Work, Not Ready)
- * - Weak and strong areas
+ * - Weak and strong areas with topic names
  * - Personalized recommendations
- * - Learning path visualization
+ * - AI-generated learning path visualization
  * - Progress trends
  */
 
@@ -15,10 +15,82 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, AlertCircle, Trophy, Target, Book } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import '../styles/LearningProfile.css';
+
+// Vietnamese translations for all labels and messages
+const translations = {
+  vi: {
+    // Headers and main titles
+    yourLearningProfile: 'Hồ Sơ Học Tập Của Bạn',
+    personalized: 'Hành trình học tập thích ứng của bạn',
+    
+    // Cognitive Levels
+    cognitiveTitle: 'Mức Độ Nhận Thức',
+    level1: 'Cấp 1: Nhận Biết',
+    level2: 'Cấp 2: Hiểu Biết',
+    level3: 'Cấp 3: Ứng Dụng (Mức Thấp)',
+    level4: 'Cấp 4: Phân Tích (Mức Cao)',
+    
+    // Status labels
+    mastered: '✓ Đã Thành Thạo',
+    developing: '⚠️ Đang Phát Triển',
+    needsWork: '❌ Cần Cải Thiện',
+    notReady: '⏸ Chưa Sẵn Sàng',
+    
+    // Weak Areas section
+    areasToImprove: 'Các Chủ Đề Cần Cải Thiện',
+    priority: 'Ưu Tiên',
+    currentScore: 'Điểm Hiện Tại',
+    weakTopics: 'Chủ Đề Yếu',
+    takeFocusedQuiz: 'Bắt Đầu Bài Kiểm Tra',
+    
+    // Strong Areas section
+    yourStrengths: 'Các Điểm Mạnh',
+    excellent: 'Tuyệt vời! Bạn đã thành thạo mức này.',
+    tryHarderChallenges: 'Thử Thách Khó Hơn',
+    
+    // Recommendations section
+    yourLearningRoadmap: 'Lộ Trình Học Tập Của Bạn',
+    nextStep: 'Bước Tiếp Theo',
+    expectedBenefit: 'Lợi Ích Dự Kiến',
+    learnMore: 'Tìm Hiểu Thêm',
+    
+    // 4-Week Learning Path
+    fourWeekPath: 'Lộ Trình 4 Tuần',
+    roadmapToMastery: 'Lộ trình cá nhân hóa để thành thạo',
+    week: 'Tuần',
+    goal: 'Mục Tiêu',
+    quizzes: 'Bài Kiểm Tra',
+    topics: 'Chủ Đề',
+    startHere: '🎯 BẮT ĐẦU ĐÂY',
+    
+    // Stats
+    quizzesTaken: 'Bài Kiểm Tra Đã Tham Gia',
+    averageScore: 'Điểm Trung Bình',
+    levelsMastered: 'Cấp Độ Đã Thành Thạo',
+    onTrack: 'Đang Tiến Hành',
+    yourJourney: 'Hành Trình Học Tập',
+    startQuiz: 'Bắt Đầu Bài Kiểm Tra',
+    viewProgress: 'Xem Chi Tiết Tiến Độ',
+    
+    // Loading and errors
+    loading: 'Đang tải hồ sơ học tập...',
+    errorLoadingProfile: 'Không thể tải hồ sơ',
+    noQuizzesTaken: 'Hãy hoàn thành bài kiểm tra đầu tiên để xem đề xuất cá nhân hóa',
+    
+    // Duration labels
+    duration: 'Thời Gian',
+    action: 'Hành Động',
+    day: 'ngày',
+    week: 'tuần'
+  }
+};
 
 export default function LearningProfile({ userId }) {
   const { user: authUser } = useAuth();
+  const { language } = useLanguage();
+  const t = translations[language] || translations.vi;
   const finalUserId = userId || authUser?.id;
   
   const [profile, setProfile] = useState(null);
@@ -73,7 +145,7 @@ export default function LearningProfile({ userId }) {
     return (
       <div className="learning-profile loading">
         <div className="spinner"></div>
-        <p>Loading your learning profile...</p>
+        <p>{t.loading}</p>
       </div>
     );
   }
@@ -82,7 +154,7 @@ export default function LearningProfile({ userId }) {
     return (
       <div className="learning-profile error">
         <AlertCircle size={48} />
-        <p>{error || 'Failed to load profile'}</p>
+        <p>{error || t.errorLoadingProfile}</p>
       </div>
     );
   }
@@ -90,43 +162,43 @@ export default function LearningProfile({ userId }) {
   return (
     <div className="learning-profile">
       <header className="profile-header">
-        <h1>Your Learning Profile</h1>
-        <p>Your personalized adaptive learning journey</p>
+        <h1>{t.yourLearningProfile}</h1>
+        <p>{t.personalized}</p>
       </header>
 
       {/* ==========================================
           COGNITIVE LEVELS OVERVIEW
           ========================================== */}
       <section className="cognitive-levels-section">
-        <h2>Cognitive Level Performance</h2>
+        <h2>{t.cognitiveTitle}</h2>
         <div className="cognitive-grid">
           {renderCognitiveLevel(
-            'Level 1',
-            'Knowledge (Recognition)',
+            t.level1,
             profile.scores.level1,
             profile.proficiency.level1,
-            '📚'
+            '📚',
+            t
           )}
           {renderCognitiveLevel(
-            'Level 2',
-            'Comprehension (Understanding)',
+            t.level2,
             profile.scores.level2,
             profile.proficiency.level2,
-            '💡'
+            '💡',
+            t
           )}
           {renderCognitiveLevel(
-            'Level 3',
-            'Application (Low-level)',
+            t.level3,
             profile.scores.level3,
             profile.proficiency.level3,
-            '🔧'
+            '🔧',
+            t
           )}
           {renderCognitiveLevel(
-            'Level 4',
-            'Analysis (High-level)',
+            t.level4,
             profile.scores.level4,
             profile.proficiency.level4,
-            '🧠'
+            '🧠',
+            t
           )}
         </div>
       </section>
@@ -138,7 +210,7 @@ export default function LearningProfile({ userId }) {
         <section className="weak-areas-section">
           <h2>
             <AlertCircle size={20} />
-            Areas to Improve
+            {t.areasToImprove}
           </h2>
           <div className="weak-areas-list">
             {profile.weakAreas.map((area, index) => (
@@ -150,30 +222,24 @@ export default function LearningProfile({ userId }) {
                 transition={{ delay: index * 0.1 }}
               >
                 <div className="weak-area-header">
-                  <h3>{area.levelName}</h3>
-                  <span className="priority-badge">Priority {area.priority}</span>
+                  <h3>{area.topic || area.levelName || `Chủ Đề ${index + 1}`}</h3>
+                  <span className="priority-badge">{t.priority} {area.priority || index + 1}</span>
                 </div>
                 
                 <div className="weak-area-score">
-                  <p className="current-score">{area.score}%</p>
+                  <p className="current-score">{area.score || area.percentage || 0}%</p>
                   <div className="score-bar">
                     <div 
                       className="score-fill"
-                      style={{ width: `${area.score}%` }}
+                      style={{ width: `${area.score || area.percentage || 0}%` }}
                     ></div>
                   </div>
                 </div>
 
-                <p className="recommendation">{area.recommendation}</p>
-
-                {area.topWeakTopic && (
-                  <p className="weak-topic">
-                    <strong>Weak Topic:</strong> {area.topWeakTopic}
-                  </p>
-                )}
+                <p className="recommendation">{area.recommendation || `Hãy tập trung vào chủ đề này`}</p>
 
                 <button className="action-button">
-                  Take Focused Quiz
+                  {t.takeFocusedQuiz}
                 </button>
               </motion.div>
             ))}
@@ -188,7 +254,7 @@ export default function LearningProfile({ userId }) {
         <section className="strong-areas-section">
           <h2>
             <Trophy size={20} />
-            Your Strengths
+            {t.yourStrengths}
           </h2>
           <div className="strong-areas-list">
             {profile.strongAreas.map((area, index) => (
@@ -199,14 +265,14 @@ export default function LearningProfile({ userId }) {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <div className="mastery-badge">✓ MASTERED</div>
+                <div className="mastery-badge">✓ ĐÃ THÀNH THẠO</div>
                 <h3>{area.levelName}</h3>
                 <p className="strong-score">{area.score}%</p>
                 <p className="strong-message">
-                  Excellent work! You've mastered this level.
+                  {t.excellent}
                 </p>
                 <button className="challenge-button">
-                  Try Harder Challenges
+                  {t.tryHarderChallenges}
                 </button>
               </motion.div>
             ))}
@@ -221,7 +287,7 @@ export default function LearningProfile({ userId }) {
         <section className="recommendations-section">
           <h2>
             <Target size={20} />
-            Your Learning Roadmap
+            {t.yourLearningRoadmap}
           </h2>
           <div className="recommendations-list">
             {profile.recommendations.map((rec, index) => (
@@ -240,15 +306,15 @@ export default function LearningProfile({ userId }) {
                   <h3>{rec.title}</h3>
                   <p className="rec-description">{rec.description}</p>
                   <p className="rec-action">
-                    <strong>Next Step:</strong> {rec.action}
+                    <strong>{t.nextStep}:</strong> {rec.action}
                   </p>
                   <p className="rec-benefit">
-                    <strong>Expected Benefit:</strong> {rec.expectedBenefit}
+                    <strong>{t.expectedBenefit}:</strong> {rec.expectedBenefit}
                   </p>
                 </div>
 
                 <button className="rec-button">
-                  Learn More →
+                  {t.learnMore} →
                 </button>
               </motion.div>
             ))}
@@ -257,44 +323,48 @@ export default function LearningProfile({ userId }) {
       )}
 
       {/* ==========================================
-          4-WEEK LEARNING PATH
+          4-WEEK LEARNING PATH (AI-GENERATED)
           ========================================== */}
       {profile.learningPath && (
         <section className="learning-path-section">
           <h2>
             <Book size={20} />
-            4-Week Learning Path
+            {t.fourWeekPath}
           </h2>
           <p className="path-description">
-            Your personalized roadmap to mastery
+            {t.roadmapToMastery}
           </p>
           
           <div className="learning-path">
-            {profile.learningPath.weeks.map((week, index) => (
-              <motion.div
-                key={index}
-                className="week-card"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.15 }}
-              >
-                <div className="week-number">Week {week.week}</div>
-                
-                <h4>{week.focus}</h4>
-                
-                <div className="week-details">
-                  <p><strong>Goal:</strong> {week.goal}</p>
-                  <p><strong>Quizzes:</strong> {week.quizzes}</p>
-                  <p><strong>Topics:</strong> {week.topics.join(', ')}</p>
-                </div>
-
-                {index === 0 && (
-                  <div className="week-current">
-                    <span>🎯 START HERE</span>
+            {Array.isArray(profile.learningPath) ? (
+              profile.learningPath.map((week, index) => (
+                <motion.div
+                  key={index}
+                  className="week-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.15 }}
+                >
+                  <div className="week-number">Tuần {week.week || index + 1}</div>
+                  
+                  <h4>{week.focus || `Tuần ${index + 1}`}</h4>
+                  
+                  <div className="week-details">
+                    <p><strong>{t.goal}:</strong> {week.goal || 'Hoàn thành các bài tập'}</p>
+                    <p><strong>{t.duration}:</strong> {week.duration || '30 phút/ngày'}</p>
+                    <p><strong>{t.action}:</strong> {week.action || 'Luyện tập và ôn tập'}</p>
                   </div>
-                )}
-              </motion.div>
-            ))}
+
+                  {index === 0 && (
+                    <div className="week-current">
+                      <span>{t.startHere}</span>
+                    </div>
+                  )}
+                </motion.div>
+              ))
+            ) : (
+              <div className="empty-state">{t.noQuizzesTaken}</div>
+            )}
           </div>
         </section>
       )}
@@ -303,11 +373,11 @@ export default function LearningProfile({ userId }) {
           STATISTICS
           ========================================== */}
       <section className="statistics-section">
-        <h2>Your Journey</h2>
+        <h2>{t.yourJourney || 'Hành Trình Học Tập'}</h2>
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-value">{profile.quizzesTaken}</div>
-            <div className="stat-label">Quizzes Taken</div>
+            <div className="stat-label">{t.quizzesTaken}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">
@@ -318,19 +388,19 @@ export default function LearningProfile({ userId }) {
                  profile.scores.level4) / 4
               )}%
             </div>
-            <div className="stat-label">Average Score</div>
+            <div className="stat-label">{t.averageScore}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">
               {Object.values(profile.proficiency).filter(p => p === 'MASTERED').length}
             </div>
-            <div className="stat-label">Levels Mastered</div>
+            <div className="stat-label">{t.levelsMastered}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">
               <TrendingUp size={20} />
             </div>
-            <div className="stat-label">On Track</div>
+            <div className="stat-label">{t.onTrack}</div>
           </div>
         </div>
       </section>
@@ -340,10 +410,10 @@ export default function LearningProfile({ userId }) {
           ========================================== */}
       <section className="action-section">
         <button className="btn-primary">
-          Start Personalized Quiz
+          {t.startQuiz || 'Bắt Đầu Bài Kiểm Tra'}
         </button>
         <button className="btn-secondary">
-          View Detailed Progress
+          {t.viewProgress || 'Xem Chi Tiết Tiến Độ'}
         </button>
       </section>
     </div>
@@ -351,9 +421,9 @@ export default function LearningProfile({ userId }) {
 }
 
 /**
- * Helper component to render cognitive level card
+ * Helper component to render cognitive level card (Vietnamese)
  */
-function renderCognitiveLevel(level, name, score, status, icon) {
+function renderCognitiveLevel(name, score, status, icon, t) {
   const getStatusColor = (status) => {
     switch (status) {
       case 'MASTERED':
@@ -369,24 +439,23 @@ function renderCognitiveLevel(level, name, score, status, icon) {
     }
   };
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = (status, t) => {
     switch (status) {
       case 'MASTERED':
-        return '✓ Mastered';
+        return t.mastered || '✓ Đã Thành Thạo';
       case 'DEVELOPING':
-        return '⚠ Developing';
+        return t.developing || '⚠️ Đang Phát Triển';
       case 'NEEDS_WORK':
-        return '❌ Needs Work';
+        return t.needsWork || '❌ Cần Cải Thiện';
       case 'NOT_READY':
-        return '⏸ Not Ready';
+        return t.notReady || '⏸ Chưa Sẵn Sàng';
       default:
-        return 'Unknown';
+        return 'Không xác định';
     }
   };
 
   return (
     <motion.div
-      key={level}
       className="cognitive-level-card"
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -396,8 +465,7 @@ function renderCognitiveLevel(level, name, score, status, icon) {
     >
       <div className="level-icon">{icon}</div>
       
-      <h3>{level}</h3>
-      <p className="level-name">{name}</p>
+      <h3>{name}</h3>
       
       <div className="level-score">
         <span className="score-number">{score}%</span>
@@ -414,7 +482,7 @@ function renderCognitiveLevel(level, name, score, status, icon) {
       </div>
 
       <p className="status-label" style={{ color: getStatusColor(status) }}>
-        {getStatusLabel(status)}
+        {getStatusLabel(status, t)}
       </p>
     </motion.div>
   );
