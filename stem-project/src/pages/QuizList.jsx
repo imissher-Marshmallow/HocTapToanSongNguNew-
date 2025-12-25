@@ -11,7 +11,7 @@ export default function QuizList() {
   const t = quizListTranslations[language];
   const [selectedQuiz, setSelectedQuiz] = useState(null);
 
-  // Show only 1 quiz with 20 questions - uses 'random' to select a random contest each time
+  // Show 2 quiz options: Standard and Adaptive
   const quizzes = [
     {
       id: 'random',
@@ -22,7 +22,21 @@ export default function QuizList() {
       totalAttempts: 0,
       difficulty: language === 'vi' ? 'Trung bình' : 'Medium',
       questionsCount: 20,
-      passRate: 0
+      passRate: 0,
+      type: 'standard'
+    },
+    {
+      id: 'adaptive',
+      title: language === 'vi' ? 'Bài Kiểm Tra Thích Hợp' : 'Adaptive Quiz',
+      description: language === 'vi' ? 'Bài kiểm tra thích ứng - câu hỏi tự động điều chỉnh theo khả năng của bạn' : 'Adaptive quiz - questions adjust to your level',
+      time: '20-40 phút / 20-40 min',
+      attempts: 0,
+      totalAttempts: 0,
+      difficulty: language === 'vi' ? 'Tự động' : 'Adaptive',
+      questionsCount: '~20',
+      passRate: 0,
+      type: 'adaptive',
+      badge: language === 'vi' ? 'AI' : 'AI'
     }
   ];
 
@@ -64,7 +78,10 @@ export default function QuizList() {
           >
             {/* Card Header with Gradient */}
             <div className="quiz-card-header">
-              <div className="quiz-badge">{quiz.title}</div>
+              <div className="quiz-badge">
+                {quiz.badge && <span className="ai-badge">{quiz.badge}</span>}
+                {quiz.title}
+              </div>
               <div className="quiz-difficulty" style={{ backgroundColor: getDifficultyColor(quiz.difficulty) }}>
                 {quiz.difficulty}
               </div>
@@ -138,7 +155,11 @@ export default function QuizList() {
                 className="btn-details-card"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/quiz/${quiz.id}`);
+                  if (quiz.type === 'adaptive') {
+                    navigate('/adaptive-quiz-select');
+                  } else {
+                    navigate(`/quiz/${quiz.id}`);
+                  }
                 }}
               >
                 {t.details}
@@ -147,7 +168,13 @@ export default function QuizList() {
                 className={`btn-start-card ${quiz.disabledStart ? 'disabled' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  !quiz.disabledStart && navigate(`/quiz/${quiz.id}`);
+                  if (!quiz.disabledStart) {
+                    if (quiz.type === 'adaptive') {
+                      navigate('/adaptive-quiz-select');
+                    } else {
+                      navigate(`/quiz/${quiz.id}`);
+                    }
+                  }
                 }}
                 disabled={quiz.disabledStart}
               >
