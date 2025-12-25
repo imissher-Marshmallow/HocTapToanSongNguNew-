@@ -130,12 +130,30 @@ Viết 1 câu khuyến nghị, tối đa 30 từ, tiếng Việt.`;
 };
 
 /**
- * Fallback for detailed topic feedback
+ * Fallback for detailed topic feedback with emojis
  */
 const generateFallbackTopicFeedback = (topic, topicData) => {
-  if (topicData.percentage >= 80) return `Bạn làm rất tốt ở ${topic}. Tiếp tục duy trì thành tích này.`;
-  if (topicData.percentage >= 60) return `Bạn hiểu ${topic} khá tốt. Luyện tập thêm để nắm vững hơn.`;
-  return `${topic} cần được ôn tập lại. Hãy học kỹ kiến thức cơ bản.`;
+  const percentage = topicData.percentage || 0;
+  const correct = topicData.correct || 0;
+  const total = topicData.total || 1;
+  
+  // Generate different feedback based on performance
+  if (percentage >= 90) {
+    return `🌟 Xuất sắc ở ${topic}! Đúng ${correct}/${total} câu. Tiếp tục phát huy!`;
+  }
+  if (percentage >= 80) {
+    return `✅ Rất tốt ở ${topic}! Đúng ${correct}/${total} câu. Thêm một chút luyện tập nữa!`;
+  }
+  if (percentage >= 70) {
+    return `👍 Khá tốt ${topic} (${correct}/${total}). Luyện tập thêm để hoàn thiện.`;
+  }
+  if (percentage >= 60) {
+    return `📚 ${topic}: Hiểu được ${correct}/${total}. Ôn tập thêm để vững kiến thức.`;
+  }
+  if (percentage >= 40) {
+    return `⚠️ ${topic}: Đúng ${correct}/${total}. Ôn tập lại từ cơ bản, làm thêm bài tập.`;
+  }
+  return `❌ ${topic}: Chỉ đúng ${correct}/${total}. Bắt đầu ôn từ những bài cơ bản.`;
 };
 
 /**

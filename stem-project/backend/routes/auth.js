@@ -45,6 +45,48 @@ router.post('/signup', async (req, res) => {
     // Create user in database
     const user = await dbHelpers.createUser(email, username, hashedPassword);
 
+    // Auto-create learning profile in Supabase for AI analysis
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_ANON_KEY;
+      
+      if (supabaseUrl && supabaseKey) {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        // Insert new user profile with default values
+        const { data, error } = await supabase
+          .from('user_learning_profiles')
+          .insert([{
+            user_id: user.id,
+            cognitive_levels: { level1: 0, level2: 0, level3: 0, level4: 0 },
+            proficiency_status: { 
+              level1: 'NOT_STARTED', 
+              level2: 'NOT_STARTED', 
+              level3: 'NOT_STARTED', 
+              level4: 'NOT_STARTED' 
+            },
+            weak_areas: [],
+            strong_areas: [],
+            recommendations: [],
+            quizzes_taken: 0
+          }])
+          .select();
+        
+        if (error) {
+          console.warn('⚠️ Warning: Could not create learning profile:', error.message);
+          // Don't fail signup if profile creation fails
+        } else {
+          console.log('✅ Learning profile created for user:', user.id);
+        }
+      } else {
+        console.warn('⚠️ Supabase credentials not configured for profile auto-creation');
+      }
+    } catch (profileError) {
+      console.warn('⚠️ Error creating learning profile:', profileError.message);
+      // Don't fail signup if profile creation fails
+    }
+
     // Generate token
     const token = generateToken(user.id, email);
 

@@ -154,6 +154,11 @@ router.get('/profile/:userId', async (req, res) => {
     }
 
     // Fetch user's learning profile from Supabase
+    const numericUserId = parseInt(userId, 10);
+    if (isNaN(numericUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+    
     const { data, error } = await supabase
       .from('user_learning_profiles')
       .select(`
@@ -161,7 +166,7 @@ router.get('/profile/:userId', async (req, res) => {
         proficiency_status, recommendations, learning_path, 
         quizzes_taken, last_updated, created_at
       `)
-      .eq('user_id', userId)
+      .eq('user_id', numericUserId)
       .single()
 
     if (error && error.code !== 'PGRST116') {
@@ -256,6 +261,13 @@ router.get('/dashboard/:userId', async (req, res) => {
     // Try to fetch from Supabase if available
     if (supabase) {
       try {
+        // Convert userId to integer for proper type matching
+        const numericUserId = parseInt(userId, 10);
+        if (isNaN(numericUserId)) {
+          console.warn('[Dashboard] Invalid userId format:', userId);
+          return res.status(400).json({ error: 'Invalid user ID format' });
+        }
+
         const { data } = await supabase
           .from('user_learning_profiles')
           .select(`
@@ -263,7 +275,7 @@ router.get('/dashboard/:userId', async (req, res) => {
             proficiency_status, recommendations, learning_path, 
             quizzes_taken, last_updated, created_at
           `)
-          .eq('user_id', userId)
+          .eq('user_id', numericUserId)
           .single()
 
         if (data) {
@@ -358,10 +370,17 @@ router.get('/quiz/personalized', async (req, res) => {
     let userProfile
     
     if (supabase) {
+      // Convert userId to integer for proper type matching
+      const numericUserId = parseInt(userId, 10);
+      if (isNaN(numericUserId)) {
+        console.warn('[PersonalizedQuiz] Invalid userId format:', userId);
+        return res.status(400).json({ error: 'Invalid user ID format' });
+      }
+      
       const { data: profileData, error: profileError } = await supabase
         .from('user_learning_profiles')
         .select('cognitive_levels, weak_areas, strong_areas')
-        .eq('user_id', userId)
+        .eq('user_id', numericUserId)
         .single()
 
       // Use Supabase data if available, prioritize weak areas
@@ -471,6 +490,13 @@ router.post('/analyze', async (req, res) => {
     if (!userId || userId === 'undefined') {
       console.error('[Analyze] Missing userId')
       return res.status(400).json({ error: 'User ID is required' })
+    }
+
+    // Ensure userId is numeric
+    const numericUserId = typeof userId === 'number' ? userId : parseInt(userId, 10);
+    if (isNaN(numericUserId)) {
+      console.error('[Analyze] Invalid userId format:', userId);
+      return res.status(400).json({ error: 'Invalid user ID format' });
     }
 
     if (!quizId) {
@@ -682,7 +708,7 @@ router.post('/analyze', async (req, res) => {
     const strongTopics = topicsArray.filter(t => t.percentage >= 80)
 
     // Generate detailed topic feedback for each topic
-    const topicFeedback = generateTopicFeedback(topicsArray, assessment.scores)
+    const topicFeedback = generateTopicFeedback(topicsArray, assessment)
 
     // Generate quick feedback without OpenAI
     const aiAnalysis = {
@@ -731,7 +757,7 @@ router.post('/analyze', async (req, res) => {
         const { data } = await supabase
           .from('user_learning_profiles')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', numericUserId)
           .single()
         currentProfile = data
       } catch (err) {
@@ -820,39 +846,47 @@ router.post('/analyze', async (req, res) => {
     // Save to Supabase if available
     if (supabase && learningProfile) {
       try {
-        if (currentProfile) {
-          // Update existing profile
-          await supabase
-            .from('user_learning_profiles')
-            .update({
-              cognitive_levels: learningProfile.scores,
-              proficiency_status: learningProfile.proficiency,
-              weak_areas: learningProfile.weakAreas,
-              strong_areas: learningProfile.strongAreas,
-              recommendations: learningProfile.recommendations,
-              learning_path: learningProfile.learningPath,
-              quizzes_taken: (currentProfile.quizzes_taken || 0) + 1,
-              last_updated: new Date().toISOString()
-            })
-            .eq('user_id', userId)
+        // Prepare data for Supabase (convert complex objects to proper formats)
+        const supabaseData = {
+          user_id: numericUserId,
+          cognitive_levels: learningProfile.scores, // JSONB - {level1: 0, level2: 0, ...}
+          proficiency_status: learningProfile.proficiency, // JSONB - {level1: 'MASTERED', ...}
+          weak_areas: learningProfile.weakAreas && Array.isArray(learningProfile.weakAreas)
+            ? learningProfile.weakAreas.map(w => 
+                typeof w === 'string' ? w : w.topWeakTopic || `Level ${w.level}: ${w.score}%`
+              )
+            : [], // TEXT[] - array of strings
+          strong_areas: learningProfile.strongAreas && Array.isArray(learningProfile.strongAreas)
+            ? learningProfile.strongAreas.map(s => 
+                typeof s === 'string' ? s : `Level ${s.level}: ${s.score}%`
+              )
+            : [], // TEXT[] - array of strings
+          recommendations: learningProfile.recommendations && Array.isArray(learningProfile.recommendations)
+            ? learningProfile.recommendations
+            : [], // TEXT[] - array of strings
+          learning_path: learningProfile.learningPath || null, // JSONB - can be null
+          quizzes_taken: (currentProfile?.quizzes_taken || 0) + 1,
+          last_updated: new Date().toISOString()
+        };
+
+        // Use UPSERT to handle both insert and update
+        const { data, error } = await supabase
+          .from('user_learning_profiles')
+          .upsert(supabaseData, { onConflict: 'user_id' })
+          .select()
+        
+        if (error) {
+          console.error('[Analyze] ❌ Supabase upsert error:', error.message, error.details);
+          console.error('[Analyze] Error code:', error.code);
         } else {
-          // Create new profile
-          await supabase
-            .from('user_learning_profiles')
-            .insert({
-              user_id: userId,
-              cognitive_levels: learningProfile.scores,
-              proficiency_status: learningProfile.proficiency,
-              weak_areas: learningProfile.weakAreas,
-              strong_areas: learningProfile.strongAreas,
-              recommendations: learningProfile.recommendations,
-              learning_path: learningProfile.learningPath,
-              quizzes_taken: 1,
-              created_at: new Date().toISOString(),
-              last_updated: new Date().toISOString()
-            })
+          console.log('[Analyze] ✅ Profile saved to Supabase for user:', userId);
+          console.log('[Analyze] Updated profile data:', {
+            user_id: data?.[0]?.user_id,
+            quizzes_taken: data?.[0]?.quizzes_taken,
+            cognitive_levels: data?.[0]?.cognitive_levels,
+            weak_areas: data?.[0]?.weak_areas
+          });
         }
-        console.log('[Analyze] Profile saved to Supabase for user:', userId)
         
         // Also save full quiz attempt details for review
         try {
@@ -962,6 +996,18 @@ router.post('/analyze', async (req, res) => {
       strengths: Object.entries(topicFeedback || {})
         .filter(([_, data]) => data.performance === 'STRONG')
         .map(([topic]) => topic),
+      
+      // weakAreas with feedback for result page display
+      weakAreas: Object.entries(topicFeedback || {})
+        .filter(([_, data]) => data.performance === 'WEAK')
+        .map(([topic, data]) => ({
+          topic,
+          score: data.score || 0,
+          percentage: data.percentage || 0,
+          severity: data.percentage >= 70 ? 'low' : (data.percentage >= 50 ? 'medium' : 'high'),
+          feedback: data.feedback || `${topic}: ${data.percentage}% chính xác`,
+          summary: data.feedback || `${topic}: ${data.percentage}% chính xác`
+        })),
       
       // AI Coach Feedback (Vietnamese) - from OpenAI or fallback
       aiCoachFeedback: aiSummaryResult.aiCoachFeedback,

@@ -154,15 +154,17 @@ app.use((req, res) => {
 
 // Only start server if not in serverless environment
 if (require.main === module) {
-  // Initialize guest user on startup
-  const { initializeGuestUser } = require('./initialize-guest');
-  initializeGuestUser().then(() => {
+  // Initialize guest user and sync users on startup
+  const { initializeGuestUser, syncUsersToSupabase } = require('./initialize-guest');
+  (async () => {
+    await initializeGuestUser();
+    await syncUsersToSupabase();
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Features: Quiz API, Authentication, ML Integration`);
     });
-  }).catch(err => {
-    console.error('Failed to initialize guest user:', err);
+  })().catch(err => {
+    console.error('Failed to initialize:', err);
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT} (guest user setup skipped)`);
     });

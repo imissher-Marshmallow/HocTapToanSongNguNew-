@@ -379,17 +379,38 @@ class LearningProfileManager {
   static updateProfile(profile, assessmentResult) {
     const updated = { ...profile }
     
+    // Initialize missing fields if coming from Supabase
+    if (!updated.scoreHistory) {
+      updated.scoreHistory = {
+        1: [],
+        2: [],
+        3: [],
+        4: []
+      }
+    }
+    
+    if (!updated.scores) {
+      updated.scores = {}
+    }
+    
+    if (!updated.proficiency) {
+      updated.proficiency = {}
+    }
+    
     // Update scores and proficiency
     updated.scores = assessmentResult.scores
     updated.proficiency = assessmentResult.proficiency
     
-    // Update history
+    // Update history - ensure arrays exist first
     for (let level = 1; level <= 4; level++) {
+      if (!updated.scoreHistory[level]) {
+        updated.scoreHistory[level] = []
+      }
       updated.scoreHistory[level].push(assessmentResult.scores[`level${level}`])
     }
     
     // Update counts
-    updated.quizzesTaken += 1
+    updated.quizzesTaken = (updated.quizzesTaken || 0) + 1
     updated.updatedAt = new Date().toISOString()
     
     // Recalculate weak/strong areas
