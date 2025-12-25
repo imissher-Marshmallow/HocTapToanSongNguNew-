@@ -12,7 +12,7 @@ const {
 const { analyzeQuiz } = require('../ai/analyzer')
 const { generateAISummary, generateDetailedTopicFeedback, generateLearningRoadmap } = require('../utils/aiSummary')
 const { saveQuizResult, getQuizRecommendation } = require('../services/quizResultsService')
-const { supabase } = require('../database')
+const { supabase, supabaseError } = require('../database')
 
 const router = express.Router()
 
@@ -143,7 +143,8 @@ router.get('/diagnostics', (req, res) => {
     supabase: {
       available: supabase ? true : false,
       url: process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing',
-      key: process.env.SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'
+      key: process.env.SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing',
+      error: supabaseError || null
     },
     database: {
       postgres_url: process.env.DATABASE_URL || process.env.POSTGRES_URL ? '✅ Set' : '❌ Missing'
@@ -151,7 +152,14 @@ router.get('/diagnostics', (req, res) => {
     openai: {
       api_key: process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing'
     },
-    message: supabase ? 'System is ready for adaptive learning' : 'Supabase not configured - check environment variables'
+    status: {
+      supabaseReady: supabase ? '✅ Ready' : '❌ Not Ready',
+      postgresReady: process.env.DATABASE_URL || process.env.POSTGRES_URL ? '✅ Ready' : '❌ Not Ready',
+      openaiReady: process.env.OPENAI_API_KEY ? '✅ Ready' : '❌ Not Ready'
+    },
+    message: supabase 
+      ? 'System is ready for adaptive learning' 
+      : `Supabase not available: ${supabaseError || 'Unknown error'}`
   })
 })
 

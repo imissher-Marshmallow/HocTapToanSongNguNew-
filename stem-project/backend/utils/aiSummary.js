@@ -34,25 +34,39 @@ const generateAISummary = async (quizData) => {
 
 Hãy viết 2-3 câu phản hồi tích cực và khuyến khích, đúng 50 từ.`;
 
+    console.log('[AISummary] Calling OpenAI API...');
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 100
+      max_tokens: 150
     }, {
       headers: { 'Authorization': `Bearer ${apiKey}` },
-      timeout: 5000
+      timeout: 10000
     });
 
-    const feedback = response.data.choices[0].message.content.trim();
-    console.log('[AISummary] Generated AI feedback successfully');
+    const feedback = response.data.choices[0]?.message?.content?.trim();
+    
+    if (!feedback) {
+      console.warn('[AISummary] OpenAI returned empty response, using fallback');
+      return generateFallbackSummary(quizData);
+    }
+    
+    console.log('[AISummary] ✅ Generated AI feedback successfully:', feedback.substring(0, 50) + '...');
     
     return {
       aiCoachFeedback: feedback,
       source: 'openai'
     };
   } catch (error) {
-    console.error('[AISummary] OpenAI API error:', error.message);
+    console.error('[AISummary] ❌ OpenAI API error:', error.message);
+    if (error.response?.status === 401) {
+      console.error('[AISummary] Invalid API key - check OPENAI_API_KEY environment variable');
+    } else if (error.response?.status === 429) {
+      console.error('[AISummary] Rate limited - too many requests to OpenAI');
+    } else if (error.code === 'ECONNABORTED') {
+      console.error('[AISummary] Request timeout - OpenAI API took too long');
+    }
     console.log('[AISummary] Falling back to generated summary');
     return generateFallbackSummary(quizData);
   }

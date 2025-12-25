@@ -14,6 +14,8 @@ require('dotenv').config();
 
 // Initialize Supabase client for non-query operations (optional)
 let supabase = null;
+let supabaseError = null;
+
 try {
   // Safely try to require Supabase - it's optional
   let supabseModule;
@@ -21,6 +23,7 @@ try {
     supabseModule = require('@supabase/supabase-js');
   } catch (e) {
     supabseModule = null;
+    supabaseError = `Module not found: ${e.message}`;
   }
   
   if (supabseModule) {
@@ -29,16 +32,24 @@ try {
     const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
     
     if (SUPABASE_URL && SUPABASE_KEY) {
-      supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-      console.log('[DB] ✅ Supabase client initialized');
+      try {
+        supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log('[DB] ✅ Supabase client initialized successfully');
+      } catch (initErr) {
+        supabaseError = `Failed to create Supabase client: ${initErr.message}`;
+        console.error('[DB] ❌ Supabase initialization failed:', supabaseError);
+      }
     } else {
-      console.log('[DB] ⚠️ Supabase credentials not found - using PostgreSQL only');
+      supabaseError = 'Supabase credentials not found (SUPABASE_URL or SUPABASE_ANON_KEY missing)';
+      console.log('[DB] ⚠️ ', supabaseError);
     }
   } else {
-    console.log('[DB] ⚠️ @supabase/supabase-js not installed - adaptive features unavailable');
+    supabaseError = '@supabase/supabase-js module not installed';
+    console.log('[DB] ⚠️ ', supabaseError);
   }
 } catch (err) {
-  console.log('[DB] Supabase initialization note:', err.message);
+  supabaseError = `Unexpected error: ${err.message}`;
+  console.log('[DB] Supabase initialization note:', supabaseError);
 }
 
 // Log diagnostic info for environment
@@ -48,7 +59,10 @@ console.log('[DB] - SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✅ Pr
 console.log('[DB] - DATABASE_URL:', process.env.DATABASE_URL ? '✅ Present' : '❌ Missing');
 console.log('[DB] - POSTGRES_URL:', process.env.POSTGRES_URL ? '✅ Present' : '❌ Missing');
 console.log('[DB] - NODE_ENV:', process.env.NODE_ENV);
-console.log('[DB] - Supabase client available:', supabase ? 'Yes' : 'No');
+console.log('[DB] - Supabase client initialized:', supabase ? 'Yes ✅' : 'No ❌');
+if (supabaseError) {
+  console.log('[DB] - Supabase error:', supabaseError);
+}
 
 // Determine which database to use
 let USE_POSTGRES = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
@@ -655,4 +669,4 @@ if (!USE_POSTGRES || !dbHelpers) {
   };
 }
 
-module.exports = { db, dbHelpers, supabase };
+module.exports = { db, dbHelpers, supabase, supabaseError };

@@ -247,10 +247,17 @@ export default function ResultPage() {
                   const sev = area.severity || 'low';
                   const cls = sev === 'high' ? 'severity-high' : sev === 'medium' ? 'severity-medium' : 'severity-low';
                   const severityText = sev === 'high' ? t.high : sev === 'medium' ? t.medium : t.low;
+                  // Get topic feedback/summary if available
+                  const topicFeedback = area.feedback || area.summary || '';
                   return (
                     <div key={idx} className="weakness-item">
                       <div className="weakness-topic">{area.topic}</div>
                       <div className={`badge ${cls}`}>{severityText}</div>
+                      {topicFeedback && (
+                        <div className="weakness-feedback">
+                          {topicFeedback}
+                        </div>
+                      )}
                     </div>
                   );
                 })

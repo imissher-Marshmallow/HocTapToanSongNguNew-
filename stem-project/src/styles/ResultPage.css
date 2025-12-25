@@ -206,13 +206,15 @@
 
 .weakness-item {
 	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 0.75rem 1rem;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: flex-start;
+	padding: 1rem;
 	background: #f8fafc;
 	border-radius: 8px;
 	border-left: 4px solid #ddd6fe;
 	transition: all 0.2s ease;
+	gap: 0.5rem;
 }
 
 .weakness-item:hover {
@@ -225,6 +227,19 @@
 	color: #0f172a;
 	font-weight: 600;
 	flex: 1;
+	width: 100%;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.weakness-feedback {
+	color: #475569;
+	font-size: 0.9rem;
+	line-height: 1.4;
+	width: 100%;
+	padding-top: 0.25rem;
+	border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .chart-column {
