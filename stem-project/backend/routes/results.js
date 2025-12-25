@@ -295,10 +295,11 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     if (supabase && finalUserId && finalUserId !== 'anonymous') {
       (async () => {
         try {
-          // Extract topic performance from aiResult if available
+          // Extract topic performance from aiResult if available, otherwise from answers
           const topicPerf = {};
           const cognitiveBreakdown = {};
           
+          // First try to get from AI analysis
           if (aiResult && aiResult.weakAreas && Array.isArray(aiResult.weakAreas)) {
             aiResult.weakAreas.forEach(area => {
               if (area.topic) {
@@ -307,6 +308,35 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                   improvement_needed: area.recommendedLevel || 'intermediate'
                 };
               }
+            });
+          }
+          
+          // If no topics from AI, calculate from answers
+          if (Object.keys(topicPerf).length === 0) {
+            // Group answers by topic from question data
+            const topicStats = {};
+            answers.forEach(answer => {
+              const question = questions?.find(q => q.id === answer.questionId);
+              if (question && question.topic) {
+                if (!topicStats[question.topic]) {
+                  topicStats[question.topic] = { correct: 0, total: 0 };
+                }
+                topicStats[question.topic].total += 1;
+                if (question.options.indexOf(answer.selectedOption) === question.answerIndex) {
+                  topicStats[question.topic].correct += 1;
+                }
+              }
+            });
+            
+            // Convert to performance format
+            Object.entries(topicStats).forEach(([topic, stats]) => {
+              const percentage = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+              topicPerf[topic] = {
+                score: percentage,
+                correct: stats.correct,
+                total: stats.total,
+                level: percentage >= 80 ? 'advanced' : percentage >= 60 ? 'intermediate' : 'beginner'
+              };
             });
           }
           
@@ -328,6 +358,39 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
             console.warn('[Results] Supabase save (non-blocking):', error.message);
           } else {
             console.log('[Results] Saved to Supabase quiz_results for user', finalUserId);
+            console.log('[Results] Topics saved:', Object.keys(topicPerf).join(', '));
+            
+            // Update user profile with new skills
+            try {
+              const userSkills = {};
+              
+              // Build skills from topic performance
+              Object.entries(topicPerf).forEach(([topic, perf]) => {
+                userSkills[topic] = {
+                  level: perf.level || 'intermediate',
+                  score: perf.score || 0,
+                  lastUpdated: new Date().toISOString()
+                };
+              });
+              
+              // Update user profile in users table
+              const { error: updateError } = await supabase
+                .from('users')
+                .update({
+                  skills: userSkills,
+                  last_quiz_score: actualScore,
+                  last_quiz_date: new Date().toISOString()
+                })
+                .eq('id', finalUserId);
+              
+              if (updateError) {
+                console.warn('[Results] Profile update failed:', updateError.message);
+              } else {
+                console.log('[Results] Updated user profile with skills for', finalUserId);
+              }
+            } catch (updateErr) {
+              console.warn('[Results] Profile update exception:', updateErr.message);
+            }
           }
         } catch (err) {
           console.warn('[Results] Supabase save exception (non-blocking):', err.message);
