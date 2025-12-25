@@ -72,11 +72,19 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
       questionsLength: questions?.length
     });
 
-    // Require a valid numeric user id to save results (prevent anonymous inserts)
-    const numericUserId = finalUserId && finalUserId !== 'anonymous' ? Number(finalUserId) : null;
+    // Use guest user (id=1) for anonymous submissions, or parse numeric user_id for authenticated users
+    let numericUserId;
+    if (finalUserId && finalUserId !== 'anonymous' && !isNaN(Number(finalUserId))) {
+      numericUserId = Number(finalUserId);
+    } else {
+      // Use guest user account (id=1) for unauthenticated submissions
+      numericUserId = 1;
+      console.log('[Results] Using guest user (id=1) for anonymous submission');
+    }
+    
     if (!numericUserId || Number.isNaN(numericUserId)) {
-      console.warn('[Results] Invalid or missing userId, rejecting save. finalUserId=', finalUserId);
-      return res.status(400).json({ error: 'Invalid or missing userId (must be authenticated)' });
+      console.error('[Results] Failed to determine user_id. finalUserId=', finalUserId);
+      return res.status(400).json({ error: 'Unable to determine user ID' });
     }
 
     if (!quizId || !answers || !Array.isArray(answers)) {
@@ -167,21 +175,27 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
 
     // Run ML Analytics on the quiz data (parallel to traditional analyzer)
     try {
-      const mlService = new MLAnalyticsService(db);
-      const mlPayload = {
-        userId: numericUserId,
-        quizId,
-        answers,
-        questions: questions || []
-      };
-      mlAnalysis = await mlService.analyzeAndStore(mlPayload.userId, mlPayload.quizId, mlPayload.questions, mlPayload.answers);
-      console.log('[Results] ML Analytics completed successfully');
-      
-      // If ML analysis succeeded, store it to Supabase asynchronously (non-blocking)
-      if (mlAnalysis && mlAnalysis.success) {
-        mlService.storeAnalysis(mlPayload.userId, mlPayload.quizId, mlAnalysis.analysis).catch(err => {
-          console.warn('[Results] ML Analytics storage failed (non-blocking):', err && err.message ? err.message : err);
-        });
+      // Only run ML Analytics if we have a valid database pool (PostgreSQL only, not SQLite)
+      if (db && typeof db.query === 'function') {
+        const mlService = new MLAnalyticsService(db);
+        const mlPayload = {
+          userId: numericUserId,
+          quizId,
+          answers,
+          questions: questions || []
+        };
+        mlAnalysis = await mlService.analyzeAndStore(mlPayload.userId, mlPayload.quizId, mlPayload.questions, mlPayload.answers);
+        console.log('[Results] ML Analytics completed successfully');
+        
+        // If ML analysis succeeded, store it to Supabase asynchronously (non-blocking)
+        if (mlAnalysis && mlAnalysis.success) {
+          mlService.storeAnalysis(mlPayload.userId, mlPayload.quizId, mlAnalysis.analysis).catch(err => {
+            console.warn('[Results] ML Analytics storage failed (non-blocking):', err && err.message ? err.message : err);
+          });
+        }
+      } else {
+        console.log('[Results] Skipping ML Analytics (not available with current database)');
+        mlAnalysis = { success: false };
       }
     } catch (err) {
       console.warn('[Results] ML Analytics failed (continuing without it):', err && err.message ? err.message : err);
@@ -195,6 +209,19 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
       return (typeof w === 'object' && w !== null && w.topic) ? w.topic : (typeof w === 'string' ? w : String(w));
     });
     const summary = aiResult.summary || {};
+    
+    // Calculate correct answers count
+    let correctCount = 0;
+    if (Array.isArray(answers) && Array.isArray(questions)) {
+      correctCount = answers.filter((answer, index) => {
+        const question = questions[index];
+        if (!question) return false;
+        // Handle different answer formats
+        const selectedIndex = typeof answer === 'number' ? answer : (answer && answer.selectedIndex);
+        const correctIndex = question.correctAnswer || question.answerIndex || question.answer;
+        return selectedIndex === correctIndex;
+      }).length;
+    }
 
     // Debug logging: show values we'll save
     console.log('[Results] debug values:', {
@@ -292,7 +319,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     };
 
     // Save to Supabase for recommendations & profile updates (non-blocking)
-    if (supabase && finalUserId && finalUserId !== 'anonymous') {
+    if (supabase && numericUserId) {
       (async () => {
         try {
           // Extract topic performance from aiResult if available, otherwise from answers
@@ -342,10 +369,10 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
           
           // Save quiz result to Supabase for unified data system
           const { error } = await supabase.from('quiz_results').insert([{
-            user_id: finalUserId,
+            user_id: numericUserId,
             quiz_id: quizId || 'main-quiz',
             overall_score: actualScore,
-            correct_answers: correct,
+            correct_answers: correctCount,
             total_questions: totalQuestions,
             time_spent_seconds: timeTaken || 0,
             topic_performance: topicPerf,
@@ -357,7 +384,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
           if (error) {
             console.warn('[Results] Supabase save (non-blocking):', error.message);
           } else {
-            console.log('[Results] Saved to Supabase quiz_results for user', finalUserId);
+            console.log('[Results] Saved to Supabase quiz_results for user', numericUserId);
             console.log('[Results] Topics saved:', Object.keys(topicPerf).join(', '));
             
             // Update user profile with new skills
@@ -381,12 +408,12 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                   last_quiz_score: actualScore,
                   last_quiz_date: new Date().toISOString()
                 })
-                .eq('id', finalUserId);
+                .eq('id', numericUserId);
               
               if (updateError) {
                 console.warn('[Results] Profile update failed:', updateError.message);
               } else {
-                console.log('[Results] Updated user profile with skills for', finalUserId);
+                console.log('[Results] Updated user profile with skills for', numericUserId);
               }
             } catch (updateErr) {
               console.warn('[Results] Profile update exception:', updateErr.message);
