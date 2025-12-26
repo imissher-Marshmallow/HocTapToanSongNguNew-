@@ -19,6 +19,8 @@ function LearningHome() {
 
   // State for analytics
   const [summary, setSummary] = useState(null);
+  const [weakAreas, setWeakAreas] = useState([]);
+  const [strongAreas, setStrongAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -32,19 +34,41 @@ function LearningHome() {
       }
       try {
         setLoading(true);
-        console.log('[LearningHome] Fetching summary for userId:', userId);
+        console.log('[LearningHome] Fetching data for userId:', userId);
         const apiBase = getApiBase();
-        const response = await fetch(`${apiBase}/api/history/summary?userId=${userId}`, {
+        
+        // Fetch weak and strong areas from Supabase via new endpoint
+        const weakStrongResponse = await fetch(`${apiBase}/api/adaptive/weak-and-strong/${userId}`, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''
           }
         });
-        console.log('[LearningHome] API status:', response.status);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        const data = await response.json();
-        console.log('[LearningHome] API data:', data);
-        if (data.success && data.data) {
-          setSummary(data.data);
+        
+        console.log('[LearningHome] WeakStrong API status:', weakStrongResponse.status);
+        
+        if (weakStrongResponse.ok) {
+          const weakStrongData = await weakStrongResponse.json();
+          console.log('[LearningHome] WeakStrong data:', weakStrongData);
+          setWeakAreas(weakStrongData.weakAreas || []);
+          setStrongAreas(weakStrongData.strongAreas || []);
+        }
+        
+        // Also fetch historical summary for streak and other stats
+        const historyResponse = await fetch(`${apiBase}/api/history/summary?userId=${userId}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        });
+        
+        console.log('[LearningHome] History API status:', historyResponse.status);
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          console.log('[LearningHome] History data:', historyData);
+          if (historyData.success && historyData.data) {
+            setSummary(historyData.data);
+          } else {
+            setSummary(null);
+          }
         } else {
           setSummary(null);
         }
@@ -66,20 +90,20 @@ function LearningHome() {
   const lastActivityTime = summary?.chart && summary.chart.length > 0 ?
     new Date(summary.chart[0].date).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US') :
     (language === 'vi' ? 'Chưa có hoạt động' : 'No activity yet');
-  // Handle both string and object formats for weakAreas
-  const weakAreas = ((summary?.topWeak || []).map(name => {
-    const topicName = (typeof name === 'object' && name !== null && name.topic) ? name.topic : (typeof name === 'string' ? name : String(name));
-    return {
-      id: topicName,
-      name: topicName,
-      accuracy: 40 + (summary?.topWeak?.indexOf(name) || 0) * 10,
-      icon: '⚠️'
-    };
-  })) || [];
-  const strengthAreas = (summary?.topStrength || []).map((name, idx) => ({
-    id: idx + 1,
-    name,
-    icon: '💪'
+  
+  // Use weak and strong areas fetched from Supabase
+  const weakAreasList = weakAreas.map((area, idx) => ({
+    id: area.topic,
+    name: area.topic,
+    accuracy: area.percentage || 40,
+    icon: area.icon || '⚠️',
+    priority: area.priority || idx + 1
+  }));
+  
+  const strengthAreasList = strongAreas.map((area, idx) => ({
+    id: area.topic,
+    name: area.topic,
+    icon: area.icon || '💪'
   }));
 
 
@@ -181,11 +205,11 @@ function LearningHome() {
               unit="/10"
               color="#10b981"
             />
-            {strengthAreas.length > 0 && (
+            {strengthAreasList.length > 0 && (
               <StatCard
                 icon="💪"
                 label={language === 'vi' ? 'Thế mạnh' : 'Strengths'}
-                value={strengthAreas.map(a => a.name).join(', ')}
+                value={strengthAreasList.map(a => a.name).join(', ')}
                 unit=""
                 color="#f59e0b"
               />
@@ -205,10 +229,10 @@ function LearningHome() {
             </div>
 
             <div className="weak-areas-grid">
-              {weakAreas.length === 0 ? (
+              {weakAreasList.length === 0 ? (
                 <div className="empty-state">{language === 'vi' ? 'Không có điểm yếu nổi bật.' : 'No major weaknesses.'}</div>
               ) : (
-                weakAreas.map((area, index) => (
+                weakAreasList.map((area, index) => (
                   <motion.div
                     key={area.id}
                     className="weak-area-card"
@@ -216,7 +240,7 @@ function LearningHome() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + index * 0.05 }}
                     whileHover={{ y: -4 }}
-                    onClick={() => navigate('/quizzes')}
+                    onClick={() => navigate('/adaptive-quiz-select')}
                   >
                     <div className="area-icon">{area.icon}</div>
                     <h3>{area.name}</h3>
@@ -226,7 +250,7 @@ function LearningHome() {
                         style={{ width: `${area.accuracy}%` }}
                       ></div>
                     </div>
-                    <div className="accuracy-text">{area.accuracy}% Accuracy</div>
+                    <div className="accuracy-text">{area.accuracy}% {language === 'vi' ? 'Chính xác' : 'Accuracy'}</div>
                     <button className="btn-practice">
                       {language === 'vi' ? 'Luyện Tập' : 'Practice'}
                     </button>
@@ -239,8 +263,8 @@ function LearningHome() {
           {/* Performance Charts Section */}
           <PerformanceCharts
             chartData={summary?.chart || []}
-            weakAreas={summary?.topWeak || []}
-            strengthAreas={summary?.topStrength || []}
+            weakAreas={weakAreasList.map(a => a.name) || []}
+            strengthAreas={strengthAreasList.map(a => a.name) || []}
             masteryScore={Number(summary?.averageScore) || 0}
           />
 
@@ -252,7 +276,7 @@ function LearningHome() {
             transition={{ delay: 0.5, duration: 0.5 }}
           >
             <div className="section-header">
-              <h2>{language === 'vi' ? '⚡ hÀNH Đống nhénh' : '⚡ Quick Actions'}</h2>
+              <h2>{language === 'vi' ? '⚡ Hành Động Nhanh' : '⚡ Quick Actions'}</h2>
             </div>
 
             <div className="quick-actions-grid">

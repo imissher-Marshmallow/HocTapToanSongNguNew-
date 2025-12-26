@@ -270,6 +270,115 @@ router.get('/profile/:userId', async (req, res) => {
 })
 
 /**
+ * GET /api/adaptive/weak-and-strong/:userId
+ * Fetch user's weak and strong areas from Supabase
+ * Used by LearningHome dashboard to display topics user should practice
+ */
+router.get('/weak-and-strong/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId || userId === 'undefined') {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const numericUserId = parseInt(userId, 10);
+    if (isNaN(numericUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    // Fetch from Supabase
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
+    const { data, error } = await supabase
+      .from('user_learning_profiles')
+      .select('weak_areas, strong_areas, cognitive_levels, proficiency_status')
+      .eq('user_id', numericUserId)
+      .single();
+
+    if (error) {
+      console.log('[WeakStrong] Fetch error:', error.message);
+      return res.json({
+        weakAreas: [],
+        strongAreas: [],
+        message: 'No data available yet. Complete a quiz to see your weak and strong areas.'
+      });
+    }
+
+    if (!data) {
+      return res.json({
+        weakAreas: [],
+        strongAreas: [],
+        message: 'No data available yet. Complete a quiz to see your weak and strong areas.'
+      });
+    }
+
+    // Parse weak areas - convert to readable format
+    const weakAreas = (data.weak_areas || []).map((area, idx) => {
+      if (typeof area === 'object' && area.topic) {
+        return {
+          topic: area.topic,
+          percentage: area.percentage || 0,
+          priority: area.priority || idx + 1,
+          icon: '⚠️'
+        };
+      }
+      // Parse from string format (e.g., "Đại số: 45%")
+      const match = String(area).match(/([^:]+):\s*([\d.]+)%/);
+      if (match) {
+        return {
+          topic: match[1].trim(),
+          percentage: parseFloat(match[2]),
+          priority: idx + 1,
+          icon: '⚠️'
+        };
+      }
+      return {
+        topic: String(area),
+        percentage: 0,
+        priority: idx + 1,
+        icon: '⚠️'
+      };
+    });
+
+    // Parse strong areas
+    const strongAreas = (data.strong_areas || []).map((area, idx) => {
+      if (typeof area === 'object' && area.topic) {
+        return {
+          topic: area.topic,
+          percentage: area.percentage || 0,
+          icon: '💪'
+        };
+      }
+      return {
+        topic: String(area),
+        percentage: 0,
+        icon: '💪'
+      };
+    });
+
+    // Get cognitive level info
+    const scores = data.cognitive_levels || { level1: 0, level2: 0, level3: 0, level4: 0 };
+    const avgScore = Math.round(
+      (scores.level1 + scores.level2 + scores.level3 + scores.level4) / 4
+    );
+
+    res.json({
+      weakAreas,
+      strongAreas,
+      averageScore: avgScore,
+      scores,
+      message: 'Data loaded successfully'
+    });
+  } catch (error) {
+    console.error('[WeakStrong] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+/**
  * GET /api/adaptive/dashboard/:userId
  * Unified endpoint: Get profile + learning data + quiz recommendations in one call
  * Returns everything needed for LearningProfile dashboard
@@ -859,6 +968,9 @@ router.post('/analyze', async (req, res) => {
 
     // Generate learning roadmap
     const learningRoadmap = await generateLearningRoadmap(learningProfile, topicFeedback)
+    
+    // ⭐ IMPORTANT: Assign the AI-generated roadmap to the learning profile
+    learningProfile.learningPath = learningRoadmap
 
     // ============================================
     // SAVE COMPLETE RESULTS TO SUPABASE

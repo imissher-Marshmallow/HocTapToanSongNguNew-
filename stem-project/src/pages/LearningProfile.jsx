@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { TrendingUp, AlertCircle, Trophy, Target, Book } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -90,6 +91,7 @@ const translations = {
 export default function LearningProfile({ userId }) {
   const { user: authUser } = useAuth();
   const { language } = useLanguage();
+  const navigate = useNavigate();
   const t = translations[language] || translations.vi;
   const finalUserId = userId || authUser?.id;
   
@@ -238,7 +240,10 @@ export default function LearningProfile({ userId }) {
 
                 <p className="recommendation">{area.recommendation || `Hãy tập trung vào chủ đề này`}</p>
 
-                <button className="action-button">
+                <button 
+                  className="action-button"
+                  onClick={() => navigate('/adaptive-quiz-select')}
+                >
                   {t.takeFocusedQuiz}
                 </button>
               </motion.div>
@@ -271,7 +276,10 @@ export default function LearningProfile({ userId }) {
                 <p className="strong-message">
                   {t.excellent}
                 </p>
-                <button className="challenge-button">
+                <button 
+                  className="challenge-button"
+                  onClick={() => navigate('/adaptive-quiz-select?difficulty=hard')}
+                >
                   {t.tryHarderChallenges}
                 </button>
               </motion.div>
@@ -313,7 +321,10 @@ export default function LearningProfile({ userId }) {
                   </p>
                 </div>
 
-                <button className="rec-button">
+                <button 
+                  className="rec-button"
+                  onClick={() => navigate('/resources')}
+                >
                   {t.learnMore} →
                 </button>
               </motion.div>
@@ -409,10 +420,16 @@ export default function LearningProfile({ userId }) {
           ACTION BUTTONS
           ========================================== */}
       <section className="action-section">
-        <button className="btn-primary">
+        <button 
+          className="btn-primary"
+          onClick={() => navigate('/adaptive-quiz-select')}
+        >
           {t.startQuiz || 'Bắt Đầu Bài Kiểm Tra'}
         </button>
-        <button className="btn-secondary">
+        <button 
+          className="btn-secondary"
+          onClick={() => navigate('/history')}
+        >
           {t.viewProgress || 'Xem Chi Tiết Tiến Độ'}
         </button>
       </section>
