@@ -74,13 +74,13 @@ function loadQuestions(chapterId, contestNum) {
       return { error: 'File structure error' };
     }
     
-    const chapter = data.chapters.find(c => c.id === chapterId);
+    const chapter = data.chapters.find(c => c.chapterId === chapterId || c.id === chapterId);
     if (!chapter) {
       console.error(`[API] Chapter ${chapterId} not found`);
       return { error: `Chapter ${chapterId} not found` };
     }
     
-    const contest = chapter.contests.find(c => c.id === contestNum);
+    const contest = chapter.contests.find(c => c.exam_id === contestNum || c.id === contestNum);
     if (!contest) {
       console.error(`[API] Contest ${contestNum} not found in chapter ${chapterId}`);
       return { error: `Contest ${contestNum} not found` };
@@ -90,9 +90,9 @@ function loadQuestions(chapterId, contestNum) {
     
     // Mix all question types and randomize
     const allQuestions = shuffle([
-      ...(contest.questions || []).filter(q => q.type === 'multipleChoice'),
-      ...(contest.questions || []).filter(q => q.type === 'trueFalse'),
-      ...(contest.questions || []).filter(q => q.type === 'shortAnswer')
+      ...(contest.questions_multiple_choice || []),
+      ...(contest.questions_true_false || []),
+      ...(contest.questions_short_answer || [])
     ]);
     
     return {

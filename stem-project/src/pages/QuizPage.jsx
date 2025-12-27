@@ -219,6 +219,11 @@ function QuizPage() {
   };
 
   const handleAnswer = (selectedOption) => {
+    if (!questions || questions.length === 0 || !questions[currentQuestionIndex]) {
+      console.error('[QuizPage] Invalid question state');
+      return;
+    }
+    
     const timeTakenSec = Math.floor((Date.now() - questionStartTime) / 1000);
     const newAnswer = {
       questionId: questions[currentQuestionIndex].id,
@@ -229,10 +234,12 @@ function QuizPage() {
     setAnswers(updatedAnswers);
     // if answer was wrong, adapt remaining questions to focus on same topic
     const q = questions[currentQuestionIndex];
-    const selectedIndex = q.options.indexOf(selectedOption);
-    const isCorrect = selectedIndex === q.answerIndex;
-    if (!isCorrect) {
-      adaptQuestions(currentQuestionIndex, q.topic);
+    if (q && q.options && Array.isArray(q.options)) {
+      const selectedIndex = q.options.indexOf(selectedOption);
+      const isCorrect = selectedIndex === (q.answerIndex ?? -1);
+      if (!isCorrect && q.topic) {
+        adaptQuestions(currentQuestionIndex, q.topic);
+      }
     }
 
     if (currentQuestionIndex < questions.length - 1) {
