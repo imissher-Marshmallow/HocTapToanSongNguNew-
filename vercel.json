@@ -1,13 +1,12 @@
 {
   "version": 2,
   "name": "stem-project",
-  "buildCommand": "npm install && cd stem-project && npm install && cd backend && npm install && cd .. && npm run build",
+  "buildCommand": "npm install && node copy-data.js && cd stem-project && npm install && cd backend && npm install && cd .. && npm run build",
   "outputDirectory": "stem-project/build",
   "functions": {
     "api/[...path].js": {
       "maxDuration": 30,
-      "memory": 1024,
-      "includeFiles": "api/data/**"
+      "memory": 1024
     }
   },
   "rewrites": [

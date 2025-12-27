@@ -25,16 +25,18 @@ function loadQuestionsData() {
 
   // Try multiple filesystem paths (local and Vercel)
   const possiblePaths = [
-    // Vercel environment: data is in /var/task/api/data/
+    // PRIORITY 1: Vercel environment - backend/data (copied by build script)
+    path.join('/var/task', 'stem-project/backend/data/questions_updated.json'),
+    path.join(__dirname, '../data/questions_updated.json'),
+    // PRIORITY 2: Vercel environment - api/data
     '/var/task/api/data/questions_updated.json',
     path.join('/var/task', 'api/data/questions_updated.json'),
-    // Local development: from project root
+    // PRIORITY 3: Local development
     path.join(process.cwd(), 'api/data/questions_updated.json'),
     path.join(process.cwd(), './api/data/questions_updated.json'),
-    // Fallback paths
+    // PRIORITY 4: Fallback paths
     path.join(__dirname, '../../api/data/questions_updated.json'),
     path.join(__dirname, '../../../api/data/questions_updated.json'),
-    path.join(__dirname, '../data/questions_updated.json'),
   ];
 
   console.log('[LoadQuestions] Trying filesystem paths:');
