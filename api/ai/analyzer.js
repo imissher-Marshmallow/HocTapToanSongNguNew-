@@ -37,6 +37,81 @@ function shuffleArray(arr) {
   return arr;
 }
 
+// Parse chapter-based quiz ID format: chapter1-contest2 -> { chapterId: 1, contestNum: 2 }
+function parseChapterQuizId(quizId) {
+  if (!quizId || typeof quizId !== 'string') return null;
+  const match = quizId.match(/^chapter(\d+)(?:-contest(\d+)|-normal)?$/i);
+  if (!match) return null;
+  
+  const chapterId = parseInt(match[1], 10);
+  const contestNum = match[2] ? parseInt(match[2], 10) : 1;
+  
+  if (chapterId < 1 || chapterId > 5 || contestNum < 1 || contestNum > 5) return null;
+  return { chapterId, contestNum };
+}
+
+// Load questions for chapter-based format
+function loadChapterQuestions(chapterId, contestNum) {
+  try {
+    const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+    
+    if (!data.chapters || !Array.isArray(data.chapters)) {
+      console.error('[API Analyzer] No chapters array found in questions_updated.json');
+      return null;
+    }
+    
+    const chapter = data.chapters.find(c => c.chapterId === chapterId);
+    if (!chapter) {
+      console.error(`[API Analyzer] Chapter ${chapterId} not found`);
+      return null;
+    }
+    
+    if (!chapter.contests || chapter.contests.length < contestNum) {
+      console.error(`[API Analyzer] Contest ${contestNum} not found in chapter ${chapterId}`);
+      return null;
+    }
+    
+    const contest = chapter.contests[contestNum - 1];
+    const allQuestions = [];
+    
+    // Support both old (questions_*) and new (questions.*) formats
+    if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
+      allQuestions.push(...contest.questions_multiple_choice.map(q => ({ ...q, type: 'multipleChoice' })));
+    }
+    if (contest.questions_true_false && Array.isArray(contest.questions_true_false)) {
+      allQuestions.push(...contest.questions_true_false.map(q => ({ ...q, type: 'trueFalse' })));
+    }
+    if (contest.questions_short_answer && Array.isArray(contest.questions_short_answer)) {
+      allQuestions.push(...contest.questions_short_answer.map(q => ({ ...q, type: 'shortAnswer' })));
+    }
+    
+    if (allQuestions.length === 0) {
+      console.error(`[API Analyzer] No questions found in chapter ${chapterId} contest ${contestNum}`);
+      return null;
+    }
+    
+    const shuffled = shuffleArray([...allQuestions]);
+    const normalized = shuffled.map(q => ({
+      ...q,
+      english_question: q.english_question || q.question,
+      english_options: q.english_options || (Array.isArray(q.options) ? q.options : [])
+    }));
+    
+    console.log(`[API Analyzer] Loaded ${normalized.length} questions for chapter${chapterId}-contest${contestNum}`);
+    return {
+      questions: normalized,
+      contestKey: `chapter${chapterId}-contest${contestNum}`,
+      contestIndex: contestNum,
+      contestId: contestNum,
+      contestName: chapter.chapterName || `Chapter ${chapterId}`,
+      chapterId
+    };
+  } catch (error) {
+    console.error(`[API Analyzer] Error loading chapter questions:`, error.message);
+    return null;
+  }
+}
+
 // Helper: resilient OpenAI chat call with retries and optional key rotation
 let __openai_key_index = 0;
 async function sendChatWithRetries(opts) {
@@ -99,6 +174,16 @@ async function sendChatWithRetries(opts) {
 
 // Load questions for a quiz (supports new `contests` format in questions.json)
 function loadQuestionsForQuiz(quizId) {
+  // Try chapter-based format first (e.g., chapter1-contest2)
+  const chapterParsed = parseChapterQuizId(quizId);
+  if (chapterParsed) {
+    console.log(`[API Analyzer] Using chapter format: chapter${chapterParsed.chapterId}-contest${chapterParsed.contestNum}`);
+    const result = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
+    if (result) return result;
+    // Fall through to old format if chapter loading fails
+  }
+
+  // Fall back to old contest-based format
   const data = fs.readFileSync(questionsPath, 'utf8');
   const parsed = JSON.parse(data);
   // Support two shapes for parsed.contests:
@@ -186,6 +271,34 @@ function loadQuestionsForQuiz(quizId) {
 
 // Load questions grouped by topic categories for a specific quiz
 function loadGroupedQuestionsForQuiz(quizId) {
+  // Try chapter-based format first
+  const chapterParsed = parseChapterQuizId(quizId);
+  if (chapterParsed) {
+    const chapterResult = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
+    if (chapterResult) {
+      const mapTopicToBucket = (topicStr) => {
+        if (!topicStr || typeof topicStr !== 'string') return 'other';
+        const s = topicStr.toLowerCase();
+        if (s.includes('nhận biết') || s.includes('knowledge')) return 'knowledge';
+        if (s.includes('thông hiểu') || s.includes('comprehension')) return 'comprehension';
+        if (s.includes('vận dụng thấp') || s.includes('low application')) return 'lowApplication';
+        if (s.includes('vận dụng cao') || s.includes('high application')) return 'highApplication';
+        if (s.includes('knowledge')) return 'knowledge';
+        if (s.includes('comprehension')) return 'comprehension';
+        if (s.includes('low')) return 'lowApplication';
+        if (s.includes('high')) return 'highApplication';
+        return 'other';
+      };
+      
+      const buckets = { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
+      for (const q of chapterResult.questions) {
+        const b = mapTopicToBucket(q.topic);
+        buckets[b].push(q);
+      }
+      return buckets;
+    }
+  }
+
   const data = fs.readFileSync(questionsPath, 'utf8');
   const parsed = JSON.parse(data);
   // Helper to map topic strings to buckets
@@ -248,6 +361,7 @@ function loadGroupedQuestionsForQuiz(quizId) {
   }
 
   return buckets;
+}
 }
 
 // Helper to get weak areas
