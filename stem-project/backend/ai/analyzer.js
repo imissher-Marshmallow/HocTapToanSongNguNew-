@@ -409,8 +409,38 @@ async function analyzeQuiz(payload) {
     const q = questions.find(x => x.id === ans.questionId);
     if (!q) continue;
     
-    const selectedIndex = q.options.indexOf(ans.selectedOption);
-    const isCorrect = selectedIndex === q.answerIndex;
+    let isCorrect = false;
+    
+    // Handle different question types
+    if (ans.questionType === 'multiple_choice') {
+      // Original multiple choice logic
+      const selectedIndex = q.options.indexOf(ans.selectedOption);
+      isCorrect = selectedIndex === q.answerIndex;
+    } else if (ans.questionType === 'true_false') {
+      // Handle true/false questions with multiple statements
+      if (ans.statements && q.statements && Array.isArray(q.statements)) {
+        let allCorrect = true;
+        for (let i = 0; i < q.statements.length; i++) {
+          if (ans.statements[i] !== q.statements[i].is_true) {
+            allCorrect = false;
+            break;
+          }
+        }
+        isCorrect = allCorrect;
+      }
+    } else if (ans.questionType === 'short_answer') {
+      // Handle short answer questions
+      if (q.numerical_answer !== undefined) {
+        const userNum = parseFloat(ans.userAnswer);
+        const expectedNum = parseFloat(q.numerical_answer);
+        // Allow small tolerance for floating point comparison
+        isCorrect = Math.abs(userNum - expectedNum) < 0.01;
+      } else if (q.text_answer !== undefined) {
+        // For text answers, do case-insensitive comparison
+        isCorrect = ans.userAnswer.toLowerCase().trim() === q.text_answer.toLowerCase().trim();
+      }
+    }
+    
     if (isCorrect) correct++;
 
     topicStats[q.topic] = topicStats[q.topic] || { wrong: 0, total: 0, correct: 0 };
@@ -499,12 +529,49 @@ async function analyzeQuiz(payload) {
   const answerComparison = answers.map(ans => {
     const q = questions.find(x => x.id === ans.questionId);
     if (!q) return null;
+    
+    let isCorrect = false;
+    let userAnswer = '';
+    let correctAnswer = '';
+    
+    // Handle different question types
+    if (ans.questionType === 'multiple_choice') {
+      isCorrect = q.options.indexOf(ans.selectedOption) === q.answerIndex;
+      userAnswer = ans.selectedOption;
+      correctAnswer = q.options[q.answerIndex];
+    } else if (ans.questionType === 'true_false') {
+      if (ans.statements && q.statements && Array.isArray(q.statements)) {
+        isCorrect = true;
+        for (let i = 0; i < q.statements.length; i++) {
+          if (ans.statements[i] !== q.statements[i].is_true) {
+            isCorrect = false;
+            break;
+          }
+        }
+        // Format user and correct answers for display
+        userAnswer = q.statements.map((stmt, i) => `${i+1}. ${ans.statements[i] ? 'Đúng' : 'Sai'}`).join(' | ');
+        correctAnswer = q.statements.map((stmt, i) => `${i+1}. ${stmt.is_true ? 'Đúng' : 'Sai'}`).join(' | ');
+      }
+    } else if (ans.questionType === 'short_answer') {
+      userAnswer = ans.userAnswer;
+      if (q.numerical_answer !== undefined) {
+        const userNum = parseFloat(ans.userAnswer);
+        const expectedNum = parseFloat(q.numerical_answer);
+        isCorrect = Math.abs(userNum - expectedNum) < 0.01;
+        correctAnswer = q.numerical_answer.toString();
+      } else if (q.text_answer !== undefined) {
+        isCorrect = ans.userAnswer.toLowerCase().trim() === q.text_answer.toLowerCase().trim();
+        correctAnswer = q.text_answer;
+      }
+    }
+    
     return {
       questionId: q.id,
       question: q.question,
-      userAnswer: ans.selectedOption,
-      correctAnswer: q.options[q.answerIndex],
-      isCorrect: q.options.indexOf(ans.selectedOption) === q.answerIndex,
+      questionType: ans.questionType,
+      userAnswer: userAnswer,
+      correctAnswer: correctAnswer,
+      isCorrect: isCorrect,
       explanation: q.explanation || null
     };
   }).filter(x => x !== null);

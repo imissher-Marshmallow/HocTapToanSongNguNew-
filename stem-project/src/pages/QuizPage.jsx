@@ -218,24 +218,48 @@ function QuizPage() {
     });
   };
 
-  const handleAnswer = (selectedOption) => {
+  // State for tracking multi-statement true/false answers
+  const [tfStatementAnswers, setTfStatementAnswers] = useState({});
+  const [shortAnswerValue, setShortAnswerValue] = useState('');
+
+  // Detect question type based on structure
+  const getQuestionType = (q) => {
+    if (!q) return 'multiple_choice';
+    if (q.statements && Array.isArray(q.statements)) return 'true_false';
+    if (q.numerical_answer !== undefined || q.text_answer !== undefined) return 'short_answer';
+    return 'multiple_choice';
+  };
+
+  // Reset form values when changing questions
+  useEffect(() => {
+    setTfStatementAnswers({});
+    setShortAnswerValue('');
+    setSelectedAnswer(null);
+  }, [currentQuestionIndex]);
+
+  const handleAnswer = (answerData) => {
     if (!questions || questions.length === 0 || !questions[currentQuestionIndex]) {
       console.error('[QuizPage] Invalid question state');
       return;
     }
     
     const timeTakenSec = Math.floor((Date.now() - questionStartTime) / 1000);
+    const q = questions[currentQuestionIndex];
+    const questionType = getQuestionType(q);
+    
     const newAnswer = {
-      questionId: questions[currentQuestionIndex].id,
-      selectedOption,
+      questionId: q.id,
+      questionType,
       timeTakenSec,
+      ...answerData
     };
+    
     const updatedAnswers = [...answers, newAnswer];
     setAnswers(updatedAnswers);
-    // if answer was wrong, adapt remaining questions to focus on same topic
-    const q = questions[currentQuestionIndex];
-    if (q && q.options && Array.isArray(q.options)) {
-      const selectedIndex = q.options.indexOf(selectedOption);
+    
+    // Adapt questions if answer was wrong (for multiple choice)
+    if (questionType === 'multiple_choice' && q.options && Array.isArray(q.options)) {
+      const selectedIndex = q.options.indexOf(answerData.selectedOption);
       const isCorrect = selectedIndex === (q.answerIndex ?? -1);
       if (!isCorrect && q.topic) {
         adaptQuestions(currentQuestionIndex, q.topic);
@@ -297,9 +321,10 @@ function QuizPage() {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       const result = await res.json();
-
-        <Toast message={toastMessage} onClose={() => setToastMessage('')} />
-      // 2. Save result to /api/results so it appears in history
+      
+      if (!result || typeof result !== 'object') {
+        throw new Error('Invalid response from server');
+      }
       const timeTaken = quizStartAt ? Math.floor((Date.now() - quizStartAt) / 1000) : Math.floor((Date.now() - questionStartTime) / 1000);
       const savePayload = {
         userId,
@@ -372,11 +397,7 @@ function QuizPage() {
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  const handleOptionClick = (option, idx) => {
-    setSelectedAnswer(idx);
-    handleAnswer(option);
-  };
-
+  
   return (
     <div ref={containerRef} className={classNames('quiz-container', { 'review-mode': isReviewMode })}>
       <div className="quiz-header">
@@ -445,25 +466,132 @@ function QuizPage() {
             ),
           }}
         />
-        <div className="options-container">
-          {((language === 'en'
-            ? currentQuestion?.english_options || currentQuestion?.options
-            : currentQuestion?.options
-          ) || []).map((option, idx) => (
-            <button
-              key={idx}
-              onClick={() => !isReviewMode && handleOptionClick(option, idx)}
-              className={classNames('option-button', {
-                'selected': selectedAnswer === idx
+        
+        {/* Multiple Choice Questions */}
+        {getQuestionType(currentQuestion) === 'multiple_choice' && (
+          <div className="options-container">
+            {((language === 'en'
+              ? currentQuestion?.english_options || currentQuestion?.options
+              : currentQuestion?.options
+            ) || []).map((option, idx) => (
+              <button
+                key={idx}
+                onClick={() => !isReviewMode && (() => {
+                  setSelectedAnswer(idx);
+                  handleAnswer({ selectedOption: option });
+                })()}
+                className={classNames('option-button', {
+                  'selected': selectedAnswer === idx
+                })}
+              >
+                <span className="option-label">
+                  {String.fromCharCode(65 + idx)}
+                </span>
+                <span dangerouslySetInnerHTML={{ __html: formatMath(option) }} />
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* True/False Questions */}
+        {getQuestionType(currentQuestion) === 'true_false' && (
+          <div className="true-false-container">
+            <div className="statements-list">
+              {(currentQuestion?.statements || []).map((stmt, idx) => {
+                const statementContent = language === 'en' ? stmt.content_en : stmt.content_vn;
+                const userAnswer = tfStatementAnswers[idx];
+                
+                return (
+                  <div key={idx} className="statement-item">
+                    <div
+                      className="statement-text"
+                      dangerouslySetInnerHTML={{ __html: formatMath(statementContent) }}
+                    />
+                    <div className="statement-buttons">
+                      <button
+                        className={classNames('tf-button true-btn', {
+                          'selected': userAnswer === true,
+                          'disabled': isReviewMode
+                        })}
+                        onClick={() => {
+                          if (!isReviewMode) {
+                            setTfStatementAnswers(prev => ({ ...prev, [idx]: true }));
+                          }
+                        }}
+                      >
+                        ✓ {language === 'en' ? 'True' : 'Đúng'}
+                      </button>
+                      <button
+                        className={classNames('tf-button false-btn', {
+                          'selected': userAnswer === false,
+                          'disabled': isReviewMode
+                        })}
+                        onClick={() => {
+                          if (!isReviewMode) {
+                            setTfStatementAnswers(prev => ({ ...prev, [idx]: false }));
+                          }
+                        }}
+                      >
+                        ✗ {language === 'en' ? 'False' : 'Sai'}
+                      </button>
+                    </div>
+                  </div>
+                );
               })}
-            >
-              <span className="option-label">
-                {String.fromCharCode(65 + idx)}
-              </span>
-              <span>{option}</span>
-            </button>
-          ))}
-        </div>
+            </div>
+            {!isReviewMode && (
+              <button
+                className="submit-statement-btn"
+                onClick={() => handleAnswer({ statements: tfStatementAnswers })}
+                disabled={Object.keys(tfStatementAnswers).length < (currentQuestion?.statements?.length || 0)}
+              >
+                {language === 'en' ? 'Confirm & Next' : 'Xác nhận & Tiếp theo'}
+              </button>
+            )}
+          </div>
+        )}
+        
+        {/* Short Answer Questions */}
+        {getQuestionType(currentQuestion) === 'short_answer' && (
+          <div className="short-answer-container">
+            {currentQuestion?.numerical_answer !== undefined && (
+              <div className="answer-input-group">
+                <label>{language === 'en' ? 'Your answer (number)' : 'Câu trả lời của bạn (số)'}</label>
+                <input
+                  type="number"
+                  step="any"
+                  placeholder={language === 'en' ? 'Enter your answer...' : 'Nhập câu trả lời...'}
+                  value={shortAnswerValue}
+                  onChange={(e) => setShortAnswerValue(e.target.value)}
+                  disabled={isReviewMode}
+                  className="answer-input-field"
+                />
+              </div>
+            )}
+            {currentQuestion?.text_answer !== undefined && (
+              <div className="answer-input-group">
+                <label>{language === 'en' ? 'Your answer' : 'Câu trả lời của bạn'}</label>
+                <textarea
+                  placeholder={language === 'en' ? 'Enter your answer...' : 'Nhập câu trả lời...'}
+                  value={shortAnswerValue}
+                  onChange={(e) => setShortAnswerValue(e.target.value)}
+                  disabled={isReviewMode}
+                  className="answer-textarea-field"
+                  rows="4"
+                />
+              </div>
+            )}
+            {!isReviewMode && (
+              <button
+                className="submit-statement-btn"
+                onClick={() => handleAnswer({ userAnswer: shortAnswerValue })}
+                disabled={!shortAnswerValue.trim()}
+              >
+                {language === 'en' ? 'Confirm & Next' : 'Xác nhận & Tiếp theo'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Question Navigation */}
