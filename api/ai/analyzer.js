@@ -23,10 +23,25 @@ if (!process.env.OPENAI_API_KEY) {
 // Default model: allow overriding via env var. Use gpt-3.5-turbo by default to reduce RPM/cost.
 const DEFAULT_MODEL = process.env.PREFERRED_MODEL || 'gpt-3.5-turbo';
 
-// Prefer updated questions file if present (user may be editing questions_updated.json)
-const defaultQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
-const updatedQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
-const questionsPath = fs.existsSync(updatedQuestionsPath) ? updatedQuestionsPath : defaultQuestionsPath;
+// Prefer updated questions file with chapters array (new structure)
+const questionsPath = (() => {
+  const possiblePaths = [
+    path.join(__dirname, '../data/questions_updated.json'),        // /api/data/questions_updated.json
+    path.join(process.cwd(), 'api/data/questions_updated.json'),   // Root: /api/data/
+    path.join(process.cwd(), './api/data/questions_updated.json')  // Relative from root
+  ];
+  
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      console.log('[API Analyzer] Using questions file:', p);
+      return p;
+    }
+  }
+  
+  console.error('[API Analyzer] Could not find questions_updated.json in:', possiblePaths);
+  // Return first path as fallback (will error with better message if file missing)
+  return possiblePaths[0];
+})();
 
 // Utility: Fisher-Yates shuffle (in-place)
 function shuffleArray(arr) {
@@ -177,18 +192,25 @@ function loadQuestionsForQuiz(quizId) {
   // Try chapter-based format first (e.g., chapter1-contest2)
   const chapterParsed = parseChapterQuizId(quizId);
   if (chapterParsed) {
-    console.log(`[API Analyzer] Using chapter format: chapter${chapterParsed.chapterId}-contest${chapterParsed.contestNum}`);
+    console.log(`[API Analyzer] Parsed as chapter format: chapter${chapterParsed.chapterId}-contest${chapterParsed.contestNum}`);
     const result = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
-    if (result) return result;
+    if (result) {
+      console.log(`[API Analyzer] ✓ Successfully loaded chapter questions`);
+      return result;
+    }
+    console.log(`[API Analyzer] ✗ Failed to load chapter questions, falling back to old format`);
     // Fall through to old format if chapter loading fails
   }
 
   // Fall back to old contest-based format
-  const data = fs.readFileSync(questionsPath, 'utf8');
-  const parsed = JSON.parse(data);
+  console.log(`[API Analyzer] Loading with old contest format for: ${quizId}`);
+  const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+  console.log(`[API Analyzer] Data structure - Top-level keys:`, Object.keys(data).slice(0, 5));
+  
   // Support two shapes for parsed.contests:
   // - Array: parsed.contests = [ [...contest1...], [...contest2...], ... ]
   // - Object: parsed.contests = { "contest1": [...], "contest2": [...], ... }
+  const parsed = data;
   if (parsed && parsed.contests) {
     // If contests is an array (legacy), keep existing numeric selection behavior
     if (Array.isArray(parsed.contests)) {
