@@ -102,9 +102,12 @@ function loadQuestionsForQuiz(quizId) {
       ...(contest.questions_short_answer || [])
     ]);
     
-    if (allQuestions.length === 0) return null;
+    if (allQuestions.length === 0) {
+      console.warn(`[Backend] No questions found for chapter ${chapterId} contest ${contestNum}`);
+      return null;
+    }
     
-    console.log(`[Backend] Loaded ${allQuestions.length} questions for chapter ${chapterId} contest ${contestNum}`);
+    console.log(`[Backend] ✓ Loaded ${allQuestions.length} questions for chapter ${chapterId} contest ${contestNum}`);
     return {
       questions: allQuestions,
       contestKey: `${chapterId}-${contestNum}`,
@@ -116,6 +119,7 @@ function loadQuestionsForQuiz(quizId) {
     };
   } catch (error) {
     console.error('[Backend] Error loading questions:', error.message);
+    console.error('[Backend] Stack:', error.stack);
     return null;
   }
 }

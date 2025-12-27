@@ -57,6 +57,36 @@ app.get('/', (req, res) => {
   res.json({ message: 'Quiz API Server', status: 'running', features: ['Quiz', 'Auth', 'ML'] });
 });
 
+// Debug endpoint: check file structure
+app.get('/debug/files', (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  
+  const dirs = [
+    { name: 'cwd', path: process.cwd() },
+    { name: '/var/task', path: '/var/task' },
+    { name: '/var/task/api', path: '/var/task/api' },
+    { name: '/var/task/api/data', path: '/var/task/api/data' },
+    { name: 'api/data', path: path.join(process.cwd(), 'api/data') },
+    { name: 'stem-project/backend/data', path: path.join(process.cwd(), 'stem-project/backend/data') },
+  ];
+
+  const result = {};
+  for (const dir of dirs) {
+    if (fs.existsSync(dir.path)) {
+      try {
+        result[dir.name] = fs.readdirSync(dir.path).slice(0, 20);
+      } catch (e) {
+        result[dir.name] = { error: e.message };
+      }
+    } else {
+      result[dir.name] = 'NOT FOUND';
+    }
+  }
+  
+  res.json(result);
+});
+
 // Routes - Order matters! More specific routes first
 // Support multiple path prefixes for compatibility
 // /auth, /api/auth, /backend/auth, /api/backend/auth

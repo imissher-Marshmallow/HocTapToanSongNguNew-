@@ -16,24 +16,35 @@ let cachedData = null;
 function loadQuestionsData() {
   // Return cached data if available
   if (cachedData) {
+    console.log('[LoadQuestions] Using cached data');
     return cachedData;
   }
 
-  // Try multiple filesystem paths
+  console.log('[LoadQuestions] Starting load. cwd:', process.cwd());
+  console.log('[LoadQuestions] __dirname:', __dirname);
+
+  // Try multiple filesystem paths (local and Vercel)
   const possiblePaths = [
+    // Vercel environment: data is in /var/task/api/data/
+    '/var/task/api/data/questions_updated.json',
+    path.join('/var/task', 'api/data/questions_updated.json'),
+    // Local development: from project root
     path.join(process.cwd(), 'api/data/questions_updated.json'),
     path.join(process.cwd(), './api/data/questions_updated.json'),
+    // Fallback paths
     path.join(__dirname, '../../api/data/questions_updated.json'),
     path.join(__dirname, '../../../api/data/questions_updated.json'),
     path.join(__dirname, '../data/questions_updated.json'),
   ];
 
+  console.log('[LoadQuestions] Trying filesystem paths:');
   for (const p of possiblePaths) {
+    console.log('[LoadQuestions]   - ', p, 'exists:', fs.existsSync(p));
     if (fs.existsSync(p)) {
       try {
         const data = JSON.parse(fs.readFileSync(p, 'utf8'));
         cachedData = data;
-        console.log('[LoadQuestions] Loaded from filesystem:', p);
+        console.log('[LoadQuestions] ✓ Loaded from filesystem:', p);
         return data;
       } catch (e) {
         console.warn('[LoadQuestions] Failed to parse file:', p, e.message);
@@ -43,25 +54,56 @@ function loadQuestionsData() {
 
   // Fallback: Try require() for Vercel bundling
   const requirePaths = [
-    require.resolve('../../api/data/questions_updated.json').catch(() => null),
+    './data/questions_updated.json',  // Relative to this file's location
+    '../data/questions_updated.json',
     '../../api/data/questions_updated.json',
     '../../../api/data/questions_updated.json',
-    '../data/questions_updated.json',
   ];
 
+  console.log('[LoadQuestions] Trying require() paths:');
   for (const rpath of requirePaths) {
-    if (!rpath) continue;
+    console.log('[LoadQuestions]   - ', rpath);
+    try {
+      const data = require.cache ? (require.cache[require.resolve(rpath)] && require.cache[require.resolve(rpath)].exports) : null;
+      if (data) {
+        cachedData = data;
+        console.log('[LoadQuestions] ✓ Loaded via require.cache:', rpath);
+        return data;
+      }
+    } catch (e) {
+      // Try regular require
+    }
+
     try {
       const data = require(rpath);
       cachedData = data;
-      console.log('[LoadQuestions] Loaded via require():', rpath);
+      console.log('[LoadQuestions] ✓ Loaded via require():', rpath);
       return data;
     } catch (e) {
-      // Continue to next path
+      console.log('[LoadQuestions]   Failed:', e.code, e.message);
     }
   }
 
-  console.error('[LoadQuestions] Failed to load questions data from any source');
+  // Last resort: Try to read from api/data directly by scanning parent directories
+  console.log('[LoadQuestions] Last resort: scanning parent directories...');
+  let currentDir = __dirname;
+  for (let i = 0; i < 5; i++) {
+    const candidatePath = path.join(currentDir, 'api/data/questions_updated.json');
+    console.log('[LoadQuestions]   Checking:', candidatePath, 'exists:', fs.existsSync(candidatePath));
+    if (fs.existsSync(candidatePath)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(candidatePath, 'utf8'));
+        cachedData = data;
+        console.log('[LoadQuestions] ✓ Loaded from parent scan:', candidatePath);
+        return data;
+      } catch (e) {
+        console.warn('[LoadQuestions] Failed to parse:', candidatePath, e.message);
+      }
+    }
+    currentDir = path.dirname(currentDir);
+  }
+
+  console.error('[LoadQuestions] ✗ Failed to load questions data from any source');
   return null;
 }
 
