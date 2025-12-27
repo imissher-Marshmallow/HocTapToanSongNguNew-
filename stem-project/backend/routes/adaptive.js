@@ -13,6 +13,7 @@ const { analyzeQuiz } = require('../ai/analyzer')
 const { generateAISummary, generateDetailedTopicFeedback, generateLearningRoadmap } = require('../utils/aiSummary')
 const { saveQuizResult, getQuizRecommendation } = require('../services/quizResultsService')
 const { supabase, supabaseError } = require('../database')
+const { loadQuestionsData, getAllQuestions } = require('../ai/loadQuestions')
 
 const router = express.Router()
 
@@ -484,11 +485,7 @@ router.get('/dashboard/:userId', async (req, res) => {
     // Load questions for quiz recommendations
     let quizzes = []
     try {
-      const questionData = require('../data/questions_updated.json')
-      const allQuestions = []
-      Object.values(questionData.contests).forEach(contest => {
-        allQuestions.push(...contest)
-      })
+      const allQuestions = getAllQuestions()
 
       // Generate personalized quiz based on profile
       const personalizedQuiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
@@ -539,13 +536,7 @@ router.get('/quiz/personalized', async (req, res) => {
     }
 
     // Load all questions
-    const questionData = require('../data/questions_updated.json')
-    const allQuestions = []
-    
-    // Flatten all questions from all contests
-    Object.values(questionData.contests).forEach(contest => {
-      allQuestions.push(...contest)
-    })
+    const allQuestions = getAllQuestions()
 
     // Get user's quiz recommendation based on history
     const quizRecommendation = await getQuizRecommendation(userId)
@@ -719,14 +710,15 @@ router.post('/analyze', async (req, res) => {
 
     // Load questions - ALWAYS from file to ensure we have answerIndex
     // personalizedQuizData has answers stripped for security, so we rebuild from questionIds
-    const questionData = require('../data/questions_updated.json')
+    const questionData = loadQuestionsData()
     let questions = []
 
     console.log('[Analyze] Question data structure:', {
-      hasContests: !!questionData.contests,
-      contestsIsArray: Array.isArray(questionData.contests),
-      contestsIsObject: typeof questionData.contests === 'object' && !Array.isArray(questionData.contests),
-      contestKeys: questionData.contests ? Object.keys(questionData.contests) : []
+      hasChapters: !!questionData?.chapters,
+      chaptersIsArray: Array.isArray(questionData?.chapters),
+      hasContests: !!questionData?.contests,
+      contestsIsArray: Array.isArray(questionData?.contests),
+      contestsIsObject: typeof questionData?.contests === 'object' && !Array.isArray(questionData?.contests)
     })
 
     // DEBUG: Log the condition evaluation
@@ -1439,8 +1431,12 @@ router.get('/questions/:quizId', (req, res) => {
       return res.status(400).json({ error: 'Invalid quiz ID' })
     }
 
-    const questionData = require('../data/questions_updated.json')
-    const questions = questionData.contests[quizId] || []
+    const questionData = loadQuestionsData()
+    if (!questionData) {
+      return res.status(500).json({ error: 'Questions data unavailable' })
+    }
+    
+    const questions = questionData.contests && questionData.contests[quizId] || []
 
     if (questions.length === 0) {
       return res.status(404).json({ error: 'Quiz not found' })
@@ -1476,8 +1472,12 @@ router.post('/analyze-quiz', async (req, res) => {
       return res.status(400).json({ error: 'Invalid answers format' })
     }
 
-    const questionData = require('../data/questions_updated.json')
-    const questions = questionData.contests[quizId] || []
+    const questionData = loadQuestionsData()
+    if (!questionData) {
+      return res.status(500).json({ error: 'Questions data unavailable' })
+    }
+    
+    const questions = questionData.contests && questionData.contests[quizId] || []
 
     if (questions.length === 0) {
       return res.status(400).json({ error: 'Quiz not found' })

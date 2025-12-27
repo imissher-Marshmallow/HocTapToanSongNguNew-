@@ -5,6 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const OpenAI = require('openai');
 const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
 const { dbHelpers } = require('../database');
+const { loadQuestionsData } = require('./loadQuestions');
 
 // Initialize OpenAI clients for different agents (separate to avoid RPM limits)
 // OPENAI_API_KEY_SUMMARY: For generating AI summary and feedback
@@ -37,43 +38,8 @@ if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES
   if (process.env.OPENAI_API_KEY) console.log('✓ OPENAI_API_KEY (fallback) detected');
 }
 
-// Load from /api/data - use require() for Vercel bundling
-let questionsData = null;
-const questionsPath = (() => {
-  const possiblePaths = [
-    // PRIORITY 1: Try /api/data (the correct data file with chapters)
-    path.join(process.cwd(), 'api/data/questions_updated.json'),
-    path.join(process.cwd(), './api/data/questions_updated.json'),
-    path.join(__dirname, '../../api/data/questions_updated.json'),
-    path.join(__dirname, '../../../api/data/questions_updated.json'),
-    // PRIORITY 2: Try from current working directory (Vercel root)
-    path.join(process.cwd(), 'data/questions_updated.json'),
-    path.join(process.cwd(), './data/questions_updated.json'),
-    // PRIORITY 3: Fallback to backend data (if it exists, it should be a symlink to API data)
-    path.join(__dirname, '../data/questions_updated.json'),
-  ];
-  
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      console.log('[Backend Analyzer] Using:', p);
-      return p;
-    }
-  }
-  
-  console.error('[Backend Analyzer] No questions file found. Tried:', possiblePaths);
-  
-  // As a last resort, try to require() the data (works in Vercel if bundled)
-  try {
-    console.log('[Backend Analyzer] Attempting to require questions data as fallback...');
-    questionsData = require('../../api/data/questions_updated.json');
-    console.log('[Backend Analyzer] Successfully loaded via require()');
-    return null; // Signal that we loaded via require, not fs
-  } catch (e) {
-    console.error('[Backend Analyzer] Failed to require data:', e.message);
-  }
-  
-  return possiblePaths[0];
-})();
+// Load from /api/data using shared utility with filesystem + require() fallbacks
+const getQuestionsData = () => loadQuestionsData();
 
 // Fisher-Yates shuffle
 function shuffleArray(arr) {
@@ -87,19 +53,7 @@ function shuffleArray(arr) {
 // Load questions for a quiz - accepts "1-2" format (chapter-contest)
 function loadQuestionsForQuiz(quizId) {
   try {
-    let data;
-    
-    // Use require'd data if available, otherwise read from file
-    if (questionsData) {
-      data = questionsData;
-      console.log('[Backend] Using pre-loaded questions data (via require)');
-    } else if (questionsPath && fs.existsSync(questionsPath)) {
-      data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
-      console.log('[Backend] Using questions data from file:', questionsPath);
-    } else {
-      console.error('[Backend] Questions file does not exist at:', questionsPath, '| questionsData:', questionsData ? 'loaded' : 'null');
-      return null;
-    }
+    const data = getQuestionsData();
     
     if (!data || !data.chapters || !Array.isArray(data.chapters)) {
       console.error('[Backend] Error: Invalid file structure. Data:', data ? Object.keys(data).slice(0, 5) : 'null');
