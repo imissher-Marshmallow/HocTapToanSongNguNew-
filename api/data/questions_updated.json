@@ -5215,7 +5215,7 @@
               "topic": "VDT - Tính chất hình học",
               "statements": [
                 {
-                  "content_vn": "a) Hình chóp tứ giác đều S.ABCD có cạnh đáy a. Độ dài đường chéo đáy AC = a*sqrt(2).",
+                  "content_vn": "a) Hình chóp tứ giác đều S.ABCD có cạnh đáy $a$. Độ dài đường chéo đáy $AC = a\\sqrt{2}$.",
                   "is_true": true
                 },
                 {
@@ -5227,7 +5227,7 @@
                   "is_true": false
                 },
                 {
-                  "content_vn": "d) Diện tích tam giác đều (mặt đáy) có cạnh a là (a^2*sqrt(3))/2.",
+                  "content_vn": "d) Diện tích tam giác đều (mặt đáy) có cạnh $a$ là $\\frac{a^2\\sqrt{3}}{2}$.",
                   "is_true": false
                 }
               ],
@@ -5428,12 +5428,12 @@
             {
               "id": 10,
               "topic": "VDT - Tính thể tích",
-              "question": "Hình chóp tam giác đều có S_đáy = 16*sqrt(3) cm^2 và h = 3 cm. Thể tích V là:",
+              "question": "Hình chóp tam giác đều có $S_{đáy} = 16\\sqrt{3}$ cm² và $h = 3$ cm. Thể tích $V$ là:",
               "options": [
-                "16*sqrt(3) cm^3",
-                "48*sqrt(3) cm^3",
-                "10*sqrt(3) cm^3",
-                "8*sqrt(3) cm^3"
+                "$16\\sqrt{3}$ cm³",
+                "$48\\sqrt{3}$ cm³",
+                "$10\\sqrt{3}$ cm³",
+                "$8\\sqrt{3}$ cm³"
               ],
               "answerIndex": 0,
               "difficulty": "3"
@@ -5552,7 +5552,7 @@
                   "is_true": true
                 },
                 {
-                  "content_vn": "d) Hình chóp tam giác đều có tất cả các cạnh đều bằng a. S_xq = (3a^2*sqrt(3))/4.",
+                  "content_vn": "d) Hình chóp tam giác đều có tất cả các cạnh đều bằng $a$. $S_{xq} = \\frac{3a^2\\sqrt{3}}{4}$.",
                   "is_true": true
                 }
               ],
@@ -5730,12 +5730,12 @@
             {
               "id": 10,
               "topic": "VDT - Tính thể tích (Thực tế)",
-              "question": "Một cái hộp trang trí dạng hình chóp tam giác đều có S_đáy = 4*sqrt(3) cm^2, h = 9 cm. Thể tích là:",
+              "question": "Một cái hộp trang trí dạng hình chóp tam giác đều có $S_{đáy} = 4\\sqrt{3}$ cm², $h = 9$ cm. Thể tích là:",
               "options": [
-                "12*sqrt(3) cm^3",
-                "36*sqrt(3) cm^3",
-                "4*sqrt(3) cm^3",
-                "108 cm^3"
+                "$12\\sqrt{3}$ cm³",
+                "$36\\sqrt{3}$ cm³",
+                "$4\\sqrt{3}$ cm³",
+                "108 cm³"
               ],
               "answerIndex": 0,
               "difficulty": "3"
@@ -5747,8 +5747,8 @@
               "options": [
                 "12 cm",
                 "13 cm",
-                "sqrt(194) cm",
-                "5*sqrt(5) cm"
+                "$\\sqrt{194}$ cm",
+                "$5\\sqrt{5}$ cm"
               ],
               "answerIndex": 2,
               "difficulty": "4"
@@ -5756,7 +5756,7 @@
             {
               "id": 12,
               "topic": "VDC - Thể tích thực tế",
-              "question": "Một mô hình kim tự tháp có đáy là hình vuông cạnh 2*sqrt(3) m, chiều cao 4 m. Thể tích là:",
+              "question": "Một mô hình kim tự tháp có đáy là hình vuông cạnh $2\\sqrt{3}$ m, chiều cao 4 m. Thể tích là:",
               "options": [
                 "16 m^3",
                 "24 m^3",
@@ -5819,7 +5819,7 @@
               "topic": "VDT - Tính chất hình học",
               "statements": [
                 {
-                  "content_vn": "a) Hình chóp tứ giác đều S.ABCD có cạnh đáy a. Độ dài đoạn thẳng nối A và C là a*sqrt(2).",
+                  "content_vn": "a) Hình chóp tứ giác đều S.ABCD có cạnh đáy $a$. Độ dài đoạn thẳng nối A và C là $a\\sqrt{2}$.",
                   "is_true": true
                 },
                 {
@@ -5846,7 +5846,7 @@
                   "is_true": true
                 },
                 {
-                  "content_vn": "b) Hình chóp tam giác đều có S_xq = S_đáy. Nếu cạnh đáy là a thì trung đoạn là (a*sqrt(3))/2.",
+                  "content_vn": "b) Hình chóp tam giác đều có $S_{xq} = S_{đáy}$. Nếu cạnh đáy là $a$ thì trung đoạn là $\\frac{a\\sqrt{3}}{2}$.",
                   "is_true": true
                 },
                 {
@@ -5900,7 +5900,7 @@
             {
               "id": 22,
               "topic": "VDC - Tính V thực tế",
-              "question": "Một vật trang trí hình chóp tam giác đều có cạnh đáy 4 cm, chiều cao 3*sqrt(3) cm. Tính thể tích. (Lấy sqrt(3) ~= 1.73, làm tròn đến hàng đơn vị). (Đơn vị: cm^3)",
+              "question": "Một vật trang trí hình chóp tam giác đều có cạnh đáy 4 cm, chiều cao $3\\sqrt{3}$ cm. Tính thể tích. (Lấy $\\sqrt{3} \\approx 1.73$, làm tròn đến hàng đơn vị). (Đơn vị: cm³)",
               "numerical_answer": 7,
               "difficulty": "4"
             }
@@ -6129,7 +6129,7 @@
                   "is_true": false
                 },
                 {
-                  "content_vn": "c) Trong hình chóp tam giác đều có cạnh đáy a. Khoảng cách từ tâm đáy đến cạnh đáy là (a*sqrt(3))/6.",
+                  "content_vn": "c) Trong hình chóp tam giác đều có cạnh đáy $a$. Khoảng cách từ tâm đáy đến cạnh đáy là $\\frac{a\\sqrt{3}}{6}$.",
                   "is_true": true
                 },
                 {
@@ -6347,7 +6347,7 @@
             {
               "id": 11,
               "topic": "VDC - Thể tích thực tế",
-              "question": "Một hộp quà hình chóp tam giác đều có cạnh đáy 3*sqrt(3) cm, chiều cao 5 cm. Thể tích hộp quà là:",
+              "question": "Một hộp quà hình chóp tam giác đều có cạnh đáy $3\\sqrt{3}$ cm, chiều cao 5 cm. Thể tích hộp quà là:",
               "options": [
                 "15 cm^3",
                 "30 cm^3",
@@ -6404,7 +6404,7 @@
                   "is_true": true
                 },
                 {
-                  "content_vn": "b) Hình chóp tam giác đều có cạnh đáy 6 cm, trung đoạn 5 cm. S_tp = 48*sqrt(3) cm^2.",
+                  "content_vn": "b) Hình chóp tam giác đều có cạnh đáy 6 cm, trung đoạn 5 cm. $S_{tp} = 48\\sqrt{3}$ cm².",
                   "is_true": false
                 },
                 {
@@ -6435,7 +6435,7 @@
                   "is_true": true
                 },
                 {
-                  "content_vn": "d) Hình chóp tam giác đều có tất cả các cạnh bằng 6 cm. S_xq = 27*sqrt(3) cm^2.",
+                  "content_vn": "d) Hình chóp tam giác đều có tất cả các cạnh bằng 6 cm. $S_{xq} = 27\\sqrt{3}$ cm².",
                   "is_true": true
                 }
               ],
@@ -6450,7 +6450,7 @@
                   "is_true": true
                 },
                 {
-                  "content_vn": "b) Hình chóp tam giác đều có V = 4*sqrt(3) cm^3, cạnh đáy 4 cm. h = 3 cm.",
+                  "content_vn": "b) Hình chóp tam giác đều có $V = 4\\sqrt{3}$ cm³, cạnh đáy 4 cm. $h = 3$ cm.",
                   "is_true": true
                 },
                 {
@@ -6476,7 +6476,7 @@
             {
               "id": 18,
               "topic": "VDT - Tính V",
-              "question": "Hình chóp tam giác đều có S_đáy = 10*sqrt(3) cm^2, h = 6 cm. Tính thể tích. (Đơn vị: cm^3)",
+              "question": "Hình chóp tam giác đều có $S_{đáy} = 10\\sqrt{3}$ cm², $h = 6$ cm. Tính thể tích. (Đơn vị: cm³)",
               "numerical_answer": 20,
               "difficulty": "3"
             },
@@ -6800,7 +6800,7 @@
             {
               "id": 20,
               "topic": "VDT - Tính cạnh Hình thoi",
-              "question": "Hình thoi có hai đường chéo d1 = 12 cm và d2 = 16 cm. Tính chu vi hình thoi (P).",
+              "question": "Hình thoi có hai đường chéo $d_1 = 12$ cm và $d_2 = 16$ cm. Tính chu vi hình thoi ($P$).",
               "numerical_answer": 40,
               "difficulty": "3"
             },
@@ -6814,7 +6814,7 @@
             {
               "id": 22,
               "topic": "VDC - Điều kiện để là Hình vuông",
-              "question": "Hình thoi có độ dài cạnh a = 6 cm. Tính độ dài đường chéo d1 nếu d1 = d2. (Làm tròn đến 2 chữ số thập phân).",
+              "question": "Hình thoi có độ dài cạnh $a = 6$ cm. Tính độ dài đường chéo $d_1$ nếu $d_1 = d_2$. (Làm tròn đến 2 chữ số thập phân).",
               "numerical_answer": 8.49,
               "difficulty": "4"
             }
@@ -7651,7 +7651,7 @@
                   "is_true": true
                 },
                 {
-                  "content_vn": "d) Hình thoi có hai đường chéo d1 = 4 cm, d2 = 6 cm. Cạnh của hình thoi là \\sqrt{13} cm.",
+                  "content_vn": "d) Hình thoi có hai đường chéo $d_1 = 4$ cm, $d_2 = 6$ cm. Cạnh của hình thoi là $\\sqrt{13}$ cm.",
                   "is_true": true
                 }
               ],
@@ -8008,7 +8008,7 @@
             {
               "id": 20,
               "topic": "VDT - Tính cạnh Hình thoi",
-              "question": "Hình thoi có d1 = 18 cm, d2 = 24 cm. Tính chu vi hình thoi (P).",
+              "question": "Hình thoi có $d_1 = 18$ cm, $d_2 = 24$ cm. Tính chu vi hình thoi ($P$).",
               "numerical_answer": 60,
               "difficulty": "3"
             },
@@ -8022,7 +8022,7 @@
             {
               "id": 22,
               "topic": "VDC - Tìm điều kiện (Pythagore)",
-              "question": "Hình thoi có một cạnh a = 10 cm, một đường chéo d1 = 12 cm. Tính độ dài đường chéo d2 (cm).",
+              "question": "Hình thoi có một cạnh $a = 10$ cm, một đường chéo $d_1 = 12$ cm. Tính độ dài đường chéo $d_2$ (cm).",
               "numerical_answer": 16,
               "difficulty": "4"
             }

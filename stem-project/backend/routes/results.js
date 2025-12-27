@@ -97,7 +97,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     let placeholderScore = 0; // placeholder - will be updated after analyzer runs
 
     // Idempotency: if submissionId provided, check existing result first
-    if (submissionId) {
+    if (submissionId && dbHelpers && typeof dbHelpers.getResultBySubmissionId === 'function') {
       try {
         const existing = await dbHelpers.getResultBySubmissionId(submissionId);
         if (existing) {
@@ -131,6 +131,9 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     }
 
     try {
+      if (!dbHelpers || typeof dbHelpers.saveResult !== 'function') {
+        throw new Error('dbHelpers.saveResult is not available');
+      }
       resultId = await dbHelpers.saveResult(
         numericUserId,
         quizId,
@@ -286,16 +289,45 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
       }
     }
 
-    // Build answer comparison from questions
+    // Build answer comparison from questions (supports all three question types)
     const answerComparison = answers.map((answer) => {
       const question = questions?.find(q => q.id === answer.questionId);
       if (!question) return null;
+      
+      let correctAnswer, isCorrect, userAnswer;
+      
+      // Handle multiple choice questions
+      if (question.options && Array.isArray(question.options)) {
+        correctAnswer = question.options[question.answerIndex];
+        userAnswer = answer.selectedOption;
+        isCorrect = question.options.indexOf(answer.selectedOption) === question.answerIndex;
+      }
+      // Handle true/false questions
+      else if (question.statements && Array.isArray(question.statements)) {
+        const correctStatements = question.statements.map(s => `${s.content_vn || s.content_en}: ${s.is_true ? 'Đúng' : 'Sai'}`).join(' | ');
+        correctAnswer = correctStatements;
+        if (Array.isArray(answer.selectedStatements)) {
+          userAnswer = answer.selectedStatements.map(s => `${s.content_vn || s.content_en}: ${s.answer}`).join(' | ');
+        } else if (typeof answer.selectedStatements === 'string') {
+          userAnswer = answer.selectedStatements;
+        } else {
+          userAnswer = 'Không trả lời';
+        }
+        isCorrect = Boolean(answer.isCorrect);
+      }
+      // Handle short answer questions
+      else if (question.numerical_answer !== undefined || question.text_answer) {
+        correctAnswer = question.numerical_answer !== undefined ? question.numerical_answer : question.text_answer;
+        userAnswer = answer.userAnswer || answer.selectedOption || 'Không trả lời';
+        isCorrect = answer.isCorrect || false;
+      }
+      
       return {
         questionId: answer.questionId,
         question: question.content || question.question,
-        userAnswer: answer.selectedOption,
-        correctAnswer: question.options[question.answerIndex],
-        isCorrect: question.options.indexOf(answer.selectedOption) === question.answerIndex,
+        userAnswer,
+        correctAnswer,
+        isCorrect,
         explanation: question.explanation || ''
       };
     }).filter(x => x !== null);
