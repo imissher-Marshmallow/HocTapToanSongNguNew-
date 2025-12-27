@@ -384,7 +384,7 @@ function loadGroupedQuestionsForQuiz(quizId) {
 
   return buckets;
 }
-}
+
 
 // Helper to get weak areas
 function getWeakAreas(topicStats) {
