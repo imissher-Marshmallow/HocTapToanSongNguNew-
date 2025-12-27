@@ -5,7 +5,6 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const OpenAI = require('openai');
 const { getResourcesForTopic, generateMotivationalFeedback } = require('./webSearchResources');
 const { dbHelpers } = require('../database');
-const { parseQuizId, loadQuestionsForChapterContest } = require('../utils/chapterMapper');
 
 // Initialize OpenAI clients for different agents (separate to avoid RPM limits)
 // OPENAI_API_KEY_SUMMARY: For generating AI summary and feedback
@@ -38,10 +37,25 @@ if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES
   if (process.env.OPENAI_API_KEY) console.log('✓ OPENAI_API_KEY (fallback) detected');
 }
 
-// Prefer updated questions file
-const defaultQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
-const updatedQuestionsPath = path.join(__dirname, '../data/questions_updated.json');
-const questionsPath = fs.existsSync(updatedQuestionsPath) ? updatedQuestionsPath : defaultQuestionsPath;
+// Load from /api/data (where chapters structure exists) or fall back to /backend/data
+const questionsPath = (() => {
+  const possiblePaths = [
+    path.join(__dirname, '../../api/data/questions_updated.json'),    // /api/data (chapters format)
+    path.join(__dirname, '../data/questions_updated.json'),           // /backend/data (old format)
+    path.join(process.cwd(), 'api/data/questions_updated.json'),      // From root
+    path.join(process.cwd(), 'backend/data/questions_updated.json')   // From root
+  ];
+  
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      console.log('[Backend Analyzer] Using:', p);
+      return p;
+    }
+  }
+  
+  console.error('[Backend Analyzer] No questions file found. Tried:', possiblePaths);
+  return possiblePaths[0];
+})();
 
 // Fisher-Yates shuffle
 function shuffleArray(arr) {
@@ -52,31 +66,83 @@ function shuffleArray(arr) {
   return arr;
 }
 
+// SIMPLIFIED: Parse numeric format: "1" or "1-2"
+function parseNumericQuizId(quizId) {
+  if (!quizId || typeof quizId !== 'string') return null;
+  
+  const parts = quizId.trim().split('-').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+  if (parts.length === 0) return null;
+  
+  const chapterId = parts[0];
+  const contestNum = parts.length > 1 ? parts[1] : 1;
+  
+  if (chapterId < 1 || chapterId > 5 || contestNum < 1 || contestNum > 5) return null;
+  return { chapterId, contestNum };
+}
+
+// SIMPLIFIED: Load from numeric chapter/contest
+function loadQuestionsNumeric(chapterId, contestNum) {
+  try {
+    const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+    
+    if (!data.chapters || !Array.isArray(data.chapters)) {
+      console.error('[Backend] No chapters found. Keys:', Object.keys(data).slice(0, 5));
+      return null;
+    }
+    
+    const chapter = data.chapters.find(c => c.chapterId === chapterId);
+    if (!chapter || !chapter.contests || chapter.contests.length < contestNum) {
+      return null;
+    }
+    
+    const contest = chapter.contests[contestNum - 1];
+    const allQuestions = [];
+    
+    // Flatten all question types
+    if (Array.isArray(contest.questions_multiple_choice)) {
+      allQuestions.push(...contest.questions_multiple_choice.map(q => ({ ...q, type: 'multipleChoice' })));
+    }
+    if (Array.isArray(contest.questions_true_false)) {
+      allQuestions.push(...contest.questions_true_false.map(q => ({ ...q, type: 'trueFalse' })));
+    }
+    if (Array.isArray(contest.questions_short_answer)) {
+      allQuestions.push(...contest.questions_short_answer.map(q => ({ ...q, type: 'shortAnswer' })));
+    }
+    
+    if (allQuestions.length === 0) return null;
+    
+    const shuffled = shuffleArray([...allQuestions]);
+    const normalized = shuffled.map(q => ({
+      ...q,
+      english_question: q.english_question || q.question,
+      english_options: q.english_options || (Array.isArray(q.options) ? q.options : [])
+    }));
+    
+    console.log(`[Backend] Loaded ${normalized.length} questions for chapter ${chapterId} contest ${contestNum}`);
+    return {
+      questions: normalized,
+      contestKey: `${chapterId}-${contestNum}`,
+      contestIndex: contestNum,
+      contestId: contestNum,
+      contestName: chapter.chapterName,
+      chapterId,
+      difficulty: contestNum <= 3 ? 'normal' : 'hard'
+    };
+  } catch (error) {
+    console.error('[Backend] Error loading questions:', error.message);
+    return null;
+  }
+}
+
 // Load questions for a quiz
 function loadQuestionsForQuiz(quizId) {
   try {
-    // Check if this is a new chapter-based ID format (e.g., "chapter1-contest2")
-    const parsed = parseQuizId(quizId);
-    if (parsed) {
-      console.log('[Analyzer] Using chapter mapper for:', quizId, parsed);
-      const result = loadQuestionsForChapterContest(parsed.chapterId, parsed.contestNum);
-      if (result) {
-        const shuffled = shuffleArray([...result.questions]);
-        const normalized = shuffled.map(q => ({
-          ...q,
-          english_question: q.english_question || q.question || q.content_vn,
-          english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
-        }));
-        return {
-          questions: normalized,
-          contestKey: result.contestKey,
-          contestIndex: result.contestNum,
-          contestId: result.contestNum,
-          contestName: result.chapterName,
-          chapterId: result.chapterId,
-          difficulty: result.difficulty
-        };
-      }
+    // SIMPLIFIED: Try numeric format first (e.g., "1" or "1-2")
+    const numericParsed = parseNumericQuizId(quizId);
+    if (numericParsed) {
+      console.log(`[Backend] Numeric format: chapter ${numericParsed.chapterId}, contest ${numericParsed.contestNum}`);
+      const result = loadQuestionsNumeric(numericParsed.chapterId, numericParsed.contestNum);
+      if (result) return result;
     }
 
     // Fall back to old contest-based system for backward compatibility
