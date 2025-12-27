@@ -52,22 +52,33 @@ function shuffleArray(arr) {
   return arr;
 }
 
-// SIMPLIFIED: Parse numeric format only
-// Input: "1" or "1-2" -> Output: { chapterId: 1, contestNum: 2 }
-// Input: "1" -> Output: { chapterId: 1, contestNum: 1 } (default to contest 1)
-function parseNumericQuizId(quizId) {
+// Parse BOTH formats: numeric "1-2" OR string "chapter1-contest2"
+function parseQuizId(quizId) {
   if (!quizId || typeof quizId !== 'string') return null;
   
-  const parts = quizId.trim().split('-').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
-  if (parts.length === 0) return null;
+  // Try numeric format first: "1" or "1-2"
+  const numericMatch = quizId.match(/^(\d+)(?:-(\d+))?$/);
+  if (numericMatch) {
+    const chapterId = parseInt(numericMatch[1], 10);
+    const contestNum = numericMatch[2] ? parseInt(numericMatch[2], 10) : 1;
+    
+    if (chapterId >= 1 && chapterId <= 5 && contestNum >= 1 && contestNum <= 5) {
+      return { chapterId, contestNum };
+    }
+  }
   
-  const chapterId = parts[0];
-  const contestNum = parts.length > 1 ? parts[1] : 1;
+  // Try string format: "chapter1-contest2"
+  const stringMatch = quizId.match(/^chapter(\d+)(?:-contest(\d+))?$/i);
+  if (stringMatch) {
+    const chapterId = parseInt(stringMatch[1], 10);
+    const contestNum = stringMatch[2] ? parseInt(stringMatch[2], 10) : 1;
+    
+    if (chapterId >= 1 && chapterId <= 5 && contestNum >= 1 && contestNum <= 5) {
+      return { chapterId, contestNum };
+    }
+  }
   
-  // Validate ranges: chapters 1-5, contests 1-5
-  if (chapterId < 1 || chapterId > 5 || contestNum < 1 || contestNum > 5) return null;
-  
-  return { chapterId, contestNum };
+  return null;
 }
 
 // SIMPLIFIED: Load questions using numeric IDs
@@ -197,13 +208,13 @@ async function sendChatWithRetries(opts) {
 
 // Load questions for a quiz (supports new `contests` format in questions.json)
 function loadQuestionsForQuiz(quizId) {
-  // SIMPLIFIED: Try numeric format first (e.g., "1-2" for chapter 1 contest 2, or "3" for chapter 3 contest 1)
-  const numericParsed = parseNumericQuizId(quizId);
-  if (numericParsed) {
-    console.log(`[API] Numeric format: chapter ${numericParsed.chapterId}, contest ${numericParsed.contestNum}`);
-    const result = loadQuestionsNumeric(numericParsed.chapterId, numericParsed.contestNum);
+  // SIMPLIFIED: Accept BOTH formats: "1-2" or "chapter1-contest2"
+  const parsed = parseQuizId(quizId);
+  if (parsed) {
+    console.log(`[API] Parsed: chapter ${parsed.chapterId}, contest ${parsed.contestNum}`);
+    const result = loadQuestionsNumeric(parsed.chapterId, parsed.contestNum);
     if (result) {
-      console.log(`[API] ✓ Loaded successfully`);
+      console.log(`[API] ✓ Loaded`);
       return result;
     }
   }
@@ -295,10 +306,10 @@ function loadQuestionsForQuiz(quizId) {
 
 // Load questions grouped by topic categories for a specific quiz
 function loadGroupedQuestionsForQuiz(quizId) {
-  // SIMPLIFIED: Try numeric format first
-  const numericParsed = parseNumericQuizId(quizId);
-  if (numericParsed) {
-    const result = loadQuestionsNumeric(numericParsed.chapterId, numericParsed.contestNum);
+  // SIMPLIFIED: Accept BOTH formats
+  const parsed = parseQuizId(quizId);
+  if (parsed) {
+    const result = loadQuestionsNumeric(parsed.chapterId, parsed.contestNum);
     if (result) {
       // Group into buckets
       const mapTopicToBucket = (topicStr) => {

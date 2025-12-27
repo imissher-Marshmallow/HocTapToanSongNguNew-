@@ -66,18 +66,33 @@ function shuffleArray(arr) {
   return arr;
 }
 
-// SIMPLIFIED: Parse numeric format: "1" or "1-2"
+// SIMPLIFIED: Parse BOTH formats: numeric "1-2" OR string "chapter1-contest2"
 function parseNumericQuizId(quizId) {
   if (!quizId || typeof quizId !== 'string') return null;
   
-  const parts = quizId.trim().split('-').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
-  if (parts.length === 0) return null;
+  // Try numeric format first: "1" or "1-2"
+  const numericMatch = quizId.match(/^(\d+)(?:-(\d+))?$/);
+  if (numericMatch) {
+    const chapterId = parseInt(numericMatch[1], 10);
+    const contestNum = numericMatch[2] ? parseInt(numericMatch[2], 10) : 1;
+    
+    if (chapterId >= 1 && chapterId <= 5 && contestNum >= 1 && contestNum <= 5) {
+      return { chapterId, contestNum };
+    }
+  }
   
-  const chapterId = parts[0];
-  const contestNum = parts.length > 1 ? parts[1] : 1;
+  // Try string format: "chapter1-contest2"
+  const stringMatch = quizId.match(/^chapter(\d+)(?:-contest(\d+))?$/i);
+  if (stringMatch) {
+    const chapterId = parseInt(stringMatch[1], 10);
+    const contestNum = stringMatch[2] ? parseInt(stringMatch[2], 10) : 1;
+    
+    if (chapterId >= 1 && chapterId <= 5 && contestNum >= 1 && contestNum <= 5) {
+      return { chapterId, contestNum };
+    }
+  }
   
-  if (chapterId < 1 || chapterId > 5 || contestNum < 1 || contestNum > 5) return null;
-  return { chapterId, contestNum };
+  return null;
 }
 
 // SIMPLIFIED: Load from numeric chapter/contest
