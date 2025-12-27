@@ -40,11 +40,18 @@ if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES
 // Load from /api/data (where chapters structure exists) or fall back to /backend/data
 const questionsPath = (() => {
   const possiblePaths = [
-    path.join(process.cwd(), 'api/data/questions_updated.json'),      // /api/data first (absolute)
-    path.join(process.cwd(), './api/data/questions_updated.json'),    // /api/data relative
-    path.join(__dirname, '../../api/data/questions_updated.json'),    // From backend/ai go to api/data
-    path.join(__dirname, '../data/questions_updated.json'),           // /backend/data fallback
-    path.join(process.cwd(), 'backend/data/questions_updated.json')   // From root
+    // Try from current working directory (Vercel root)
+    path.join(process.cwd(), 'api/data/questions_updated.json'),
+    path.join(process.cwd(), './api/data/questions_updated.json'),
+    // Try relative to this file (from stem-project/backend/ai/)
+    path.join(__dirname, '../../api/data/questions_updated.json'),
+    path.join(__dirname, '../data/questions_updated.json'),
+    // Try from stem-project root
+    path.join(__dirname, '../../../api/data/questions_updated.json'),
+    // Additional fallbacks for different deployment structures
+    path.join(process.cwd(), 'stem-project/backend/data/questions_updated.json'),
+    path.join(process.cwd(), 'data/questions_updated.json'),
+    path.join(process.cwd(), './data/questions_updated.json'),
   ];
   
   for (const p of possiblePaths) {
@@ -70,10 +77,15 @@ function shuffleArray(arr) {
 // Load questions for a quiz - accepts "1-2" format (chapter-contest)
 function loadQuestionsForQuiz(quizId) {
   try {
+    if (!fs.existsSync(questionsPath)) {
+      console.error('[Backend] Questions file does not exist at:', questionsPath);
+      return null;
+    }
+    
     const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
     
-    if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.error('[Backend] Error: No chapters array in file');
+    if (!data || !data.chapters || !Array.isArray(data.chapters)) {
+      console.error('[Backend] Error: Invalid file structure. Data:', data ? Object.keys(data).slice(0, 5) : 'null');
       return null;
     }
     
@@ -102,13 +114,13 @@ function loadQuestionsForQuiz(quizId) {
     
     const chapter = data.chapters.find(c => c.chapterId === chapterId || c.id === chapterId);
     if (!chapter) {
-      console.error(`[Backend] Chapter ${chapterId} not found`);
+      console.error(`[Backend] Chapter ${chapterId} not found. Available:`, data.chapters.map(c => c.chapterId || c.id));
       return null;
     }
     
     const contest = chapter.contests.find(c => c.exam_id === contestNum || c.id === contestNum);
     if (!contest) {
-      console.error(`[Backend] Contest ${contestNum} not found in chapter ${chapterId}`);
+      console.error(`[Backend] Contest ${contestNum} not found in chapter ${chapterId}. Available:`, chapter.contests.map(c => c.exam_id || c.id));
       return null;
     }
     

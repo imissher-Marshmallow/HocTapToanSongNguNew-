@@ -36,9 +36,11 @@ export default function QuizList() {
               setTopicScores(data.scores);
             }
           }
+          // Silently ignore 404 or other errors - scores are optional
         }
       } catch (error) {
-        console.error('Error fetching user scores:', error);
+        // Silently ignore fetch errors - default scores will be used
+        console.debug('Could not fetch user scores:', error);
       }
     };
     

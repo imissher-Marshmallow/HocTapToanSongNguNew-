@@ -7,10 +7,17 @@ const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 const questionsPath = (() => {
   const possiblePaths = [
+    // Try from current working directory
     path.join(process.cwd(), 'api/data/questions_updated.json'),
     path.join(process.cwd(), './api/data/questions_updated.json'),
+    // Try relative to this file
+    path.join(__dirname, './data/questions_updated.json'),
+    path.join(__dirname, '../data/questions_updated.json'),
     path.join(__dirname, '../../api/data/questions_updated.json'),
-    path.join(__dirname, '../data/questions_updated.json')
+    path.join(__dirname, '../backend/data/questions_updated.json'),
+    // Fallback: Vercel serverless paths
+    path.join(process.cwd(), 'data/questions_updated.json'),
+    path.join(process.cwd(), './data/questions_updated.json'),
   ];
   
   for (const p of possiblePaths) {
@@ -20,7 +27,7 @@ const questionsPath = (() => {
     }
   }
   
-  console.error('[API Analyzer] ✗ File not found:', possiblePaths);
+  console.error('[API Analyzer] ✗ File not found. Tried:', possiblePaths);
   return possiblePaths[0];
 })();
 
@@ -144,10 +151,15 @@ async function sendChatWithRetries(opts) {
 // Load questions for a quiz - accepts "1-2" format (chapter-contest)
 function loadQuestionsForQuiz(quizId) {
   try {
+    if (!fs.existsSync(questionsPath)) {
+      console.error('[API] Questions file does not exist at:', questionsPath);
+      return { error: 'Questions file not found' };
+    }
+    
     const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
     
-    if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.error('[API] Error: No chapters array in file');
+    if (!data || !data.chapters || !Array.isArray(data.chapters)) {
+      console.error('[API] Error: Invalid file structure. Data:', data ? Object.keys(data).slice(0, 5) : 'null');
       return { error: 'File structure error' };
     }
     
@@ -176,13 +188,13 @@ function loadQuestionsForQuiz(quizId) {
     
     const chapter = data.chapters.find(c => c.chapterId === chapterId || c.id === chapterId);
     if (!chapter) {
-      console.error(`[API] Chapter ${chapterId} not found`);
+      console.error(`[API] Chapter ${chapterId} not found. Available:`, data.chapters.map(c => c.chapterId || c.id));
       return { error: `Chapter ${chapterId} not found` };
     }
     
     const contest = chapter.contests.find(c => c.exam_id === contestNum || c.id === contestNum);
     if (!contest) {
-      console.error(`[API] Contest ${contestNum} not found in chapter ${chapterId}`);
+      console.error(`[API] Contest ${contestNum} not found in chapter ${chapterId}. Available:`, chapter.contests.map(c => c.exam_id || c.id));
       return { error: `Contest ${contestNum} not found` };
     }
     
