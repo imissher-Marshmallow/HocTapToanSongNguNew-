@@ -6,7 +6,8 @@
   "functions": {
     "api/[...path].js": {
       "maxDuration": 30,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "api/data/**"
     }
   },
   "rewrites": [
@@ -23,3 +24,4 @@
     "NODE_ENV": "production"
   }
 }
+
