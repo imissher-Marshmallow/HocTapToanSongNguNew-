@@ -7,15 +7,13 @@ const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 const questionsPath = (() => {
   const possiblePaths = [
-    // Try from current working directory
+    // PRIORITY 1: Try from /api directory (this file's location)
+    path.join(__dirname, './data/questions_updated.json'),
+    path.join(__dirname, '../../api/data/questions_updated.json'),
+    // PRIORITY 2: Try from current working directory
     path.join(process.cwd(), 'api/data/questions_updated.json'),
     path.join(process.cwd(), './api/data/questions_updated.json'),
-    // Try relative to this file
-    path.join(__dirname, './data/questions_updated.json'),
-    path.join(__dirname, '../data/questions_updated.json'),
-    path.join(__dirname, '../../api/data/questions_updated.json'),
-    path.join(__dirname, '../backend/data/questions_updated.json'),
-    // Fallback: Vercel serverless paths
+    // PRIORITY 3: Vercel root fallback
     path.join(process.cwd(), 'data/questions_updated.json'),
     path.join(process.cwd(), './data/questions_updated.json'),
   ];

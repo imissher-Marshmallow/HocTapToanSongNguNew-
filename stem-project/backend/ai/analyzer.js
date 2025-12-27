@@ -40,18 +40,16 @@ if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES
 // Load from /api/data (where chapters structure exists) or fall back to /backend/data
 const questionsPath = (() => {
   const possiblePaths = [
-    // Try from current working directory (Vercel root)
+    // PRIORITY 1: Try /api/data (the correct data file with chapters)
     path.join(process.cwd(), 'api/data/questions_updated.json'),
     path.join(process.cwd(), './api/data/questions_updated.json'),
-    // Try relative to this file (from stem-project/backend/ai/)
     path.join(__dirname, '../../api/data/questions_updated.json'),
-    path.join(__dirname, '../data/questions_updated.json'),
-    // Try from stem-project root
     path.join(__dirname, '../../../api/data/questions_updated.json'),
-    // Additional fallbacks for different deployment structures
-    path.join(process.cwd(), 'stem-project/backend/data/questions_updated.json'),
+    // PRIORITY 2: Try from current working directory (Vercel root)
     path.join(process.cwd(), 'data/questions_updated.json'),
     path.join(process.cwd(), './data/questions_updated.json'),
+    // PRIORITY 3: Fallback to backend data (if it exists, it should be a symlink to API data)
+    path.join(__dirname, '../data/questions_updated.json'),
   ];
   
   for (const p of possiblePaths) {
