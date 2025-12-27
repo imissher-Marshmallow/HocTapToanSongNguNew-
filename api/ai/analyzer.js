@@ -52,56 +52,63 @@ function shuffleArray(arr) {
   return arr;
 }
 
-// Parse chapter-based quiz ID format: chapter1-contest2 -> { chapterId: 1, contestNum: 2 }
-function parseChapterQuizId(quizId) {
+// SIMPLIFIED: Parse numeric format only
+// Input: "1" or "1-2" -> Output: { chapterId: 1, contestNum: 2 }
+// Input: "1" -> Output: { chapterId: 1, contestNum: 1 } (default to contest 1)
+function parseNumericQuizId(quizId) {
   if (!quizId || typeof quizId !== 'string') return null;
-  const match = quizId.match(/^chapter(\d+)(?:-contest(\d+)|-normal)?$/i);
-  if (!match) return null;
   
-  const chapterId = parseInt(match[1], 10);
-  const contestNum = match[2] ? parseInt(match[2], 10) : 1;
+  const parts = quizId.trim().split('-').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+  if (parts.length === 0) return null;
   
+  const chapterId = parts[0];
+  const contestNum = parts.length > 1 ? parts[1] : 1;
+  
+  // Validate ranges: chapters 1-5, contests 1-5
   if (chapterId < 1 || chapterId > 5 || contestNum < 1 || contestNum > 5) return null;
+  
   return { chapterId, contestNum };
 }
 
-// Load questions for chapter-based format
-function loadChapterQuestions(chapterId, contestNum) {
+// SIMPLIFIED: Load questions using numeric IDs
+function loadQuestionsNumeric(chapterId, contestNum) {
   try {
     const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
     
+    // Expect structure: { chapters: [ { chapterId, chapterName, contests: [...] } ] }
     if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.error('[API Analyzer] No chapters array found in questions_updated.json');
+      console.error('[API] No chapters array. File structure:', Object.keys(data).slice(0, 5));
       return null;
     }
     
+    console.log(`[API] Loading chapter ${chapterId}, contest ${contestNum}`);
     const chapter = data.chapters.find(c => c.chapterId === chapterId);
     if (!chapter) {
-      console.error(`[API Analyzer] Chapter ${chapterId} not found`);
+      console.error(`[API] Chapter ${chapterId} not found. Available:`, data.chapters.map(c => c.chapterId));
       return null;
     }
     
-    if (!chapter.contests || chapter.contests.length < contestNum) {
-      console.error(`[API Analyzer] Contest ${contestNum} not found in chapter ${chapterId}`);
+    if (!chapter.contests || !Array.isArray(chapter.contests) || chapter.contests.length < contestNum) {
+      console.error(`[API] Contest ${contestNum} not found in chapter ${chapterId}`);
       return null;
     }
     
     const contest = chapter.contests[contestNum - 1];
     const allQuestions = [];
     
-    // Support both old (questions_*) and new (questions.*) formats
-    if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
+    // Flatten all question types
+    if (Array.isArray(contest.questions_multiple_choice)) {
       allQuestions.push(...contest.questions_multiple_choice.map(q => ({ ...q, type: 'multipleChoice' })));
     }
-    if (contest.questions_true_false && Array.isArray(contest.questions_true_false)) {
+    if (Array.isArray(contest.questions_true_false)) {
       allQuestions.push(...contest.questions_true_false.map(q => ({ ...q, type: 'trueFalse' })));
     }
-    if (contest.questions_short_answer && Array.isArray(contest.questions_short_answer)) {
+    if (Array.isArray(contest.questions_short_answer)) {
       allQuestions.push(...contest.questions_short_answer.map(q => ({ ...q, type: 'shortAnswer' })));
     }
     
     if (allQuestions.length === 0) {
-      console.error(`[API Analyzer] No questions found in chapter ${chapterId} contest ${contestNum}`);
+      console.error(`[API] No questions in chapter ${chapterId} contest ${contestNum}`);
       return null;
     }
     
@@ -112,17 +119,18 @@ function loadChapterQuestions(chapterId, contestNum) {
       english_options: q.english_options || (Array.isArray(q.options) ? q.options : [])
     }));
     
-    console.log(`[API Analyzer] Loaded ${normalized.length} questions for chapter${chapterId}-contest${contestNum}`);
+    console.log(`[API] ✓ Loaded ${normalized.length} questions`);
     return {
       questions: normalized,
-      contestKey: `chapter${chapterId}-contest${contestNum}`,
+      contestKey: `${chapterId}-${contestNum}`,
       contestIndex: contestNum,
       contestId: contestNum,
-      contestName: chapter.chapterName || `Chapter ${chapterId}`,
-      chapterId
+      contestName: chapter.chapterName,
+      chapterId,
+      difficulty: contestNum <= 3 ? 'normal' : 'hard'
     };
   } catch (error) {
-    console.error(`[API Analyzer] Error loading chapter questions:`, error.message);
+    console.error(`[API] Error loading questions:`, error.message);
     return null;
   }
 }
@@ -189,28 +197,22 @@ async function sendChatWithRetries(opts) {
 
 // Load questions for a quiz (supports new `contests` format in questions.json)
 function loadQuestionsForQuiz(quizId) {
-  // Try chapter-based format first (e.g., chapter1-contest2)
-  const chapterParsed = parseChapterQuizId(quizId);
-  if (chapterParsed) {
-    console.log(`[API Analyzer] Parsed as chapter format: chapter${chapterParsed.chapterId}-contest${chapterParsed.contestNum}`);
-    const result = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
+  // SIMPLIFIED: Try numeric format first (e.g., "1-2" for chapter 1 contest 2, or "3" for chapter 3 contest 1)
+  const numericParsed = parseNumericQuizId(quizId);
+  if (numericParsed) {
+    console.log(`[API] Numeric format: chapter ${numericParsed.chapterId}, contest ${numericParsed.contestNum}`);
+    const result = loadQuestionsNumeric(numericParsed.chapterId, numericParsed.contestNum);
     if (result) {
-      console.log(`[API Analyzer] ✓ Successfully loaded chapter questions`);
+      console.log(`[API] ✓ Loaded successfully`);
       return result;
     }
-    console.log(`[API Analyzer] ✗ Failed to load chapter questions, falling back to old format`);
-    // Fall through to old format if chapter loading fails
   }
 
-  // Fall back to old contest-based format
-  console.log(`[API Analyzer] Loading with old contest format for: ${quizId}`);
+  // Fall back to old random/contest format for backward compatibility
+  console.log(`[API] Falling back to old format for: ${quizId}`);
   const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
-  console.log(`[API Analyzer] Data structure - Top-level keys:`, Object.keys(data).slice(0, 5));
-  
-  // Support two shapes for parsed.contests:
-  // - Array: parsed.contests = [ [...contest1...], [...contest2...], ... ]
-  // - Object: parsed.contests = { "contest1": [...], "contest2": [...], ... }
   const parsed = data;
+  
   if (parsed && parsed.contests) {
     // If contests is an array (legacy), keep existing numeric selection behavior
     if (Array.isArray(parsed.contests)) {
@@ -293,11 +295,12 @@ function loadQuestionsForQuiz(quizId) {
 
 // Load questions grouped by topic categories for a specific quiz
 function loadGroupedQuestionsForQuiz(quizId) {
-  // Try chapter-based format first
-  const chapterParsed = parseChapterQuizId(quizId);
-  if (chapterParsed) {
-    const chapterResult = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
-    if (chapterResult) {
+  // SIMPLIFIED: Try numeric format first
+  const numericParsed = parseNumericQuizId(quizId);
+  if (numericParsed) {
+    const result = loadQuestionsNumeric(numericParsed.chapterId, numericParsed.contestNum);
+    if (result) {
+      // Group into buckets
       const mapTopicToBucket = (topicStr) => {
         if (!topicStr || typeof topicStr !== 'string') return 'other';
         const s = topicStr.toLowerCase();
@@ -313,7 +316,7 @@ function loadGroupedQuestionsForQuiz(quizId) {
       };
       
       const buckets = { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
-      for (const q of chapterResult.questions) {
+      for (const q of result.questions) {
         const b = mapTopicToBucket(q.topic);
         buckets[b].push(q);
       }
@@ -384,7 +387,7 @@ function loadGroupedQuestionsForQuiz(quizId) {
 
   return buckets;
 }
-}
+
 
 // Helper to get weak areas
 function getWeakAreas(topicStats) {
