@@ -120,84 +120,124 @@ function selectContestByScore(score) {
  */
 function loadQuestionsForChapterContest(chapterId, contestNum) {
   try {
-    // Try multiple possible paths
-    let questionsPath;
+    // Try multiple possible paths (important for dev and prod environments)
+    let questionsPath = null;
     const possiblePaths = [
-      path.join(__dirname, '../data/questions_updated.json'),
-      path.join(__dirname, '../../api/data/questions_updated.json'),
-      path.join(process.cwd(), 'backend/data/questions_updated.json'),
-      path.join(process.cwd(), 'data/questions_updated.json')
+      path.join(__dirname, '../../api/data/questions_updated.json'),      // Production: /backend/utils/../../../api/data
+      path.join(__dirname, '../data/questions_updated.json'),             // Dev: /backend/utils/../data
+      path.join(process.cwd(), 'api/data/questions_updated.json'),        // Root: /api/data
+      path.join(process.cwd(), 'backend/data/questions_updated.json'),    // Root: /backend/data
+      path.join(process.cwd(), 'stem-project/backend/data/questions_updated.json'),
+      path.join(process.cwd(), 'stem-project/api/data/questions_updated.json'),
+      './api/data/questions_updated.json',
+      './backend/data/questions_updated.json'
     ];
 
+    console.log('[ChapterMapper] Current working directory:', process.cwd());
+    console.log('[ChapterMapper] Script directory (__dirname):', __dirname);
+    
     for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        questionsPath = p;
-        console.log('[ChapterMapper] Using questions file:', questionsPath);
+      const resolvedPath = path.resolve(p);
+      console.log(`[ChapterMapper] Checking path: ${resolvedPath} - Exists: ${fs.existsSync(resolvedPath)}`);
+      if (fs.existsSync(resolvedPath)) {
+        questionsPath = resolvedPath;
+        console.log('[ChapterMapper] ✓ Found questions file at:', questionsPath);
         break;
       }
     }
 
     if (!questionsPath) {
-      console.error('[ChapterMapper] Cannot find questions_updated.json in any location:', possiblePaths);
+      console.error('[ChapterMapper] ✗ Cannot find questions_updated.json');
+      console.error('[ChapterMapper] Tried these paths:', possiblePaths);
       return null;
     }
 
-    const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+    const fileContent = fs.readFileSync(questionsPath, 'utf8');
+    const data = JSON.parse(fileContent);
 
     // Navigate to chapters array
     if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.warn('[ChapterMapper] No chapters array found, chapters type:', typeof data.chapters);
+      console.error('[ChapterMapper] Invalid data structure:');
+      console.error('  - data type:', typeof data);
+      console.error('  - data.chapters exists:', !!data.chapters);
+      console.error('  - data.chapters type:', typeof data.chapters);
+      console.error('  - data.chapters length:', Array.isArray(data.chapters) ? data.chapters.length : 'N/A');
+      console.error('  - data keys:', Object.keys(data).slice(0, 10).join(', '));
       return null;
     }
+
+    console.log(`[ChapterMapper] Found ${data.chapters.length} chapters`);
 
     // Find chapter by chapterId
     const chapter = data.chapters.find(c => c.chapterId === chapterId);
     if (!chapter) {
-      console.warn(`[ChapterMapper] Chapter ${chapterId} not found, available chapters:`, data.chapters.map(c => c.chapterId));
+      const availableChapters = data.chapters.map(c => c.chapterId).join(', ');
+      console.error(`[ChapterMapper] Chapter ${chapterId} not found. Available: [${availableChapters}]`);
       return null;
     }
 
+    console.log(`[ChapterMapper] Found chapter ${chapterId}: "${chapter.chapterName}"`);
+
     // Find contest in chapter (by index, since we don't have testId matching)
-    if (!chapter.contests || chapter.contests.length < contestNum) {
-      console.warn(`[ChapterMapper] Contest ${contestNum} not found in chapter ${chapterId}, available contests:`, chapter.contests?.length || 0);
+    if (!chapter.contests || !Array.isArray(chapter.contests)) {
+      console.error(`[ChapterMapper] No contests array in chapter ${chapterId}, contests type: ${typeof chapter.contests}`);
+      return null;
+    }
+
+    if (chapter.contests.length < contestNum) {
+      console.error(`[ChapterMapper] Contest ${contestNum} not found in chapter ${chapterId}. Available: ${chapter.contests.length} contests`);
       return null;
     }
 
     const contest = chapter.contests[contestNum - 1]; // 0-indexed
     if (!contest) {
-      console.warn(`[ChapterMapper] Contest ${contestNum} index not available in chapter ${chapterId}`);
+      console.error(`[ChapterMapper] Contest ${contestNum} is null/undefined in chapter ${chapterId}`);
       return null;
     }
+
+    console.log(`[ChapterMapper] Loading contest ${contestNum} from chapter ${chapterId}`);
 
     // Flatten questions from all types: questions_multiple_choice + questions_true_false + questions_short_answer
     const allQuestions = [];
     
     // Handle both formats: nested 'questions' object OR flat 'questions_*' keys
-    if (contest.questions) {
-      // New format: nested structure
+    if (contest.questions && typeof contest.questions === 'object' && !Array.isArray(contest.questions)) {
+      // New format: nested structure questions.multipleChoice, etc
+      console.log('[ChapterMapper] Using new nested format (questions.*)');
       if (contest.questions.multipleChoice && Array.isArray(contest.questions.multipleChoice)) {
         allQuestions.push(...contest.questions.multipleChoice.map(q => ({ ...q, type: 'multipleChoice' })));
+        console.log(`  - Added ${contest.questions.multipleChoice.length} multiple choice questions`);
       }
       if (contest.questions.trueFalse && Array.isArray(contest.questions.trueFalse)) {
-        allQuestions.push(...contest.questions.trueFalse.map(q => ({ ...q, type: 'trueFalse' })));
+        allQuestions.push(...contest.questions.trueFalse.map(q => ({ ...q, type: 'trueFalse', statements: q.statements || [] })));
+        console.log(`  - Added ${contest.questions.trueFalse.length} true/false questions`);
       }
       if (contest.questions.shortAnswer && Array.isArray(contest.questions.shortAnswer)) {
-        allQuestions.push(...contest.questions.shortAnswer.map(q => ({ ...q, type: 'shortAnswer' })));
+        allQuestions.push(...contest.questions.shortAnswer.map(q => ({ ...q, type: 'shortAnswer', numerical_answer: q.numerical_answer })));
+        console.log(`  - Added ${contest.questions.shortAnswer.length} short answer questions`);
       }
     } else {
       // Old format: flat keys like questions_multiple_choice
+      console.log('[ChapterMapper] Using old flat format (questions_*)');
       if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
         allQuestions.push(...contest.questions_multiple_choice.map(q => ({ ...q, type: 'multipleChoice' })));
+        console.log(`  - Added ${contest.questions_multiple_choice.length} multiple choice questions`);
       }
       if (contest.questions_true_false && Array.isArray(contest.questions_true_false)) {
         allQuestions.push(...contest.questions_true_false.map(q => ({ ...q, type: 'trueFalse', statements: q.statements || [] })));
+        console.log(`  - Added ${contest.questions_true_false.length} true/false questions`);
       }
       if (contest.questions_short_answer && Array.isArray(contest.questions_short_answer)) {
         allQuestions.push(...contest.questions_short_answer.map(q => ({ ...q, type: 'shortAnswer', numerical_answer: q.numerical_answer })));
+        console.log(`  - Added ${contest.questions_short_answer.length} short answer questions`);
       }
     }
 
-    console.log(`[ChapterMapper] Loaded ${allQuestions.length} questions for chapter ${chapterId} contest ${contestNum}`);
+    if (allQuestions.length === 0) {
+      console.error(`[ChapterMapper] No questions found in chapter ${chapterId} contest ${contestNum}`);
+      console.error('[ChapterMapper] Contest keys:', Object.keys(contest).slice(0, 10));
+      return null;
+    }
 
     return {
       questions: allQuestions,
