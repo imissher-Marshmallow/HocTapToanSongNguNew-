@@ -77,9 +77,9 @@ function parseQuizId(quizId) {
     if (contestNum < 1 || contestNum > 5) return null;
     difficulty = contestNum <= 3 ? 'easy' : 'hard';
   } else {
-    // Default to easy if not specified
+    // Default to easy if not specified (for "chapter1-normal" format)
     difficulty = 'easy';
-    contestNum = 1; // Start with contest 1
+    contestNum = 1; // Default to contest 1
   }
 
   return { chapterId, contestNum, difficulty };
@@ -120,43 +120,84 @@ function selectContestByScore(score) {
  */
 function loadQuestionsForChapterContest(chapterId, contestNum) {
   try {
-    const questionsPath = path.join(__dirname, '../data/questions_updated.json');
+    // Try multiple possible paths
+    let questionsPath;
+    const possiblePaths = [
+      path.join(__dirname, '../data/questions_updated.json'),
+      path.join(__dirname, '../../api/data/questions_updated.json'),
+      path.join(process.cwd(), 'backend/data/questions_updated.json'),
+      path.join(process.cwd(), 'data/questions_updated.json')
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        questionsPath = p;
+        console.log('[ChapterMapper] Using questions file:', questionsPath);
+        break;
+      }
+    }
+
+    if (!questionsPath) {
+      console.error('[ChapterMapper] Cannot find questions_updated.json in any location:', possiblePaths);
+      return null;
+    }
+
     const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
 
     // Navigate to chapters array
     if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.warn('[ChapterMapper] No chapters array found in questions_updated.json');
+      console.warn('[ChapterMapper] No chapters array found, chapters type:', typeof data.chapters);
       return null;
     }
 
     // Find chapter by chapterId
     const chapter = data.chapters.find(c => c.chapterId === chapterId);
     if (!chapter) {
-      console.warn(`[ChapterMapper] Chapter ${chapterId} not found`);
+      console.warn(`[ChapterMapper] Chapter ${chapterId} not found, available chapters:`, data.chapters.map(c => c.chapterId));
       return null;
     }
 
-    // Find contest in chapter
-    const contest = chapter.contests.find(c => c.testId === `chapter${chapterId}-contest${contestNum}`);
+    // Find contest in chapter (by index, since we don't have testId matching)
+    if (!chapter.contests || chapter.contests.length < contestNum) {
+      console.warn(`[ChapterMapper] Contest ${contestNum} not found in chapter ${chapterId}, available contests:`, chapter.contests?.length || 0);
+      return null;
+    }
+
+    const contest = chapter.contests[contestNum - 1]; // 0-indexed
     if (!contest) {
-      console.warn(`[ChapterMapper] Contest ${contestNum} not found in chapter ${chapterId}`);
+      console.warn(`[ChapterMapper] Contest ${contestNum} index not available in chapter ${chapterId}`);
       return null;
     }
 
-    // Flatten questions from all types: multipleChoice + trueFalse + shortAnswer
+    // Flatten questions from all types: questions_multiple_choice + questions_true_false + questions_short_answer
     const allQuestions = [];
     
-    if (contest.questions.multipleChoice && Array.isArray(contest.questions.multipleChoice)) {
-      allQuestions.push(...contest.questions.multipleChoice.map(q => ({ ...q, type: 'multipleChoice' })));
+    // Handle both formats: nested 'questions' object OR flat 'questions_*' keys
+    if (contest.questions) {
+      // New format: nested structure
+      if (contest.questions.multipleChoice && Array.isArray(contest.questions.multipleChoice)) {
+        allQuestions.push(...contest.questions.multipleChoice.map(q => ({ ...q, type: 'multipleChoice' })));
+      }
+      if (contest.questions.trueFalse && Array.isArray(contest.questions.trueFalse)) {
+        allQuestions.push(...contest.questions.trueFalse.map(q => ({ ...q, type: 'trueFalse' })));
+      }
+      if (contest.questions.shortAnswer && Array.isArray(contest.questions.shortAnswer)) {
+        allQuestions.push(...contest.questions.shortAnswer.map(q => ({ ...q, type: 'shortAnswer' })));
+      }
+    } else {
+      // Old format: flat keys like questions_multiple_choice
+      if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
+        allQuestions.push(...contest.questions_multiple_choice.map(q => ({ ...q, type: 'multipleChoice' })));
+      }
+      if (contest.questions_true_false && Array.isArray(contest.questions_true_false)) {
+        allQuestions.push(...contest.questions_true_false.map(q => ({ ...q, type: 'trueFalse', statements: q.statements || [] })));
+      }
+      if (contest.questions_short_answer && Array.isArray(contest.questions_short_answer)) {
+        allQuestions.push(...contest.questions_short_answer.map(q => ({ ...q, type: 'shortAnswer', numerical_answer: q.numerical_answer })));
+      }
     }
 
-    if (contest.questions.trueFalse && Array.isArray(contest.questions.trueFalse)) {
-      allQuestions.push(...contest.questions.trueFalse.map(q => ({ ...q, type: 'trueFalse' })));
-    }
-
-    if (contest.questions.shortAnswer && Array.isArray(contest.questions.shortAnswer)) {
-      allQuestions.push(...contest.questions.shortAnswer.map(q => ({ ...q, type: 'shortAnswer' })));
-    }
+    console.log(`[ChapterMapper] Loaded ${allQuestions.length} questions for chapter ${chapterId} contest ${contestNum}`);
 
     return {
       questions: allQuestions,
@@ -168,7 +209,7 @@ function loadQuestionsForChapterContest(chapterId, contestNum) {
       totalQuestions: allQuestions.length
     };
   } catch (error) {
-    console.error('[ChapterMapper] Error loading questions:', error.message);
+    console.error('[ChapterMapper] Error loading questions:', error.message, error.stack);
     return null;
   }
 }

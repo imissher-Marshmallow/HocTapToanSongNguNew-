@@ -14,7 +14,7 @@ export default function QuizList() {
   // Show quiz options by chapters
   const quizzes = [
     {
-      id: 'chapter1-normal',
+      id: 'chapter1-contest1',
       title: language === 'vi' ? 'Đa thức nhiều biến' : 'Polynomials of Multiple Variables',
       description: language === 'vi' ? 'Kiểm tra kiến thức về đa thức nhiều biến' : 'Test knowledge about polynomials of multiple variables',
       time: '30 phút / 30 min',
@@ -23,7 +23,7 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter2-normal',
+      id: 'chapter2-contest1',
       title: language === 'vi' ? 'Phân thức đại số' : 'Algebraic Fractions',
       description: language === 'vi' ? 'Kiểm tra kiến thức về phân thức đại số' : 'Test knowledge about algebraic fractions',
       time: '30 phút / 30 min',
@@ -32,7 +32,7 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter3-normal',
+      id: 'chapter3-contest1',
       title: language === 'vi' ? 'Hàm số và đồ thị' : 'Functions and Graphs',
       description: language === 'vi' ? 'Kiểm tra kiến thức về hàm số và đồ thị' : 'Test knowledge about functions and graphs',
       time: '30 phút / 30 min',
@@ -41,7 +41,7 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter4-normal',
+      id: 'chapter4-contest1',
       title: language === 'vi' ? 'Hình học trực quan' : 'Visual Geometry',
       description: language === 'vi' ? 'Kiểm tra kiến thức về hình học trực quan' : 'Test knowledge about visual geometry',
       time: '30 phút / 30 min',
@@ -50,7 +50,7 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter5-normal',
+      id: 'chapter5-contest1',
       title: language === 'vi' ? 'Tam giác, tứ giác' : 'Triangles and Quadrilaterals',
       description: language === 'vi' ? 'Kiểm tra kiến thức về tam giác và tứ giác' : 'Test knowledge about triangles and quadrilaterals',
       time: '30 phút / 30 min',
