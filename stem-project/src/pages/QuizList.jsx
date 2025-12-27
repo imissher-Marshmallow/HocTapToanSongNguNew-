@@ -1,20 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { quizListTranslations } from '../translations/quizListTranslations';
 import '../styles/QuizList.css';
 
 export default function QuizList() {
   const navigate = useNavigate();
   const { language } = useLanguage();
+  const { token, getUserId } = useAuth();
   const t = quizListTranslations[language];
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [topicScores, setTopicScores] = useState({
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0
+  });
+
+  // Fetch user's previous scores for each chapter
+  useEffect(() => {
+    const fetchScores = async () => {
+      try {
+        const apiBase = getApiBase();
+        const userId = getUserId();
+        if (userId && token) {
+          const response = await fetch(`${apiBase}/api/user-quiz-scores/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.scores) {
+              setTopicScores(data.scores);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user scores:', error);
+      }
+    };
+    
+    fetchScores();
+  }, [token, getUserId]);
 
   // Show quiz options by chapters
   const quizzes = [
     {
-      id: 'chapter1-contest1',
+      chapterId: 1,
+      id: 'chapter1',
       title: language === 'vi' ? 'Đa thức nhiều biến' : 'Polynomials of Multiple Variables',
       description: language === 'vi' ? 'Kiểm tra kiến thức về đa thức nhiều biến' : 'Test knowledge about polynomials of multiple variables',
       time: '30 phút / 30 min',
@@ -23,7 +58,8 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter2-contest1',
+      chapterId: 2,
+      id: 'chapter2',
       title: language === 'vi' ? 'Phân thức đại số' : 'Algebraic Fractions',
       description: language === 'vi' ? 'Kiểm tra kiến thức về phân thức đại số' : 'Test knowledge about algebraic fractions',
       time: '30 phút / 30 min',
@@ -32,7 +68,8 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter3-contest1',
+      chapterId: 3,
+      id: 'chapter3',
       title: language === 'vi' ? 'Hàm số và đồ thị' : 'Functions and Graphs',
       description: language === 'vi' ? 'Kiểm tra kiến thức về hàm số và đồ thị' : 'Test knowledge about functions and graphs',
       time: '30 phút / 30 min',
@@ -41,7 +78,8 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter4-contest1',
+      chapterId: 4,
+      id: 'chapter4',
       title: language === 'vi' ? 'Hình học trực quan' : 'Visual Geometry',
       description: language === 'vi' ? 'Kiểm tra kiến thức về hình học trực quan' : 'Test knowledge about visual geometry',
       time: '30 phút / 30 min',
@@ -50,7 +88,8 @@ export default function QuizList() {
       type: 'chapter'
     },
     {
-      id: 'chapter5-contest1',
+      chapterId: 5,
+      id: 'chapter5',
       title: language === 'vi' ? 'Tam giác, tứ giác' : 'Triangles and Quadrilaterals',
       description: language === 'vi' ? 'Kiểm tra kiến thức về tam giác và tứ giác' : 'Test knowledge about triangles and quadrilaterals',
       time: '30 phút / 30 min',
@@ -193,8 +232,14 @@ export default function QuizList() {
                   e.stopPropagation();
                   if (quiz.type === 'adaptive') {
                     navigate('/adaptive-quiz-select');
-                  } else {
-                    navigate(`/quiz/${quiz.id}`);
+                  } else if (quiz.type === 'chapter') {
+                    // Select random contest: 1-3 for normal, 4-5 for hard (if score >= 8.5)
+                    const userScore = topicScores[quiz.chapterId] || 0;
+                    const canHard = userScore >= 8.5;
+                    const contestRange = canHard ? [1, 2, 3, 4, 5] : [1, 2, 3];
+                    const randomContest = contestRange[Math.floor(Math.random() * contestRange.length)];
+                    const quizPath = `${quiz.chapterId}-${randomContest}`;
+                    navigate(`/quiz/${quizPath}`);
                   }
                 }}
               >
@@ -206,8 +251,14 @@ export default function QuizList() {
                   e.stopPropagation();
                   if (quiz.type === 'adaptive') {
                     navigate('/adaptive-quiz-select');
-                  } else {
-                    navigate(`/quiz/${quiz.id}`);
+                  } else if (quiz.type === 'chapter') {
+                    // Select random contest: 1-3 for normal, 4-5 for hard (if score >= 8.5)
+                    const userScore = topicScores[quiz.chapterId] || 0;
+                    const canHard = userScore >= 8.5;
+                    const contestRange = canHard ? [1, 2, 3, 4, 5] : [1, 2, 3];
+                    const randomContest = contestRange[Math.floor(Math.random() * contestRange.length)];
+                    const quizPath = `${quiz.chapterId}-${randomContest}`;
+                    navigate(`/quiz/${quizPath}`);
                   }
                 }}
               >

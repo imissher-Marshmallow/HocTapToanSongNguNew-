@@ -67,62 +67,56 @@ function shuffleArray(arr) {
   return arr;
 }
 
-// SIMPLIFIED: Parse BOTH formats: numeric "1-2" OR string "chapter1-contest2"
-function parseNumericQuizId(quizId) {
-  if (!quizId || typeof quizId !== 'string') return null;
-  
-  // Try numeric format first: "1" or "1-2"
-  const numericMatch = quizId.match(/^(\d+)(?:-(\d+))?$/);
-  if (numericMatch) {
-    const chapterId = parseInt(numericMatch[1], 10);
-    const contestNum = numericMatch[2] ? parseInt(numericMatch[2], 10) : 1;
-    
-    if (chapterId >= 1 && chapterId <= 5 && contestNum >= 1 && contestNum <= 5) {
-      return { chapterId, contestNum };
-    }
-  }
-  
-  // Try string format: "chapter1-contest2"
-  const stringMatch = quizId.match(/^chapter(\d+)(?:-contest(\d+))?$/i);
-  if (stringMatch) {
-    const chapterId = parseInt(stringMatch[1], 10);
-    const contestNum = stringMatch[2] ? parseInt(stringMatch[2], 10) : 1;
-    
-    if (chapterId >= 1 && chapterId <= 5 && contestNum >= 1 && contestNum <= 5) {
-      return { chapterId, contestNum };
-    }
-  }
-  
-  return null;
-}
-
-// SIMPLIFIED: Load from numeric chapter/contest
-function loadQuestionsNumeric(chapterId, contestNum) {
+// Load questions for a quiz - accepts "1-2" format (chapter-contest)
+function loadQuestionsForQuiz(quizId) {
   try {
     const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
     
     if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.error('[Backend] No chapters found. Keys:', Object.keys(data).slice(0, 5));
+      console.error('[Backend] Error: No chapters array in file');
       return null;
     }
     
-    const chapter = data.chapters.find(c => c.id === chapterId);
+    // Parse quizId: expects format like "1-2" or just numeric chapter
+    let chapterId = 1;
+    let contestNum = 1;
+    
+    if (typeof quizId === 'string' && quizId) {
+      if (quizId.includes('-')) {
+        const parts = quizId.split('-');
+        const ch = parseInt(parts[0], 10);
+        const cn = parseInt(parts[1], 10);
+        if (!isNaN(ch)) chapterId = ch;
+        if (!isNaN(cn)) contestNum = cn;
+      } else {
+        const ch = parseInt(quizId, 10);
+        if (!isNaN(ch)) chapterId = ch;
+      }
+    }
+    
+    // Validate ranges
+    chapterId = Math.max(1, Math.min(5, chapterId));
+    contestNum = Math.max(1, Math.min(5, contestNum));
+    
+    console.log(`[Backend] Loading: chapter=${chapterId}, contest=${contestNum}`);
+    
+    const chapter = data.chapters.find(c => c.chapterId === chapterId || c.id === chapterId);
     if (!chapter) {
       console.error(`[Backend] Chapter ${chapterId} not found`);
       return null;
     }
     
-    const contest = chapter.contests.find(c => c.id === contestNum);
+    const contest = chapter.contests.find(c => c.exam_id === contestNum || c.id === contestNum);
     if (!contest) {
       console.error(`[Backend] Contest ${contestNum} not found in chapter ${chapterId}`);
       return null;
     }
     
-    // Mix all question types
-    const allQuestions = shuffle([
-      ...(contest.questions || []).filter(q => q.type === 'multipleChoice'),
-      ...(contest.questions || []).filter(q => q.type === 'trueFalse'),
-      ...(contest.questions || []).filter(q => q.type === 'shortAnswer')
+    // Mix all question types and randomize
+    const allQuestions = shuffleArray([
+      ...(contest.questions_multiple_choice || []),
+      ...(contest.questions_true_false || []),
+      ...(contest.questions_short_answer || [])
     ]);
     
     if (allQuestions.length === 0) return null;
@@ -133,67 +127,13 @@ function loadQuestionsNumeric(chapterId, contestNum) {
       contestKey: `${chapterId}-${contestNum}`,
       contestIndex: contestNum,
       contestId: contestNum,
-      contestName: chapter.name,
+      contestName: chapter.chapterName,
       chapterId,
       difficulty: contestNum >= 4 ? 'hard' : 'normal'
     };
   } catch (error) {
     console.error('[Backend] Error loading questions:', error.message);
     return null;
-  }
-}
-
-// Load questions for a quiz - SIMPLIFIED to just accept numbers
-function loadQuestionsForQuiz(quizId) {
-  try {
-    // SIMPLIFIED: Just parse as numbers
-    // Accept: "1" (ch1, contest1), "1-2" (ch1, contest2), "2-3" (ch2, contest3)
-    let chapterId = 1;
-    let contestNum = 1;
-    
-    if (typeof quizId === 'string') {
-      if (quizId.includes('-')) {
-        const parts = quizId.split('-');
-        const ch = parseInt(parts[0], 10);
-        const cn = parseInt(parts[1], 10);
-        if (!isNaN(ch) && !isNaN(cn)) {
-          chapterId = ch;
-          contestNum = cn;
-        }
-      } else {
-        const ch = parseInt(quizId, 10);
-        if (!isNaN(ch)) {
-          chapterId = ch;
-          contestNum = 1; // Default to contest 1
-        }
-      }
-    }
-    
-    // Clamp to valid ranges
-    chapterId = Math.max(1, Math.min(5, chapterId));
-    contestNum = Math.max(1, Math.min(5, contestNum));
-    
-    console.log(`[Backend] Loading: chapter=${chapterId}, contest=${contestNum}`);
-    const result = loadQuestionsNumeric(chapterId, contestNum);
-    
-    if (result) return result;
-    
-    // Fallback if numeric load fails
-    console.log('[Backend] Numeric load failed, trying fallback...');
-    const data = fs.readFileSync(questionsPath, 'utf8');
-    const parsed_data = JSON.parse(data);
-    
-    if (parsed_data && parsed_data.contests && Array.isArray(parsed_data.contests)) {
-      const idx = Math.floor(Math.random() * parsed_data.contests.length);
-      const contest = parsed_data.contests[idx] || [];
-      const shuffled = shuffleArray([...contest]);
-      return { questions: shuffled, contestKey: `contest${idx + 1}`, contestIndex: idx + 1, contestId: idx + 1, contestName: parsed_data.name || null };
-    }
-    
-    return { questions: [], contestKey: 'none' };
-  } catch (error) {
-    console.error('[Analyzer] Error loading questions:', error.message);
-    return { questions: [], contestKey: 'none', error: error.message };
   }
 }
 

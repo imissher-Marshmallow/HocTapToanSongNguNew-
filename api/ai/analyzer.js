@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
+const OpenAI = require('openai');
 require('dotenv').config();
+
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 const questionsPath = (() => {
   const possiblePaths = [
@@ -138,143 +141,83 @@ async function sendChatWithRetries(opts) {
   throw lastErr;
 }
 
-// Load questions for a quiz (supports new `contests` format in questions.json)
+// Load questions for a quiz - accepts "1-2" format (chapter-contest)
 function loadQuestionsForQuiz(quizId) {
-  // Try chapter-based format first (e.g., chapter1-contest2)
-  const chapterParsed = parseChapterQuizId(quizId);
-  if (chapterParsed) {
-    console.log(`[API Analyzer] Parsed as chapter format: chapter${chapterParsed.chapterId}-contest${chapterParsed.contestNum}`);
-    const result = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
-    if (result) {
-      console.log(`[API Analyzer] ✓ Successfully loaded chapter questions`);
-      return result;
+  try {
+    const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+    
+    if (!data.chapters || !Array.isArray(data.chapters)) {
+      console.error('[API] Error: No chapters array in file');
+      return { error: 'File structure error' };
     }
-    console.log(`[API Analyzer] ✗ Failed to load chapter questions, falling back to old format`);
-    // Fall through to old format if chapter loading fails
-  }
-
-  // Fall back to old contest-based format
-  console.log(`[API Analyzer] Loading with old contest format for: ${quizId}`);
-  const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
-  console.log(`[API Analyzer] Data structure - Top-level keys:`, Object.keys(data).slice(0, 5));
-  
-  // Support two shapes for parsed.contests:
-  // - Array: parsed.contests = [ [...contest1...], [...contest2...], ... ]
-  // - Object: parsed.contests = { "contest1": [...], "contest2": [...], ... }
-  const parsed = data;
-  if (parsed && parsed.contests) {
-    // If contests is an array (legacy), keep existing numeric selection behavior
-    if (Array.isArray(parsed.contests)) {
-      // Numeric array style contests: pick by index or random
-      let idx = 0;
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
+    
+    // Parse quizId: expects format like "1-2" or just numeric chapter
+    let chapterId = 1;
+    let contestNum = 1;
+    
+    if (typeof quizId === 'string' && quizId) {
+      if (quizId.includes('-')) {
+        const parts = quizId.split('-');
+        const ch = parseInt(parts[0], 10);
+        const cn = parseInt(parts[1], 10);
+        if (!isNaN(ch)) chapterId = ch;
+        if (!isNaN(cn)) contestNum = cn;
       } else {
-        const parsedId = parseInt(quizId, 10);
-        if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) {
-          idx = parsedId - 1;
-        } else {
-          idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
-        }
+        const ch = parseInt(quizId, 10);
+        if (!isNaN(ch)) chapterId = ch;
       }
-      const contest = parsed.contests[idx] || [];
-      const shuffled = shuffleArray([...contest]);
-      const chosenKey = `contest${idx + 1}`;
-      // Include numeric contest id and top-level contest name when present
-      return { questions: shuffled, contestKey: chosenKey, contestIndex: idx + 1, contestId: idx + 1, contestName: parsed.name || null };
     }
-
-    // If contests is an object with named contests, support selecting by name, numeric index or random
-    if (typeof parsed.contests === 'object') {
-      // Prefer explicit named contest keys that match the pattern 'contest<NUMBER>' so we only select
-      // among contest1..contestN. This avoids picking unrelated keys if the object has other fields.
-      const allKeys = Object.keys(parsed.contests);
-      const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
-        const na = parseInt((a.match(/\d+/) || [0])[0], 10);
-        const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
-        return na - nb;
-      });
-      const keys = namedKeys.length ? namedKeys : allKeys; // fallback to all keys if no contestN keys found
-
-      if (keys.length === 0) return [];
-      let chosenKey;
-      // treat several forms of 'random' as a request to pick a random contest
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        // Use crypto-backed randomInt to avoid predictable Math.random behavior across environments
-        const idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, keys.length) : Math.floor(Math.random() * keys.length);
-        chosenKey = keys[idx];
-        console.log(`loadQuestionsForQuiz: selected random named contest "${chosenKey}"`);
-      } else if (parsed.contests.hasOwnProperty(quizId)) {
-        // user passed a named contest key like 'contest3'
-        chosenKey = quizId;
-      } else {
-        // try numeric mapping: 1 -> contest1, 2 -> contest2, etc.
-        const parsedId = parseInt(quizId, 10);
-        if (!isNaN(parsedId) && parsedId >= 1 && parsedId <= keys.length) {
-          chosenKey = keys[parsedId - 1];
-        } else {
-          chosenKey = keys[0];
-          console.log(`loadQuestionsForQuiz: invalid quizId "${quizId}", defaulting to first named contest "${chosenKey}"`);
-        }
-      }
-      const contest = parsed.contests[chosenKey] || [];
-      const shuffled = shuffleArray([...contest]);
-      const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
-      // Ensure English fields exist so frontend can reliably show English version
-      const normalized = trimmed.map(q => ({
-        ...q,
-        english_question: q.english_question || q.question,
-        english_options: q.english_options || (Array.isArray(q.options) ? q.options.slice() : [])
-      }));
-      // Derive a numeric contest index when possible (e.g., 'contest3' -> 3)
-      let contestIndex = null;
-      const m = String(chosenKey).match(/contest(\d+)/);
-      if (m) contestIndex = parseInt(m[1], 10);
-      return { questions: normalized, contestKey: chosenKey, contestIndex, contestId: contestIndex, contestName: parsed.name || null };
+    
+    // Validate ranges
+    chapterId = Math.max(1, Math.min(5, chapterId));
+    contestNum = Math.max(1, Math.min(5, contestNum));
+    
+    console.log(`[API] Loading: chapter=${chapterId}, contest=${contestNum}`);
+    
+    const chapter = data.chapters.find(c => c.chapterId === chapterId || c.id === chapterId);
+    if (!chapter) {
+      console.error(`[API] Chapter ${chapterId} not found`);
+      return { error: `Chapter ${chapterId} not found` };
     }
+    
+    const contest = chapter.contests.find(c => c.exam_id === contestNum || c.id === contestNum);
+    if (!contest) {
+      console.error(`[API] Contest ${contestNum} not found in chapter ${chapterId}`);
+      return { error: `Contest ${contestNum} not found` };
+    }
+    
+    const difficulty = contestNum >= 4 ? 'hard' : 'normal';
+    
+    // Mix all question types and randomize
+    const allQuestions = shuffle([
+      ...(contest.questions_multiple_choice || []),
+      ...(contest.questions_true_false || []),
+      ...(contest.questions_short_answer || [])
+    ]);
+    
+    return {
+      success: true,
+      chapterId,
+      contestNum,
+      difficulty,
+      chapterName: chapter.chapterName,
+      contestName: `Contest ${contestNum}`,
+      questions: allQuestions,
+      totalQuestions: allQuestions.length
+    };
+  } catch (error) {
+    console.error(`[API Analyzer] Error loading chapter questions:`, error.message);
+    return null;
   }
-  // backwards compatibility: if file is a plain array of questions
-  if (Array.isArray(parsed)) {
-    const shuffled = shuffleArray([...parsed]);
-    const trimmed = shuffled.length > 20 ? shuffled.slice(0, 20) : shuffled;
-    return { questions: trimmed, contestKey: 'contest1', contestIndex: 1, contestName: null };
-  }
-  return { questions: [], contestKey: null };
 }
 
 // Load questions grouped by topic categories for a specific quiz
 function loadGroupedQuestionsForQuiz(quizId) {
-  // Try chapter-based format first
-  const chapterParsed = parseChapterQuizId(quizId);
-  if (chapterParsed) {
-    const chapterResult = loadChapterQuestions(chapterParsed.chapterId, chapterParsed.contestNum);
-    if (chapterResult) {
-      const mapTopicToBucket = (topicStr) => {
-        if (!topicStr || typeof topicStr !== 'string') return 'other';
-        const s = topicStr.toLowerCase();
-        if (s.includes('nhận biết') || s.includes('knowledge')) return 'knowledge';
-        if (s.includes('thông hiểu') || s.includes('comprehension')) return 'comprehension';
-        if (s.includes('vận dụng thấp') || s.includes('low application')) return 'lowApplication';
-        if (s.includes('vận dụng cao') || s.includes('high application')) return 'highApplication';
-        if (s.includes('knowledge')) return 'knowledge';
-        if (s.includes('comprehension')) return 'comprehension';
-        if (s.includes('low')) return 'lowApplication';
-        if (s.includes('high')) return 'highApplication';
-        return 'other';
-      };
-      
-      const buckets = { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
-      for (const q of chapterResult.questions) {
-        const b = mapTopicToBucket(q.topic);
-        buckets[b].push(q);
-      }
-      return buckets;
-    }
+  const result = loadQuestionsForQuiz(quizId);
+  if (!result || !result.questions) {
+    return { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
   }
-
-  const data = fs.readFileSync(questionsPath, 'utf8');
-  const parsed = JSON.parse(data);
-  // Helper to map topic strings to buckets
+  
   const mapTopicToBucket = (topicStr) => {
     if (!topicStr || typeof topicStr !== 'string') return 'other';
     const s = topicStr.toLowerCase();
@@ -282,57 +225,15 @@ function loadGroupedQuestionsForQuiz(quizId) {
     if (s.includes('thông hiểu') || s.includes('comprehension')) return 'comprehension';
     if (s.includes('vận dụng thấp') || s.includes('low application')) return 'lowApplication';
     if (s.includes('vận dụng cao') || s.includes('high application')) return 'highApplication';
-    // fallback: try to detect '(Knowledge)' style
-    if (s.includes('knowledge')) return 'knowledge';
-    if (s.includes('comprehension')) return 'comprehension';
-    if (s.includes('low')) return 'lowApplication';
-    if (s.includes('high')) return 'highApplication';
     return 'other';
   };
-
-  // pick contest similarly to loadQuestionsForQuiz
-  let contestArray = [];
-  if (parsed && parsed.contests) {
-    if (Array.isArray(parsed.contests)) {
-      // numeric or random selection
-      let idx;
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, parsed.contests.length) : Math.floor(Math.random() * parsed.contests.length);
-      } else {
-        const parsedId = parseInt(quizId, 10);
-        idx = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= parsed.contests.length) ? parsedId - 1 : 0;
-      }
-      contestArray = parsed.contests[idx] || [];
-    } else if (typeof parsed.contests === 'object') {
-      const allKeys = Object.keys(parsed.contests);
-      const namedKeys = allKeys.filter(k => /^contest\d+$/.test(k)).sort((a, b) => {
-        const na = parseInt((a.match(/\d+/) || [0])[0], 10);
-        const nb = parseInt((b.match(/\d+/) || [0])[0], 10);
-        return na - nb;
-      });
-      const keys = namedKeys.length ? namedKeys : allKeys;
-      if (keys.length === 0) return { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
-      let chosenKey;
-      if (!quizId || quizId === 'random' || quizId === 'rand' || quizId === '0') {
-        const idx = (typeof crypto.randomInt === 'function') ? crypto.randomInt(0, keys.length) : Math.floor(Math.random() * keys.length);
-        chosenKey = keys[idx];
-      } else if (parsed.contests.hasOwnProperty(quizId)) {
-        chosenKey = quizId;
-      } else {
-        const parsedId = parseInt(quizId, 10);
-        chosenKey = (!isNaN(parsedId) && parsedId >= 1 && parsedId <= keys.length) ? keys[parsedId - 1] : keys[0];
-      }
-      contestArray = parsed.contests[chosenKey] || [];
-    }
-  }
-
-  // group into buckets
+  
   const buckets = { knowledge: [], comprehension: [], lowApplication: [], highApplication: [], other: [] };
-  for (const q of contestArray) {
+  for (const q of result.questions) {
     const b = mapTopicToBucket(q.topic);
     buckets[b].push(q);
   }
-
+  
   return buckets;
 }
 
