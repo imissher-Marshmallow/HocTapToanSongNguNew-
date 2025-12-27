@@ -1,125 +1,76 @@
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
-const OpenAI = require('openai');
-const crypto = require('crypto');
 
-let openai;
-try {
-  // Prefer an environment variable; fall back to a (placeholder) embedded key if present.
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
-} catch (error) {
-  console.warn('Failed to initialize OpenAI client:', error);
-}
-
-// Diagnostic help: show whether the OPENAI_API_KEY was found in the environment
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY not found in environment. LLM functionality will fall back to the built-in stub/fallback responses.\n' +
-    'To enable LLM, add OPENAI_API_KEY to backend/.env or set the environment variable and restart the server.');
-} else {
-  console.log('OPENAI_API_KEY detected in environment.');
-}
-
-// Default model: allow overriding via env var. Use gpt-3.5-turbo by default to reduce RPM/cost.
-const DEFAULT_MODEL = process.env.PREFERRED_MODEL || 'gpt-3.5-turbo';
-
-// Prefer updated questions file with chapters array (new structure)
 const questionsPath = (() => {
   const possiblePaths = [
-    path.join(__dirname, '../data/questions_updated.json'),        // /api/data/questions_updated.json
-    path.join(process.cwd(), 'api/data/questions_updated.json'),   // Root: /api/data/
-    path.join(process.cwd(), './api/data/questions_updated.json')  // Relative from root
+    path.join(process.cwd(), 'api/data/questions_updated.json'),
+    path.join(process.cwd(), './api/data/questions_updated.json'),
+    path.join(__dirname, '../../api/data/questions_updated.json'),
+    path.join(__dirname, '../data/questions_updated.json')
   ];
   
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
-      console.log('[API Analyzer] Using questions file:', p);
+      console.log('[API Analyzer] ✓ Using:', p);
       return p;
     }
   }
   
-  console.error('[API Analyzer] Could not find questions_updated.json in:', possiblePaths);
-  // Return first path as fallback (will error with better message if file missing)
+  console.error('[API Analyzer] ✗ File not found:', possiblePaths);
   return possiblePaths[0];
 })();
 
-// Utility: Fisher-Yates shuffle (in-place)
-function shuffleArray(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
+// Shuffle questions
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
   }
-  return arr;
+  return copy;
 }
 
-// Parse chapter-based quiz ID format: chapter1-contest2 -> { chapterId: 1, contestNum: 2 }
-function parseChapterQuizId(quizId) {
-  if (!quizId || typeof quizId !== 'string') return null;
-  const match = quizId.match(/^chapter(\d+)(?:-contest(\d+)|-normal)?$/i);
-  if (!match) return null;
-  
-  const chapterId = parseInt(match[1], 10);
-  const contestNum = match[2] ? parseInt(match[2], 10) : 1;
-  
-  if (chapterId < 1 || chapterId > 5 || contestNum < 1 || contestNum > 5) return null;
-  return { chapterId, contestNum };
-}
-
-// Load questions for chapter-based format
-function loadChapterQuestions(chapterId, contestNum) {
+// SIMPLE: Just use chapter ID and contest ID as numbers
+function loadQuestions(chapterId, contestNum) {
   try {
     const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
     
     if (!data.chapters || !Array.isArray(data.chapters)) {
-      console.error('[API Analyzer] No chapters array found in questions_updated.json');
-      return null;
+      console.error('[API] Error: No chapters array in file');
+      return { error: 'File structure error' };
     }
     
-    const chapter = data.chapters.find(c => c.chapterId === chapterId);
+    const chapter = data.chapters.find(c => c.id === chapterId);
     if (!chapter) {
-      console.error(`[API Analyzer] Chapter ${chapterId} not found`);
-      return null;
+      console.error(`[API] Chapter ${chapterId} not found`);
+      return { error: `Chapter ${chapterId} not found` };
     }
     
-    if (!chapter.contests || chapter.contests.length < contestNum) {
-      console.error(`[API Analyzer] Contest ${contestNum} not found in chapter ${chapterId}`);
-      return null;
+    const contest = chapter.contests.find(c => c.id === contestNum);
+    if (!contest) {
+      console.error(`[API] Contest ${contestNum} not found in chapter ${chapterId}`);
+      return { error: `Contest ${contestNum} not found` };
     }
     
-    const contest = chapter.contests[contestNum - 1];
-    const allQuestions = [];
+    const difficulty = contestNum >= 4 ? 'hard' : 'normal';
     
-    // Support both old (questions_*) and new (questions.*) formats
-    if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
-      allQuestions.push(...contest.questions_multiple_choice.map(q => ({ ...q, type: 'multipleChoice' })));
-    }
-    if (contest.questions_true_false && Array.isArray(contest.questions_true_false)) {
-      allQuestions.push(...contest.questions_true_false.map(q => ({ ...q, type: 'trueFalse' })));
-    }
-    if (contest.questions_short_answer && Array.isArray(contest.questions_short_answer)) {
-      allQuestions.push(...contest.questions_short_answer.map(q => ({ ...q, type: 'shortAnswer' })));
-    }
+    // Mix all question types and randomize
+    const allQuestions = shuffle([
+      ...(contest.questions || []).filter(q => q.type === 'multipleChoice'),
+      ...(contest.questions || []).filter(q => q.type === 'trueFalse'),
+      ...(contest.questions || []).filter(q => q.type === 'shortAnswer')
+    ]);
     
-    if (allQuestions.length === 0) {
-      console.error(`[API Analyzer] No questions found in chapter ${chapterId} contest ${contestNum}`);
-      return null;
-    }
-    
-    const shuffled = shuffleArray([...allQuestions]);
-    const normalized = shuffled.map(q => ({
-      ...q,
-      english_question: q.english_question || q.question,
-      english_options: q.english_options || (Array.isArray(q.options) ? q.options : [])
-    }));
-    
-    console.log(`[API Analyzer] Loaded ${normalized.length} questions for chapter${chapterId}-contest${contestNum}`);
     return {
-      questions: normalized,
-      contestKey: `chapter${chapterId}-contest${contestNum}`,
-      contestIndex: contestNum,
-      contestId: contestNum,
-      contestName: chapter.chapterName || `Chapter ${chapterId}`,
-      chapterId
+      success: true,
+      chapterId,
+      contestNum,
+      difficulty,
+      chapterName: chapter.name,
+      contestName: contest.name,
+      questions: allQuestions, // Return all questions
+      totalQuestions: allQuestions.length
     };
   } catch (error) {
     console.error(`[API Analyzer] Error loading chapter questions:`, error.message);
@@ -384,7 +335,6 @@ function loadGroupedQuestionsForQuiz(quizId) {
 
   return buckets;
 }
-
 
 // Helper to get weak areas
 function getWeakAreas(topicStats) {
