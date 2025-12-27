@@ -5,6 +5,8 @@ require('dotenv').config();
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
+// Load questions data with require() fallback for Vercel bundling
+let questionsData = null;
 const questionsPath = (() => {
   const possiblePaths = [
     // PRIORITY 1: Try from /api directory (this file's location)
@@ -26,6 +28,17 @@ const questionsPath = (() => {
   }
   
   console.error('[API Analyzer] ✗ File not found. Tried:', possiblePaths);
+  
+  // As a last resort, try to require() the data (works in Vercel if bundled)
+  try {
+    console.log('[API Analyzer] Attempting to require questions data as fallback...');
+    questionsData = require('./data/questions_updated.json');
+    console.log('[API Analyzer] Successfully loaded via require()');
+    return null; // Signal that we loaded via require, not fs
+  } catch (e) {
+    console.error('[API Analyzer] Failed to require data:', e.message);
+  }
+  
   return possiblePaths[0];
 })();
 
@@ -42,7 +55,19 @@ function shuffle(arr) {
 // SIMPLE: Just use chapter ID and contest ID as numbers
 function loadQuestions(chapterId, contestNum) {
   try {
-    const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+    let data;
+    
+    // Use require'd data if available, otherwise read from file
+    if (questionsData) {
+      data = questionsData;
+      console.log('[API] Using pre-loaded questions data (via require)');
+    } else if (questionsPath && fs.existsSync(questionsPath)) {
+      data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+      console.log('[API] Using questions data from file:', questionsPath);
+    } else {
+      console.error('[API] Questions file does not exist at:', questionsPath, '| questionsData:', questionsData ? 'loaded' : 'null');
+      return { error: 'Questions data not found' };
+    }
     
     if (!data.chapters || !Array.isArray(data.chapters)) {
       console.error('[API] Error: No chapters array in file');
