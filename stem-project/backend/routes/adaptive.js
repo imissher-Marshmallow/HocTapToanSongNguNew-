@@ -1511,4 +1511,89 @@ router.post('/analyze-quiz', async (req, res) => {
   }
 })
 
+/**
+ * GET /api/adaptive/recommended-contest/:userId/:chapterId
+ * Get recommended contest difficulty for a chapter based on user's past performance
+ * Response: { recommendedContestNum: 1-5, difficulty: 'easy'|'hard' }
+ */
+router.get('/recommended-contest/:userId/:chapterId', async (req, res) => {
+  try {
+    const { userId, chapterId } = req.params
+    const numericChapterId = parseInt(chapterId, 10)
+    const numericUserId = parseInt(userId, 10)
+
+    if (isNaN(numericChapterId) || numericChapterId < 1 || numericChapterId > 5) {
+      return res.status(400).json({ error: 'Invalid chapter ID' })
+    }
+
+    if (isNaN(numericUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID' })
+    }
+
+    // Fetch user's recent quiz results for this chapter from Supabase
+    let lastScore = null
+    if (supabase) {
+      try {
+        const { data } = await supabase
+          .from('quiz_results')
+          .select('overall_score')
+          .eq('user_id', numericUserId)
+          .ilike('quiz_id', `chapter${numericChapterId}%`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (data) {
+          lastScore = data.overall_score || 0
+        }
+      } catch (err) {
+        console.log('[RecommendedContest] Supabase fetch failed (expected if no history):', err.message)
+      }
+    }
+
+    // Default to score 5 (easy) if no history
+    lastScore = lastScore !== null ? lastScore : 5
+
+    // Determine recommended contest based on score
+    // score < 9: easy contests (1, 2, 3)
+    // score >= 9: hard contests (4, 5)
+    let recommendedContestNum, difficulty, reasoning
+
+    if (lastScore < 3) {
+      recommendedContestNum = 1
+      difficulty = 'easy'
+      reasoning = `Score ${lastScore} - Start with contest 1 (easiest level)`
+    } else if (lastScore < 6) {
+      recommendedContestNum = 2
+      difficulty = 'easy'
+      reasoning = `Score ${lastScore} - Try contest 2 (easy level)`
+    } else if (lastScore < 9) {
+      recommendedContestNum = 3
+      difficulty = 'easy'
+      reasoning = `Score ${lastScore} - Continue with contest 3 (normal level)`
+    } else if (lastScore < 9.5) {
+      recommendedContestNum = 4
+      difficulty = 'hard'
+      reasoning = `Score ${lastScore} - Try contest 4 (hard level)`
+    } else {
+      recommendedContestNum = 5
+      difficulty = 'hard'
+      reasoning = `Score ${lastScore} - Challenge yourself with contest 5 (hardest level)`
+    }
+
+    res.json({
+      userId: numericUserId,
+      chapterId: numericChapterId,
+      lastScore,
+      recommendedContestNum,
+      difficulty,
+      reasoning,
+      quizId: `chapter${numericChapterId}-contest${recommendedContestNum}`
+    })
+  } catch (error) {
+    console.error('Error getting recommended contest:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
 module.exports = router

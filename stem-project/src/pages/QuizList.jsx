@@ -11,30 +11,60 @@ export default function QuizList() {
   const t = quizListTranslations[language];
   const [selectedQuiz, setSelectedQuiz] = useState(null);
 
-  // Show 2 quiz options: Standard and Adaptive
+  // Show quiz options by chapters
   const quizzes = [
     {
-      id: 'random',
-      title: language === 'vi' ? 'Kiểm Tra Toán' : 'Math Quiz',
-      description: language === 'vi' ? 'Bài kiểm tra toàn diện về kiến thức đại số' : 'Comprehensive math knowledge assessment',
+      id: 'chapter1-normal',
+      title: language === 'vi' ? 'Đa thức nhiều biến' : 'Polynomials of Multiple Variables',
+      description: language === 'vi' ? 'Kiểm tra kiến thức về đa thức nhiều biến' : 'Test knowledge about polynomials of multiple variables',
       time: '30 phút / 30 min',
-      attempts: 0,
-      totalAttempts: 0,
-      difficulty: language === 'vi' ? 'Trung bình' : 'Medium',
-      questionsCount: 20,
-      passRate: 0,
-      type: 'standard'
+      difficulty: language === 'vi' ? 'Cơ bản' : 'Basic',
+      questionsCount: 22,
+      type: 'chapter'
+    },
+    {
+      id: 'chapter2-normal',
+      title: language === 'vi' ? 'Phân thức đại số' : 'Algebraic Fractions',
+      description: language === 'vi' ? 'Kiểm tra kiến thức về phân thức đại số' : 'Test knowledge about algebraic fractions',
+      time: '30 phút / 30 min',
+      difficulty: language === 'vi' ? 'Cơ bản' : 'Basic',
+      questionsCount: 22,
+      type: 'chapter'
+    },
+    {
+      id: 'chapter3-normal',
+      title: language === 'vi' ? 'Hàm số và đồ thị' : 'Functions and Graphs',
+      description: language === 'vi' ? 'Kiểm tra kiến thức về hàm số và đồ thị' : 'Test knowledge about functions and graphs',
+      time: '30 phút / 30 min',
+      difficulty: language === 'vi' ? 'Cơ bản' : 'Basic',
+      questionsCount: 22,
+      type: 'chapter'
+    },
+    {
+      id: 'chapter4-normal',
+      title: language === 'vi' ? 'Hình học trực quan' : 'Visual Geometry',
+      description: language === 'vi' ? 'Kiểm tra kiến thức về hình học trực quan' : 'Test knowledge about visual geometry',
+      time: '30 phút / 30 min',
+      difficulty: language === 'vi' ? 'Cơ bản' : 'Basic',
+      questionsCount: 22,
+      type: 'chapter'
+    },
+    {
+      id: 'chapter5-normal',
+      title: language === 'vi' ? 'Tam giác, tứ giác' : 'Triangles and Quadrilaterals',
+      description: language === 'vi' ? 'Kiểm tra kiến thức về tam giác và tứ giác' : 'Test knowledge about triangles and quadrilaterals',
+      time: '30 phút / 30 min',
+      difficulty: language === 'vi' ? 'Cơ bản' : 'Basic',
+      questionsCount: 22,
+      type: 'chapter'
     },
     {
       id: 'adaptive',
       title: language === 'vi' ? 'Bài Kiểm Tra Thích Hợp' : 'Adaptive Quiz',
       description: language === 'vi' ? 'Bài kiểm tra thích ứng - câu hỏi tự động điều chỉnh theo khả năng của bạn' : 'Adaptive quiz - questions adjust to your level',
       time: '20-40 phút / 20-40 min',
-      attempts: 0,
-      totalAttempts: 0,
       difficulty: language === 'vi' ? 'Tự động' : 'Adaptive',
       questionsCount: '~20',
-      passRate: 0,
       type: 'adaptive',
       badge: language === 'vi' ? 'AI' : 'AI'
     }
@@ -109,38 +139,44 @@ export default function QuizList() {
                   </div>
                 </div>
 
-                <div className="stat-item">
-                  <span className="stat-icon"></span>
-                  <div>
-                    <span className="stat-label">{language === 'vi' ? 'Đã làm' : 'Attempts'}</span>
-                    <span className="stat-value">{quiz.attempts}</span>
-                  </div>
-                </div>
+                {quiz.type === 'adaptive' && (
+                  <>
+                    <div className="stat-item">
+                      <span className="stat-icon"></span>
+                      <div>
+                        <span className="stat-label">{language === 'vi' ? 'Đã làm' : 'Attempts'}</span>
+                        <span className="stat-value">0</span>
+                      </div>
+                    </div>
 
-                <div className="stat-item">
-                  <span className="stat-icon"></span>
-                  <div>
-                    <span className="stat-label">{language === 'vi' ? 'Tổng' : 'Total'}</span>
-                    <span className="stat-value">{quiz.totalAttempts}</span>
-                  </div>
-                </div>
+                    <div className="stat-item">
+                      <span className="stat-icon"></span>
+                      <div>
+                        <span className="stat-label">{language === 'vi' ? 'Tổng' : 'Total'}</span>
+                        <span className="stat-value">0</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Pass Rate Bar */}
-              <div className="pass-rate-container">
-                <div className="pass-rate-label">
-                  <span>{language === 'vi' ? 'Tỉ lệ vượt qua' : 'Pass Rate'}</span>
-                  <span className="pass-rate-value">{quiz.passRate}%</span>
+              {quiz.type === 'adaptive' && (
+                <div className="pass-rate-container">
+                  <div className="pass-rate-label">
+                    <span>{language === 'vi' ? 'Tỉ lệ vượt qua' : 'Pass Rate'}</span>
+                    <span className="pass-rate-value">0%</span>
+                  </div>
+                  <div className="pass-rate-bar">
+                    <motion.div
+                      className="pass-rate-fill"
+                      initial={{ width: 0 }}
+                      animate={{ width: '0%' }}
+                      transition={{ duration: 1, delay: 0.2 }}
+                    />
+                  </div>
                 </div>
-                <div className="pass-rate-bar">
-                  <motion.div
-                    className="pass-rate-fill"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${quiz.passRate}%` }}
-                    transition={{ duration: 1, delay: 0.2 }}
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Content Preview */}
               <div className="content-preview">
@@ -165,18 +201,15 @@ export default function QuizList() {
                 {t.details}
               </button>
               <button
-                className={`btn-start-card ${quiz.disabledStart ? 'disabled' : ''}`}
+                className="btn-start-card"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!quiz.disabledStart) {
-                    if (quiz.type === 'adaptive') {
-                      navigate('/adaptive-quiz-select');
-                    } else {
-                      navigate(`/quiz/${quiz.id}`);
-                    }
+                  if (quiz.type === 'adaptive') {
+                    navigate('/adaptive-quiz-select');
+                  } else {
+                    navigate(`/quiz/${quiz.id}`);
                   }
                 }}
-                disabled={quiz.disabledStart}
               >
                 {t.start}
               </button>

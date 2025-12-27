@@ -1,915 +1,847 @@
 {
-  "name": "Kiểm tra kiến thức đại số 8",
-  "contests": [
-    [
-      {
-         "id": 1,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Biểu thức nào là đơn thức?",
-    "english_question": "Which expression is a monomial?",
-    "options": ["x+y", "−3x²y", "y/x", "5(x−y)"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 2,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Bậc của đơn thức 5x³y²z là:",
-    "english_question": "What is the degree of the monomial 5x³y²z?",
-    "options": ["3", "5", "6", "7"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 3,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức nào đồng dạng với x³y:",
-    "english_question": "Which monomial is a like term to x³y:",
-    "options": ["x²y²", "3x³", "x³y²", "−5x³y"],
-    "answerIndex": 3,
-    "difficulty": "1"
-  },
-  {
-    "id": 4,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Kết quả của 3x² + 5x² là:",
-    "english_question": "The result of 3x² + 5x² is:",
-    "options": ["8x⁴", "8x²", "15x⁴", "15x²"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 5,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép nhân x(x²−1):",
-    "english_question": "Perform the multiplication x(x²−1):",
-    "options": ["x³−1", "x³−x", "x³+x", "x²−x"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 6,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép trừ: (x+y)−(x−y).",
-    "english_question": "Perform the subtraction: (x+y)−(x−y).",
-    "options": ["2x", "2y", "0", "x−y"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 7,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Tìm x biết x(x+1)−x²=5.",
-    "english_question": "Find x given x(x+1)−x²=5.",
-    "options": ["x=0", "x=1", "x=−5", "x=5"],
-    "answerIndex": 3,
-    "difficulty": "1"
-  },
-  {
-    "id": 8,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép nhân (x+1)⋅(x+2).",
-    "english_question": "Perform the multiplication (x+1)⋅(x+2).",
-    "options": ["x²+3x+2", "x²+3x−2", "x²+2x+2", "x²+x+2"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 9,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Thu gọn đa thức M=x²−2xy+y²−x²+3xy−y².",
-    "english_question": "Simplify the polynomial M=x²−2xy+y²−x²+3xy−y².",
-    "options": ["−xy", "xy", "x²+y²", "−x²+y²"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 10,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Cho hai đa thức A=3x²+2xy−y² và B=x²−2xy−y². Tìm đa thức A+B.",
-    "english_question": "Given two polynomials A=3x²+2xy−y² and B=x²−2xy−y². Find the polynomial A+B.",
-    "options": ["4x²+4xy−2y²", "4x²−2y²", "2x²+4xy", "4x²+2xy−2y²"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 11,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Cho hai đa thức A=3x²+2xy−y² và B=x²−2xy−y². Tìm đa thức A−B.",
-    "english_question": "Given two polynomials A=3x²+2xy−y² and B=x²−2xy−y². Find the polynomial A−B.",
-    "options": ["3x²+2xy−2y²", "3x²−2xy−2y²", "3x²−4xy−2y²", "x²−2xy−2y²"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 12,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Tìm đa thức P thỏa mãn P+(x²+y²)=2x²+3y².",
-    "english_question": "Find the polynomial P such that P+(x²+y²)=2x²+3y².",
-    "options": ["x²+2y²", "x²+4y²", "3x²+4y²", "3x²+2y²"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 13,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép nhân: (x+2)(x−3).",
-    "english_question": "Perform the multiplication: (x+2)(x−3).",
-    "options": ["x²−6", "x²−x+6", "x²+x−6", "x²−x−6"],
-    "answerIndex": 3,
-    "difficulty": "3"
-  },
-  {
-    "id": 14,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thu gọn đa thức P=x²y−3xy²+5x²y−xy².",
-    "english_question": "Simplify the polynomial P=x²y−3xy²+5x²y−xy².",
-    "options": ["6x²y−4xy²", "6x²y+4xy²", "6x²y−2xy²", "5x²y−4xy²"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 15,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Rút gọn biểu thức: A=(x−y)(x+y)−(x²−2y²+1).",
-    "english_question": "Simplify the expression: A=(x−y)(x+y)−(x²−2y²+1).",
-    "options": ["y²+1", "y²−1", "2y²−1", "−2y²−1"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 16,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Rút gọn biểu thức: B=(x−1)²−(x+1)(x−2).",
-    "english_question": "Simplify the expression: B=(x−1)²−(x+1)(x−2).",
-    "options": ["−x+3", "x−3", "−x−3", "x+3"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 17,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết 4x²−1=(2x−1)(3x+2).",
-    "english_question": "Find x given 4x²−1=(2x−1)(3x+2).",
-    "options": ["x=1/2", "x=−1/2", "x=3", "x=−3"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 18,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (2x³−3x²+2x) : x.",
-    "english_question": "Perform the division: (2x³−3x²+2x) : x.",
-    "options": ["2x²−3x+2", "2x²−3x+1", "2x²−3x", "2x²−3x−2"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 19,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị lớn nhất của biểu thức P=4x−x².",
-    "english_question": "Find the maximum value of the expression P=4x−x².",
-    "options": ["1", "4", "3", "2"],
-    "answerIndex": 1,
-    "difficulty": "4"
-  },
-  {
-    "id": 20,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị nhỏ nhất của biểu thức Q=x²+y²−2x+4y+7.",
-    "english_question": "Find the minimum value of the expression Q=x²+y²−2x+4y+7.",
-    "options": ["0", "1", "2", "3"],
-    "answerIndex": 2,
-    "difficulty": "4"
-  }
-    ],
-    [
-      {
-        "id": 1,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Hệ số của đơn thức x²y³ là:",
-    "english_question": "What is the coefficient of the monomial x²y³?",
-    "options": ["1", "2", "3", "5"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 2,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức nào không phải là đơn thức thu gọn?",
-    "english_question": "Which monomial is not a simplified monomial?",
-    "options": ["5x²y", "−x", "7", "3xy⋅x"],
-    "answerIndex": 3,
-    "difficulty": "1"
-  },
-  {
-    "id": 3,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Bậc của đa thức P=x²y−2x³y²+5 là:",
-    "english_question": "What is the degree of the polynomial P=x²y−2x³y²+5?",
-    "options": ["3", "4", "5", "6"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 4,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép trừ: 10xy−3xy.",
-    "english_question": "Perform the subtraction: 10xy−3xy.",
-    "options": ["13xy", "7xy", "7", "13"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 5,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Phép nhân 2x(x²−3) có kết quả:",
-    "english_question": "The multiplication 2x(x²−3) results in:",
-    "options": ["2x³−6x", "2x³−3", "2x³−6", "2x²−6x"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 6,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép nhân: (x−2)(x−5).",
-    "english_question": "Perform the multiplication: (x−2)(x−5).",
-    "options": ["x²−7x+10", "x²−3x+10", "x²+7x+10", "x²−7x−10"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 7,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép chia: x³y² : (−xy).",
-    "english_question": "Perform the division: x³y² : (−xy).",
-    "options": ["−x²y", "x²y", "−xy", "xy"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 8,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Tìm x biết 2x−10=0.",
-    "english_question": "Find x given 2x−10=0.",
-    "options": ["x=5", "x=−5", "x=10", "x=−10"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 9,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Thu gọn đa thức P=x²−5xy+y²−x²−3xy−y².",
-    "english_question": "Simplify the polynomial P=x²−5xy+y²−x²−3xy−y².",
-    "options": ["−8xy", "−2xy", "8xy", "2xy"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 10,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Tìm hệ số của đơn thức sau khi thu gọn: 5x²y⋅(−2x³y).",
-    "english_question": "Find the coefficient of the monomial after simplification: 5x²y⋅(−2x³y).",
-    "options": ["5", "−10", "−5", "10"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 11,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Giá trị của biểu thức 2x+3y tại x=1, y=−1 là:",
-    "english_question": "The value of the expression 2x+3y at x=1, y=−1 is:",
-    "options": ["5", "−3", "3", "1"],
-    "answerIndex": 3,
-    "difficulty": "2"
-  },
-  {
-    "id": 12,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Thực hiện phép nhân: (x+5)(x−5).",
-    "english_question": "Perform the multiplication: (x+5)(x−5).",
-    "options": ["x²−25", "x²+25", "x²−10x+25", "x²+10x+25"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 13,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép nhân: (x+1)(x²−x+1).",
-    "english_question": "Perform the multiplication: (x+1)(x²−x+1).",
-    "options": ["x³−1", "x³+x²+x+1", "x³+1", "x³−x²+x−1"],
-    "answerIndex": 2,
-    "difficulty": "3"
-  },
-  {
-    "id": 14,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thu gọn đa thức Q=5x³−2xy+3xy−5x³+1.",
-    "english_question": "Simplify the polynomial Q=5x³−2xy+3xy−5x³+1.",
-    "options": ["xy+1", "10x³+xy+1", "10x³+xy", "−xy+1"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 15,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết x²−4x=0.",
-    "english_question": "Find x given x²−4x=0.",
-    "options": ["x=0 hoặc x=4", "x=4", "x=0", "x=−4"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 16,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết (x−1)(x+2)−x²=5.",
-    "english_question": "Find x given (x−1)(x+2)−x²=5.",
-    "options": ["x=−7", "x=7", "x=−1", "x=1"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 17,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm đa thức R biết R−(x²−2xy+y²)=x²+2xy+y².",
-    "english_question": "Find the polynomial R such that R−(x²−2xy+y²)=x²+2xy+y².",
-    "options": ["2x²+2y²", "2x²−2y²", "4xy", "x²+y²"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 18,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (x³y²−2x²y+xy) : xy.",
-    "english_question": "Perform the division: (x³y²−2x²y+xy) : xy.",
-    "options": ["x²y−2x+1", "x²y+2x+1", "x²y−2x", "x²y+2x"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 19,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Giá trị nhỏ nhất của biểu thức A=x²−4x+5 là:",
-    "english_question": "The minimum value of the expression A=x²−4x+5 is:",
-    "options": ["1", "5", "0", "−1"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  },
-  {
-    "id": 20,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị lớn nhất của biểu thức B=5−x²−4x.",
-    "english_question": "Find the maximum value of the expression B=5−x²−4x.",
-    "options": ["9", "1", "4", "5"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  }
-    ],
-    [
-      {
-        "id": 1,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Trong các biểu thức, biểu thức nào là đa thức?",
-    "english_question": "Among the expressions, which is a polynomial?",
-    "options": ["y/x + 1", "1/x", "x²+2x−1", "√x + y"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 2,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Bậc của đơn thức 10x³y⁴ là:",
-    "english_question": "What is the degree of the monomial 10x³y⁴?",
-    "options": ["3", "4", "10", "7"],
-    "answerIndex": 3,
-    "difficulty": "1"
-  },
-  {
-    "id": 3,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức nào đồng dạng với 5x²y³?",
-    "english_question": "Which monomial is a like term to 5x²y³?",
-    "options": ["5x³y²", "−1/2 y³x²", "5x²y³z", "5x²y"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 4,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Kết quả của (−2x²y)⋅(3xy²) là:",
-    "english_question": "The result of (−2x²y)⋅(3xy²) is:",
-    "options": ["−6x²y²", "6x³y³", "−6x³y³", "6x³y²"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 5,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Thực hiện phép cộng: 5x³+2x³.",
-    "english_question": "Perform the addition: 5x³+2x³.",
-    "options": ["7x⁶", "7x³", "10x⁶", "10x³"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 6,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Khai triển (x+3)² được kết quả:",
-    "english_question": "Expand (x+3)² results in:",
-    "options": ["x²+9", "x²+6x+9", "x²+3x+9", "x²−6x+9"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 7,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Viết biểu thức x²−y² dưới dạng tích:",
-    "english_question": "Write the expression x²−y² in factored form:",
-    "options": ["(x−y)(x−y)", "(x+y)(x+y)", "(x−y)(x+y)", "x²−2xy+y²"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 8,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Kết quả của phép chia (6x²y³) : (−2xy) là:",
-    "english_question": "The result of the division (6x²y³) : (−2xy) is:",
-    "options": ["−3xy²", "3xy²", "−3xy", "3x²y²"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 9,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Thu gọn đa thức M=x²−3x+2−x²−5x−1.",
-    "english_question": "Simplify the polynomial M=x²−3x+2−x²−5x−1.",
-    "options": ["−8x+1", "8x+1", "−2x+1", "−8x−1"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 10,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Giá trị của biểu thức x²−2x+1 tại x=11 là:",
-    "english_question": "The value of the expression x²−2x+1 at x=11 is:",
-    "options": ["100", "121", "110", "10"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 11,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Khai triển (2x−y)³ được kết quả:",
-    "english_question": "Expand (2x−y)³ results in:",
-    "options": ["8x³−y³", "8x³−12x²y+6xy²−y³", "8x³+12x²y+6xy²+y³", "4x²−4xy+y²"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 12,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Viết biểu thức 27−27x+9x²−x³ dưới dạng lập phương của một hiệu.",
-    "english_question": "Write the expression 27−27x+9x²−x³ as the cube of a difference.",
-    "options": ["(3−x)³", "(x−3)³", "(9−x)³", "(3−x³)"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 13,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép nhân: (2x−1)(x+4).",
-    "english_question": "Perform the multiplication: (2x−1)(x+4).",
-    "options": ["2x²+8x−4", "2x²−4", "2x²+9x−4", "2x²+7x−4"],
-    "answerIndex": 3,
-    "difficulty": "3"
-  },
-  {
-    "id": 14,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thu gọn đa thức P=7x²−3xy+y²−4x²+3xy.",
-    "english_question": "Simplify the polynomial P=7x²−3xy+y²−4x²+3xy.",
-    "options": ["3x²−6xy+y²", "11x²+6xy+y²", "3x²+y²", "3x²+6xy+y²"],
-    "answerIndex": 2,
-    "difficulty": "3"
-  },
-  {
-    "id": 15,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết (x−2)²−(x−3)(x+3)=0.",
-    "english_question": "Find x given (x−2)²−(x−3)(x+3)=0.",
-    "options": ["x=13/4", "x=13/5", "x=5/4", "x=4/5"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 16,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết x²−9−(x−3)(x+1)=0.",
-    "english_question": "Find x given x²−9−(x−3)(x+1)=0.",
-    "options": ["x=3", "x=−3", "x=−6", "x=6"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 17,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (x³+x²−2x) : x.",
-    "english_question": "Perform the division: (x³+x²−2x) : x.",
-    "options": ["x²+x−2", "x³+x−2", "x²+x", "x³+x"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 18,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (x²−4x+4) : (x−2).",
-    "english_question": "Perform the division: (x²−4x+4) : (x−2).",
-    "options": ["x+2", "x−2", "x+4", "x−4"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 19,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị nhỏ nhất của biểu thức A=x²−6x+10.",
-    "english_question": "Find the minimum value of the expression A=x²−6x+10.",
-    "options": ["1", "10", "0", "−1"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  },
-  {
-    "id": 20,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị lớn nhất của biểu thức B=−x²−2x+5.",
-    "english_question": "Find the maximum value of the expression B=−x²−2x+5.",
-    "options": ["6", "5", "4", "1"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  }
-    ],
-    [
-      {
-        "id": 1,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức thu gọn của x²y⋅y³x là:",
-    "english_question": "The simplified monomial of x²y⋅y³x is:",
-    "options": ["x²y⁴", "x³y⁴", "x³y³", "x²y³"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 2,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức A=5x²y có bậc là:",
-    "english_question": "The monomial A=5x²y has a degree of:",
-    "options": ["3", "2", "5", "1"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 3,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức nào đồng dạng với x²y³:",
-    "english_question": "Which monomial is a like term to x²y³:",
-    "options": ["x³y²", "5x²y³z", "x²y", "−x²y³"],
-    "answerIndex": 3,
-    "difficulty": "1"
-  },
-  {
-    "id": 4,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Kết quả của phép tính −5x³+7x³ là:",
-    "english_question": "The result of the calculation −5x³+7x³ is:",
-    "options": ["−2x³", "12x³", "2x³", "−2x⁶"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 5,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Phép nhân x(x+2) có kết quả:",
-    "english_question": "The multiplication x(x+2) results in:",
-    "options": ["x²+2", "x²−2", "x²+2x", "x²−2x"],
-    "answerIndex": 2,
-    "difficulty": "1"
-  },
-  {
-    "id": 6,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Phép chia (2x³−4x²) : 2x² có kết quả:",
-    "english_question": "The division (2x³−4x²) : 2x² results in:",
-    "options": ["x−2", "x+2", "x²−2x", "x²−2"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 7,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Khai triển (x−2y)² được kết quả:",
-    "english_question": "Expand (x−2y)² results in:",
-    "options": ["x²−4xy+4y²", "x²−2xy+y²", "x²−4y²", "x²+4xy+4y²"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 8,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Kết quả của phép nhân (x−1)(x+1) là:",
-    "english_question": "The result of the multiplication (x−1)(x+1) is:",
-    "options": ["x²−1", "x²+1", "x²−2x+1", "x²+2x+1"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 9,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Thu gọn đa thức M=x²−2x+y+2−x²+3x.",
-    "english_question": "Simplify the polynomial M=x²−2x+y+2−x²+3x.",
-    "options": ["x+y+2", "−x+y+2", "x+y", "−x+y"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 10,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Giá trị của biểu thức 4x²−12x+9 tại x=1/2 là:",
-    "english_question": "The value of the expression 4x²−12x+9 at x=1/2 is:",
-    "options": ["4", "1", "9", "0"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 11,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Viết biểu thức x³−1 dưới dạng tích:",
-    "english_question": "Write the expression x³−1 in factored form:",
-    "options": ["(x−1)(x²+x+1)", "(x+1)(x²−x+1)", "(x−1)³", "(x+1)³"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 12,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Viết biểu thức 8x³+12x²+6x+1 dưới dạng lập phương của một tổng.",
-    "english_question": "Write the expression 8x³+12x²+6x+1 as the cube of a sum.",
-    "options": ["(x+1)³", "(2x+1)³", "(2x+x)³", "(8x+1)³"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 13,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép nhân: (x²+1)(x²−3).",
-    "english_question": "Perform the multiplication: (x²+1)(x²−3).",
-    "options": ["x⁴−4", "x⁴−2x²−3", "x⁴−3", "x⁴−2x²−3"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 14,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thu gọn đa thức P=x²y−3xy²+y²−5x²y+3xy².",
-    "english_question": "Simplify the polynomial P=x²y−3xy²+y²−5x²y+3xy².",
-    "options": ["−4x²y+y²", "6x²y−6xy²+y²", "−4x²y−6xy²+y²", "4x²y+y²"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 15,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Rút gọn biểu thức: A=(x+2)(x−2)−(x+5)(x−5).",
-    "english_question": "Simplify the expression: A=(x+2)(x−2)−(x+5)(x−5).",
-    "options": ["21", "29", "−21", "−29"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 16,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết (x+1)²−(x−2)(x+2)=−5.",
-    "english_question": "Find x given (x+1)²−(x−2)(x+2)=−5.",
-    "options": ["x=−10", "x=−5", "x=5", "x=10"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 17,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết x²(x+1)+x+1=0.",
-    "english_question": "Find x given x²(x+1)+x+1=0.",
-    "options": ["x=1", "x=−1", "x=0", "x=2"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 18,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (x³+8) : (x²+2x+4).",
-    "english_question": "Perform the division: (x³+8) : (x²+2x+4).",
-    "options": ["x+2", "x−2", "x²+2", "x²−2"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 19,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị nhỏ nhất của biểu thức A=x²−4xy+5y²+2y+1.",
-    "english_question": "Find the minimum value of the expression A=x²−4xy+5y²+2y+1.",
-    "options": ["0", "−1", "1", "2"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  },
-  {
-    "id": 20,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị lớn nhất của biểu thức B=−x²+6x−10.",
-    "english_question": "Find the maximum value of the expression B=−x²+6x−10.",
-    "options": ["−1", "1", "10", "−10"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  }
-    ],
-    [
-      {
-        "id": 1,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Biểu thức nào là đa thức?",
-    "english_question": "Which expression is a polynomial?",
-    "options": ["x/2", "√(x²+1)", "xy/(x+y)", "x³y−5x"],
-    "answerIndex": 3,
-    "difficulty": "1"
-  },
-  {
-    "id": 2,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Bậc của đơn thức −x⁴ là:",
-    "english_question": "The degree of the monomial −x⁴ is:",
-    "options": ["1", "4", "−1", "0"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 3,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Đơn thức x²y³ và y³x² có đồng dạng không?",
-    "english_question": "Are the monomials x²y³ and y³x² like terms?",
-    "options": ["Có", "Không", "Không xác định", "Chỉ khi x=y"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 4,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Tính tổng của hai đơn thức: 7a²b+(−3a²b).",
-    "english_question": "Calculate the sum of the two monomials: 7a²b+(−3a²b).",
-    "options": ["10a²b", "4a²b", "−4a²b", "4a⁴b²"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 5,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Rút gọn 3x²−(x²+5) có kết quả:",
-    "english_question": "Simplify 3x²−(x²+5) results in:",
-    "options": ["2x²+5", "2x²−5", "4x²−5", "4x²+5"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 6,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Tìm x biết 5x−3=2.",
-    "english_question": "Find x given 5x−3=2.",
-    "options": ["x=1", "x=5/3", "x=−1", "x=−5/3"],
-    "answerIndex": 0,
-    "difficulty": "1"
-  },
-  {
-    "id": 7,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Khai triển (2x+3)² được kết quả:",
-    "english_question": "Expand (2x+3)² results in:",
-    "options": ["4x²+9", "4x²+12x+9", "2x²+12x+9", "4x²+6x+9"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 8,
-    "topic": "Nhận biết (Knowledge) - 8 câu",
-    "question": "Viết biểu thức 8−x³ dưới dạng tích:",
-    "english_question": "Write the expression 8−x³ in factored form:",
-    "options": ["(2−x)(4+4x+x²)", "(2−x)(4+2x+x²)", "(2−x)(4−2x+x²)", "(8−x)(64+8x+x²)"],
-    "answerIndex": 1,
-    "difficulty": "1"
-  },
-  {
-    "id": 9,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Cho hai đa thức A=x²−3xy+y² và B=−x²+xy−y². Tìm đa thức A−B.",
-    "english_question": "Given two polynomials A=x²−3xy+y² and B=−x²+xy−y². Find the polynomial A−B.",
-    "options": ["2x²−4xy+2y²", "2x²−4xy", "−2xy", "2x²−2xy+2y²"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 10,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Giá trị của biểu thức x²−10x+25 tại x=15 là:",
-    "english_question": "The value of the expression x²−10x+25 at x=15 is:",
-    "options": ["100", "25", "10", "15"],
-    "answerIndex": 0,
-    "difficulty": "2"
-  },
-  {
-    "id": 11,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Khai triển (x+2)³ được kết quả:",
-    "english_question": "Expand (x+2)³ results in:",
-    "options": ["x³+8", "x³+6x²+12x+8", "x³+2x+8", "x³+4x+8"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 12,
-    "topic": "Thông hiểu (Comprehension) - 4 câu",
-    "question": "Viết biểu thức 8−12x+6x²−x³ dưới dạng lập phương của một hiệu.",
-    "english_question": "Write the expression 8−12x+6x²−x³ as the cube of a difference.",
-    "options": ["(x−2)³", "(2−x)³", "(8−x)³", "(2x−1)³"],
-    "answerIndex": 1,
-    "difficulty": "2"
-  },
-  {
-    "id": 13,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép nhân: (x+1)(x²+x−2).",
-    "english_question": "Perform the multiplication: (x+1)(x²+x−2).",
-    "options": ["x³+2x²−x−2", "x³+x²−x−2", "x³+2x²−2", "x³+x−2"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 14,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thu gọn đa thức Q=10x³−5x+7x²−9x³+5x−7x².",
-    "english_question": "Simplify the polynomial Q=10x³−5x+7x²−9x³+5x−7x².",
-    "options": ["19x³", "x³−10x", "x³+14x²", "x³"],
-    "answerIndex": 3,
-    "difficulty": "3"
-  },
-  {
-    "id": 15,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Rút gọn biểu thức: D=(x+5)²−(x−5)². ",
-    "english_question": "Simplify the expression: D=(x+5)²−(x−5)². ",
-    "options": ["10x", "20x", "50", "10"],
-    "answerIndex": 1,
-    "difficulty": "3"
-  },
-  {
-    "id": 16,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Tìm x biết (x−1)²−x(x+2)=5.",
-    "english_question": "Find x given (x−1)²−x(x+2)=5.",
-    "options": ["x=−1", "x=−1/4", "x=−4/3", "x=1"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 17,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (x³−6x²+9x) : x.",
-    "english_question": "Perform the division: (x³−6x²+9x) : x.",
-    "options": ["x²−6x+9", "x²−6x", "x³−6x+9", "x³−6x"],
-    "answerIndex": 0,
-    "difficulty": "3"
-  },
-  {
-    "id": 18,
-    "topic": "Vận dụng thấp (Low Application) - 6 câu",
-    "question": "Thực hiện phép chia: (x³−2x²−5x+6) : (x−3).",
-    "english_question": "Perform the division: (x³−2x²−5x+6) : (x−3).",
-    "options": ["x²−x+2", "x²−x−2", "x²+x−2", "x²+x+2"],
-    "answerIndex": 2,
-    "difficulty": "3"
-  },
-  {
-    "id": 19,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị nhỏ nhất của biểu thức A=x²−x+1.",
-    "english_question": "Find the minimum value of the expression A=x²−x+1.",
-    "options": ["3/4", "1/4", "1", "0"],
-    "answerIndex": 0,
-    "difficulty": "4"
-  },
-  {
-    "id": 20,
-    "topic": "Vận dụng cao (High Application) - 2 câu",
-    "question": "Tìm giá trị lớn nhất của biểu thức B=−2x²+8x−1.",
-    "english_question": "Find the maximum value of the expression B=−2x²+8x−1.",
-    "options": ["7", "1", "−1", "6"],
-    "answerIndex": 3,
-    "difficulty": "4"
-  }
-    ]
+  "revision": 1,
+  "chapters": [
+    {
+      "chapterId": 1,
+      "chapterName": "Đa thức nhiều biến",
+      "contests": [
+        {
+          "testId": "chapter1-contest1",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [
+              {
+                "id": 1,
+                "question": "Biểu thức nào sau đây KHÔNG là đơn thức?",
+                "english_question": "Which of the following expressions is NOT a monomial?",
+                "options": ["5x + 9", "−(1/3)x²y", "7", "x"],
+                "english_options": ["5x + 9", "−(1/3)x²y", "7", "x"],
+                "answerIndex": 0
+              },
+              {
+                "id": 2,
+                "question": "Bậc của đơn thức M = −2x³y²z là:",
+                "english_question": "The degree of the monomial M = −2x³y²z is:",
+                "options": ["3", "5", "2", "6"],
+                "english_options": ["3", "5", "2", "6"],
+                "answerIndex": 3
+              },
+              {
+                "id": 3,
+                "question": "Thu gọn đa thức P = 5xy² − 3x + xy² ta được kết quả là:",
+                "english_question": "Simplify the polynomial P = 5xy² − 3x + xy² to get:",
+                "options": ["5xy² − 3x", "6xy² − 3x + xy²", "6xy² − 3x", "2xy² − 3x"],
+                "english_options": ["5xy² − 3x", "6xy² − 3x + xy²", "6xy² − 3x", "2xy² − 3x"],
+                "answerIndex": 2
+              },
+              {
+                "id": 4,
+                "question": "Khai triển của (2x − 3)² là:",
+                "english_question": "The expansion of (2x − 3)² is:",
+                "options": ["4x² − 12x + 9", "4x² − 9", "2x² − 12x + 9", "4x² − 6x + 9"],
+                "english_options": ["4x² − 12x + 9", "4x² − 9", "2x² − 12x + 9", "4x² − 6x + 9"],
+                "answerIndex": 0
+              },
+              {
+                "id": 5,
+                "question": "Kết quả của phép nhân (x + 2)(x − 5) là:",
+                "english_question": "The result of the multiplication (x + 2)(x − 5) is:",
+                "options": ["x² + 3x − 10", "x² − 10", "x² − 3x − 10", "x² − 7x − 10"],
+                "english_options": ["x² + 3x − 10", "x² − 10", "x² − 3x − 10", "x² − 7x − 10"],
+                "answerIndex": 2
+              },
+              {
+                "id": 6,
+                "question": "Rút gọn biểu thức P = x(x − 2y) − y(y² − 2x) ta được:",
+                "english_question": "Simplify the expression P = x(x − 2y) − y(y² − 2x) to get:",
+                "options": ["x² − y³ + 4xy", "x² − y³", "x² + 4xy − y³", "x² − 4xy − y³"],
+                "english_options": ["x² − y³ + 4xy", "x² − y³", "x² + 4xy − y³", "x² − 4xy − y³"],
+                "answerIndex": 1
+              },
+              {
+                "id": 7,
+"question": "Phân tích đa thức x² − 4y² thành nhân tử là:",
+                "english_question": "Factor the polynomial x² − 4y²:",
+                "options": ["(x−4y)(x+4y)", "(x−2y)²", "x(x−4y)", "(x−2y)(x+2y)"],
+                "english_options": ["(x−4y)(x+4y)", "(x−2y)²", "x(x−4y)", "(x−2y)(x+2y)"],
+                "answerIndex": 3
+              },
+              {
+                "id": 8,
+                "question": "Kết quả của phép chia (18x⁴y³ + 6x²y²) : (−3x²y²) là:",
+                "english_question": "The result of the division (18x⁴y³ + 6x²y²) : (−3x²y²) is:",
+                "options": ["−6x²y − 2", "6x²y + 2", "−6x²y + 2", "−18x²y − 6"],
+                "english_options": ["−6x²y − 2", "6x²y + 2", "−6x²y + 2", "−18x²y − 6"],
+                "answerIndex": 0
+              },
+              {
+                "id": 9,
+                "question": "Giá trị của biểu thức 95² − 5² là:",
+                "english_question": "The value of the expression 95² − 5² is:",
+                "options": ["90000", "90", "950", "9000"],
+                "english_options": ["90000", "90", "950", "9000"],
+                "answerIndex": 3
+              },
+              {
+                "id": 10,
+                "question": "Một hình chữ nhật có chiều dài là (2x + 5) mét và chiều rộng là (2x − 5) mét. Đa thức biểu thị diện tích hình chữ nhật đó là:",
+                "english_question": "A rectangle has a length of (2x + 5) meters and a width of (2x − 5) meters. The polynomial representing its area is:",
+                "options": ["4x² + 25", "4x² − 10x + 25", "4x² − 25", "x² − 25"],
+                "english_options": ["4x² + 25", "4x² − 10x + 25", "4x² − 25", "x² − 25"],
+                "answerIndex": 2
+              },
+              {
+                "id": 11,
+                "question": "Rút gọn biểu thức (x+1)³ − (x−1)³ − 6x²:",
+                "english_question": "Simplify the expression (x+1)³ − (x−1)³ − 6x²:",
+                "options": ["2", "12x² + 2", "6x² + 2", "2x"],
+                "english_options": ["2", "12x² + 2", "6x² + 2", "2x"],
+                "answerIndex": 0
+              },
+              {
+                "id": 12,
+                "question": "Phân tích đa thức x² − y² + 2x + 1 thành nhân tử ta được:",
+                "english_question": "Factor the polynomial x² − y² + 2x + 1:",
+                "options": ["(x − y + 1)(x + y − 1)", "(x + y + 1)(x − y − 1)", "(x + y + 1)(x − y + 1)", "(x + y)(x − y + 1)"],
+                "english_options": ["(x − y + 1)(x + y − 1)", "(x + y + 1)(x − y − 1)", "(x + y + 1)(x − y + 1)", "(x + y)(x − y + 1)"],
+                "answerIndex": 2
+              }
+            ],
+            "trueFalse": [
+              {
+                "id": 1,
+                "question": "Trong các mệnh đề dưới đây, hãy xác định mệnh đề nào ĐÚNG, mệnh đề nào SAI.",
+"english_question": "For the following statements, determine which one is TRUE and which one is FALSE.",
+                "statements": [
+                  {
+                    "content_vn": "A. Hai đơn thức 3xy² và 2y²x là hai đơn thức đồng dạng.",
+                    "content_en": "A. The two monomials 3xy² and 2y²x are like terms (monomials).",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "B. Kết quả của phép tính (x − 1)(x² + x + 1) là x³ − 1.",
+                    "content_en": "B. The result of the calculation (x − 1)(x² + x + 1) is x³ − 1.",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "C. Biểu thức x² − 4x + 5 có giá trị nhỏ nhất là 5.",
+                    "content_en": "C. The expression x² − 4x + 5 has a minimum value of 5.",
+                    "is_true": false
+                  },
+                  {
+                    "content_vn": "D. Đa thức A = 4x² − 4xy + y² + 1 luôn nhận giá trị dương với mọi giá trị của x và y.",
+                    "content_en": "D. The polynomial A = 4x² − 4xy + y² + 1 always takes a positive value for all x and y.",
+                    "is_true": true
+                  }
+                ]
+              }
+            ],
+            "shortAnswer": [
+              {
+                "id": 1,
+                "question": "Thu gọn đơn thức M = 3x²y ⋅ (−1/6)x³y ta được kết quả là ax⁵y². Hãy xác định hệ số a.",
+                "english_question": "Simplify the monomial M = 3x²y ⋅ (−1/6)x³y to get ax⁵y². Determine the coefficient a.",
+                "answer": "-0.5",
+                "answerFormat": "X",
+                "answerGuide": "Nhập số thập phân hoặc phân số. VD: -0.5 hoặc -1/2",
+                "english_answerGuide": "Enter the decimal or fraction. Ex: -0.5 or -1/2"
+              },
+              {
+                "id": 2,
+                "question": "Cho đa thức P = (x−2)(x+2) − x². Giá trị của đa thức P là k. Hãy tìm k.",
+                "english_question": "Given the polynomial P = (x−2)(x+2) − x². The value of P is k. Find k.",
+                "answer": "-4",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 3,
+                "question": "Cho biểu thức A = (x−y)² − (x+y)². Sau khi rút gọn, tính giá trị của A tại x=2025, y=5.",
+                "english_question": "Given the expression A = (x−y)² − (x+y)². After simplification, calculate the value of A for x=2025, y=5.",
+                "answer": "-40500",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+},
+              {
+                "id": 4,
+                "question": "Phân tích đa thức x³ − x²y + x − y thành nhân tử, trong đó có nhân tử (x−y). Hãy tìm nhân tử còn lại.",
+                "english_question": "Factor the polynomial x³ − x²y + x − y, given that one factor is (x−y). Find the remaining factor.",
+                "answer": "x^2 + 1",
+                "answerFormat": "expression",
+                "answerGuide": "Nhập biểu thức đại số.",
+                "english_answerGuide": "Enter the algebraic expression."
+              },
+              {
+                "id": 5,
+                "question": "Tìm giá trị nhỏ nhất của biểu thức Q = x² − 6x + 15.",
+                "english_question": "Find the minimum value of the expression Q = x² − 6x + 15.",
+                "answer": "6",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 6,
+                "question": "Tìm số nguyên x thỏa mãn (x−1)² − 4 = 0. (Chỉ điền giá trị dương).",
+                "english_question": "Find the positive integer x that satisfies (x−1)² − 4 = 0. (Enter only the positive value).",
+                "answer": "3",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              }
+            ]
+          }
+        },
+        {
+          "testId": "chapter1-contest2",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [
+              {
+                "id": 1,
+                "question": "Biểu thức nào sau đây là đơn thức?",
+                "english_question": "Which of the following expressions is a monomial?",
+                "options": ["x(y+1)", "y/x", "2x³y", "x² − y²"],
+                "english_options": ["x(y+1)", "y/x", "2x³y", "x² − y²"],
+                "answerIndex": 2
+              },
+              {
+                "id": 2,
+                "question": "Bậc của đa thức P = x⁴ − 3x²y³ + 5x⁵ là:",
+                "english_question": "The degree of the polynomial P = x⁴ − 3x²y³ + 5x⁵ is:",
+                "options": ["5", "4", "6", "11"],
+                "english_options": ["5", "4", "6", "11"],
+                "answerIndex": 0
+              },
+              {
+                "id": 3,
+                "question": "Khai triển (x + 4y)²:",
+                "english_question": "Expand (x + 4y)²:",
+                "options": ["x² + 16y²", "x² + 8xy + 16y²", "x² + 4xy + 16y²", "x² + 4y²"],
+                "english_options": ["x² + 16y²", "x² + 8xy + 16y²", "x² + 4xy + 16y²", "x² + 4y²"],
+                "answerIndex": 1
+              },
+              {
+                "id": 4,
+"question": "Đơn thức nào sau đây đồng dạng với 4xy³?",
+                "english_question": "Which monomial is similar (like term) to 4xy³?",
+                "options": ["4x³y", "−7x³y³", "−7xy³", "4(xy³)"],
+                "english_options": ["4x³y", "−7x³y³", "−7xy³", "4(xy³)"],
+                "answerIndex": 2
+              },
+              {
+                "id": 5,
+                "question": "Cho A=x²−3y và B=x²+3y. Đa thức A−B bằng:",
+                "english_question": "Given A=x²−3y and B=x²+3y. The polynomial A−B is:",
+                "options": ["−6y", "2x² + 6y", "2x²", "6y"],
+                "english_options": ["−6y", "2x² + 6y", "2x²", "6y"],
+                "answerIndex": 0
+              },
+              {
+                "id": 6,
+                "question": "Phân tích đa thức 5x²y − 10xy² thành nhân tử:",
+                "english_question": "Factor the polynomial 5x²y − 10xy²:",
+                "options": ["5xy(x-y)", "5xy(x+2y)", "5(x²y − 2xy²)", "5xy(x − 2y)"],
+                "english_options": ["5xy(x-y)", "5xy(x+2y)", "5(x²y − 2xy²)", "5xy(x − 2y)"],
+                "answerIndex": 3
+              },
+              {
+                "id": 7,
+                "question": "Kết quả rút gọn của (x−1)(x+1) + 1 là:",
+                "english_question": "The simplified result of (x−1)(x+1) + 1 is:",
+                "options": ["2x+2", "x²", "x² + 2", "x² + 2x"],
+                "english_options": ["2x+2", "x²", "x² + 2", "x² + 2x"],
+                "answerIndex": 1
+              },
+              {
+                "id": 8,
+                "question": "Đa thức Q thỏa mãn Q ⋅ 2x²y = 4x³y² − 6x²y:",
+                "english_question": "Find the polynomial Q that satisfies Q ⋅ 2x²y = 4x³y² − 6x²y:",
+                "options": ["2xy", "2xy − 6", "2xy − 3", "2x"],
+                "english_options": ["2xy", "2xy − 6", "2xy − 3", "2x"],
+                "answerIndex": 2
+              },
+              {
+                "id": 9,
+                "question": "Giá trị của 101² là:",
+                "english_question": "The value of 101² is:",
+                "options": ["10201", "1021", "11021", "10101"],
+                "english_options": ["10201", "1021", "11021", "10101"],
+                "answerIndex": 0
+              },
+              {
+                "id": 10,
+                "question": "Một mảnh vườn hình vuông có cạnh là (2x+3) mét. Đa thức biểu thị diện tích mảnh vườn là:",
+                "english_question": "A square garden has a side length of (2x+3) meters. The polynomial representing its area is:",
+                "options": ["4x² + 9", "4x² + 6x + 9", "4x² + 12x + 6", "4x² + 12x + 9"],
+                "english_options": ["4x² + 9", "4x² + 6x + 9", "4x² + 12x + 6", "4x² + 12x + 9"],
+                "answerIndex": 3
+              },
+              {
+                "id": 11,
+"question": "Giá trị của biểu thức A = x² + 2x + 2 luôn:",
+                "english_question": "The value of the expression A = x² + 2x + 2 is always:",
+                "options": ["Bằng 0", "Dương", "Âm", "Lớn hơn hoặc bằng 2"],
+                "english_options": ["Equal to 0", "Positive", "Negative", "Greater than or equal to 2"],
+                "answerIndex": 1
+              },
+              {
+                "id": 12,
+                "question": "Phân tích x² − 4y² − 4x + 4 thành nhân tử:",
+                "english_question": "Factor the polynomial x² − 4y² − 4x + 4:",
+                "options": ["(x − 2y)(x + 2y − 4)", "(x − 2 − 4y)(x + 2 + 4y)", "(x−2−2y)(x−2+2y)", "(x − 2y)(x + 2y)"],
+                "english_options": ["(x − 2y)(x + 2y − 4)", "(x − 2 − 4y)(x + 2 + 4y)", "(x−2−2y)(x−2+2y)", "(x − 2y)(x + 2y)"],
+                "answerIndex": 2
+              }
+            ],
+            "trueFalse": [
+              {
+                "id": 1,
+                "question": "Trong các mệnh đề dưới đây, hãy xác định mệnh đề nào ĐÚNG, mệnh đề nào SAI.",
+                "english_question": "For the following statements, determine which one is TRUE and which one is FALSE.",
+                "statements": [
+                  {
+                    "content_vn": "A. Bậc của đa thức P = x³y² − 5x²y⁴ + 3 là 6.",
+                    "content_en": "A. The degree of the polynomial P = x³y² − 5x²y⁴ + 3 is 6.",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "B. Khai triển (2x−1)³ là 8x³−12x²+6x−1.",
+                    "content_en": "B. The expansion of (2x−1)³ is 8x³−12x²+6x−1.",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "C. Phép nhân đa thức (x+3)(x−2) có kết quả là x² + x − 6.",
+                    "content_en": "C. The result of the polynomial multiplication (x+3)(x−2) is x² + x − 6.",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "D. Phân tích đa thức x² + 2xy + y² − 1 thành nhân tử là (x+y−1)(x+y+1).",
+                    "content_en": "D. Factoring the polynomial x² + 2xy + y² − 1 results in (x+y−1)(x+y+1).",
+                    "is_true": true
+                  }
+                ]
+              }
+            ],
+            "shortAnswer": [
+              {
+                "id": 1,
+                "question": "Giá trị của P = x²y − 5x²y + 4x²y là k. Hãy tìm k.",
+                "english_question": "The value of P = x²y − 5x²y + 4x²y is k. Find k.",
+                "answer": "0",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 2,
+"question": "Kết quả của phép tính (x² − 3)(x² + 3) là k. Hãy tìm k.",
+                "english_question": "The result of the calculation (x² − 3)(x² + 3) is k. Find k.",
+                "answer": "x^4 - 9",
+                "answerFormat": "expression",
+                "answerGuide": "Nhập biểu thức đại số.",
+                "english_answerGuide": "Enter the algebraic expression."
+              },
+              {
+                "id": 3,
+                "question": "Rút gọn A = (x−2y)(x+2y) − x². Tính giá trị của A tại y=1.",
+                "english_question": "Simplify A = (x−2y)(x+2y) − x². Calculate the value of A when y=1.",
+                "answer": "-4",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 4,
+                "question": "Tìm nghiệm (số dương) của phương trình x² − 9x = 0.",
+                "english_question": "Find the positive solution (root) of the equation x² − 9x = 0.",
+                "answer": "9",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 5,
+                "question": "Tìm giá trị lớn nhất của biểu thức M = 7 − (x+2)².",
+                "english_question": "Find the maximum value of the expression M = 7 − (x+2)².",
+                "answer": "7",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 6,
+                "question": "Phép chia đa thức (x³+x²−11x+10) : (x−2) cho kết quả Q(x). Tìm hệ số của x trong đa thức Q(x).",
+                "english_question": "The polynomial division (x³+x²−11x+10) : (x−2) results in Q(x). Find the coefficient of x in the polynomial Q(x).",
+                "answer": "3",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              }
+            ]
+          }
+        },
+        {
+          "testId": "chapter1-contest3",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [
+              {
+                "id": 1,
+                "question": "Đơn thức 4x²(−y)³ có bậc là:",
+                "english_question": "The monomial 4x²(−y)³ has degree:",
+                "options": ["2", "3", "5", "6"],
+                "english_options": ["2", "3", "5", "6"],
+                "answerIndex": 2
+              },
+              {
+                "id": 2,
+                "question": "Thu gọn M = 0.5x³y ⋅ 4x²:",
+"english_question": "Simplify M = 0.5x³y ⋅ 4x²:",
+                "options": ["2x⁶y", "2x⁵y²", "2x⁵y", "2x⁵"],
+                "english_options": ["2x⁶y", "2x⁵y²", "2x⁵y", "2x⁵"],
+                "answerIndex": 2
+              },
+              {
+                "id": 3,
+                "question": "Biểu thức nào sau đây là đa thức?",
+                "english_question": "Which of the following expressions is a polynomial?",
+                "options": ["x/y", "x + 1/x", "x³ − y³", "3/x²"],
+                "english_options": ["x/y", "x + 1/x", "x³ − y³", "3/x²"],
+                "answerIndex": 2
+              },
+              {
+                "id": 4,
+                "question": "Khai triển (x+2)³ là:",
+                "english_question": "The expansion of (x+2)³ is:",
+                "options": ["x³+6x²+12x+8", "x³+8", "x³+4x²+4x+8", "x³+2x²+4x+8"],
+                "english_options": ["x³+6x²+12x+8", "x³+8", "x³+4x²+4x+8", "x³+2x²+4x+8"],
+                "answerIndex": 0
+              },
+              {
+                "id": 5,
+                "question": "Phân tích đa thức x² + 2x + xy + 2y thành nhân tử:",
+                "english_question": "Factor the polynomial x² + 2x + xy + 2y:",
+                "options": ["(x+2)(x+y)", "(x+2)(x−y)", "x(x+2y)", "(x+y)(x−2)"],
+                "english_options": ["(x+2)(x+y)", "(x+2)(x−y)", "x(x+2y)", "(x+y)(x−2)"],
+                "answerIndex": 0
+              },
+              {
+                "id": 6,
+                "question": "Tổng của đa thức P=3x²y và Q=x²y−5 là:",
+                "english_question": "The sum of the polynomials P=3x²y and Q=x²y−5 is:",
+                "options": ["3x²y−5", "4x²y+5", "3x²y+5", "4x²y−5"],
+                "english_options": ["3x²y−5", "4x²y+5", "3x²y+5", "4x²y−5"],
+                "answerIndex": 3
+              },
+              {
+                "id": 7,
+                "question": "Kết quả của phép chia (x² − 10x + 25) : (x−5) là:",
+                "english_question": "The result of the division (x² − 10x + 25) : (x−5) is:",
+                "options": ["x + 5", "x − 5", "x² − 5", "x² + 5"],
+                "english_options": ["x + 5", "x − 5", "x² − 5", "x² + 5"],
+                "answerIndex": 1
+              },
+              {
+                "id": 8,
+                "question": "Rút gọn biểu thức (3x+1)² − 9x²:",
+                "english_question": "Simplify the expression (3x+1)² − 9x²:",
+                "options": ["9x² + 1", "9x² + 6x + 1", "6x + 1", "1"],
+                "english_options": ["9x² + 1", "9x² + 6x + 1", "6x + 1", "1"],
+                "answerIndex": 2
+              },
+              {
+                "id": 9,
+                "question": "Tính giá trị của 199 ⋅ 201:",
+                "english_question": "Calculate the value of 199 ⋅ 201:",
+                "options": ["39991", "39999", "40001", "40000"],
+"english_options": ["39991", "39999", "40001", "40000"],
+                "answerIndex": 1
+              },
+              {
+                "id": 10,
+                "question": "Một hình lập phương có cạnh là (x+2). Biểu thức thể tích là:",
+                "english_question": "A cube has a side length of (x+2). The expression for its volume is:",
+                "options": ["x³+8", "x³+2", "3(x+2)", "(x+2)³"],
+                "english_options": ["x³+8", "x³+2", "3(x+2)", "(x+2)³"],
+                "answerIndex": 3
+              },
+              {
+                "id": 11,
+                "question": "Rút gọn (x²−4)/(x−2) với điều kiện x ≠ 2:",
+                "english_question": "Simplify (x²−4)/(x−2) with the condition x ≠ 2:",
+                "options": ["x + 2", "x − 2", "x²", "1"],
+                "english_options": ["x + 2", "x − 2", "x²", "1"],
+                "answerIndex": 0
+              },
+              {
+                "id": 12,
+                "question": "Biểu thức P = x²+y²+2x−6y+10. Giá trị nhỏ nhất là:",
+                "english_question": "The expression P = x²+y²+2x−6y+10. The minimum value is:",
+                "options": ["1", "10", "5", "0"],
+                "english_options": ["1", "10", "5", "0"],
+                "answerIndex": 3
+              }
+            ],
+            "trueFalse": [
+              {
+                "id": 1,
+                "question": "Trong các mệnh đề dưới đây, hãy xác định mệnh đề nào ĐÚNG, mệnh đề nào SAI.",
+                "english_question": "For the following statements, determine which one is TRUE and which one is FALSE.",
+                "statements": [
+                  {
+                    "content_vn": "A. Hai đơn thức x²y và xy² là hai đơn thức đồng dạng.",
+                    "content_en": "A. The two monomials x²y and xy² are like terms (monomials).",
+                    "is_true": false
+                  },
+                  {
+                    "content_vn": "B. Khai triển x³−8 là (x−2)(x²+2x+4).",
+                    "content_en": "B. The expansion of x³−8 is (x−2)(x²+2x+4).",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "C. Phân tích đa thức 3x(x+y) − 2(x+y) thành nhân tử là (x+y)(3x−2).",
+                    "content_en": "C. Factoring the polynomial 3x(x+y) − 2(x+y) results in (x+y)(3x−2).",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "D. Giá trị nhỏ nhất của M = x² − 4x + 3 là −1.",
+                    "content_en": "D. The minimum value of M = x² − 4x + 3 is −1.",
+                    "is_true": true
+                  }
+                ]
+              }
+            ],
+            "shortAnswer": [
+              {
+                "id": 1,
+                "question": "Bậc của đa thức P = x⁵ − 3x²y³ + 7x⁵ là k. Tìm k.",
+"english_question": "The degree of the polynomial P = x⁵ − 3x²y³ + 7x⁵ is k. Find k.",
+                "answer": "5",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 2,
+                "question": "Khai triển (x − 1)³. Hệ số của x² là k. Tìm k.",
+                "english_question": "Expand (x − 1)³. The coefficient of x² is k. Find k.",
+                "answer": "-3",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 3,
+                "question": "Cho x²+y²=10 và xy=3. Tính giá trị của (x+y)².",
+                "english_question": "Given x²+y²=10 and xy=3. Calculate the value of (x+y)².",
+                "answer": "16",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 4,
+                "question": "Phân tích đa thức x² − y² − x − y thành (x+y) ⋅ K. Tìm K.",
+                "english_question": "Factor the polynomial x² − y² − x − y into (x+y) ⋅ K. Find K.",
+                "answer": "x - y - 1",
+                "answerFormat": "expression",
+                "answerGuide": "Nhập biểu thức đại số.",
+                "english_answerGuide": "Enter the algebraic expression."
+              },
+              {
+                "id": 5,
+                "question": "Tìm giá trị x thỏa mãn (x+1)² = x²+7.",
+                "english_question": "Find the value of x that satisfies (x+1)² = x²+7.",
+                "answer": "3",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              },
+              {
+                "id": 6,
+                "question": "GTNN của P = x² + 2xy + y² − 4x − 4y + 5.",
+                "english_question": "Find the minimum value of P = x² + 2xy + y² − 4x − 4y + 5.",
+                "answer": "1",
+                "answerFormat": "X",
+                "answerGuide": "Nhập giá trị số.",
+                "english_answerGuide": "Enter the numerical value."
+              }
+            ]
+          }
+        },
+        {
+          "testId": "chapter1-contest4",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [
+              {
+                "id": 1,
+                "question": "THÊM CÂU HỎI NHƯ TRÊN",
+                "english_question": "ADD QUESTION LIKE ABOVE",
+                "options": ["Option A", "Option B", "Option C", "Option D"],
+                "english_options": ["Option A", "Option B", "Option C", "Option D"],
+"answerIndex": 0
+              }
+            ],
+            "trueFalse": [
+              {
+                "id": 2,
+                "question": "Trong các mệnh đề dưới đây, hãy xác định mệnh đề nào ĐÚNG, mệnh đề nào SAI.",
+                "english_question": "For the following statements, determine which one is TRUE and which one is FALSE.",
+                "statements": [
+                  {
+                    "content_vn": "A. THÊM CÂU HỎI ĐÚNG/SAI 1",
+                    "content_en": "A. ADD TRUE/FALSE STATEMENT 1",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "B. THÊM CÂU HỎI ĐÚNG/SAI 2",
+                    "content_en": "B. ADD TRUE/FALSE STATEMENT 2",
+                    "is_true": false
+                  },
+                  {
+                    "content_vn": "C. THÊM CÂU HỎI ĐÚNG/SAI 3",
+                    "content_en": "C. ADD TRUE/FALSE STATEMENT 3",
+                    "is_true": true
+                  },
+                  {
+                    "content_vn": "D. THÊM CÂU HỎI ĐÚNG/SAI 4",
+                    "content_en": "D. ADD TRUE/FALSE STATEMENT 4",
+                    "is_true": false
+                  }
+                ]
+              }
+            ],
+            "shortAnswer": [
+              {
+                "id": 3,
+                "question": "Tìm x, y biết x² + y² = 10 (nhập các đáp án cách nhau bằng dấu phẩy)",
+                "english_question": "Find x, y given x² + y² = 10 (enter answers separated by commas)",
+                "answer": "0,4",
+                "answerFormat": "X,X",
+                "answerGuide": "Nhập 2 số cách nhau bằng dấu phẩy, không có dấu cách. VD: 0,4",
+                "english_answerGuide": "Enter 2 numbers separated by commas with no spaces. Example: 0,4"
+              }
+            ]
+          }
+        },
+        {
+          "testId": "chapter1-contest5",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        }
+      ]
+    },
+    {
+      "chapterId": 2,
+      "chapterName": "Phân thức đại số",
+      "contests": [
+        {
+          "testId": "chapter2-contest1",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter2-contest2",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter2-contest3",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter2-contest4",
+          "difficulty": "hard",
+"questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter2-contest5",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        }
+      ]
+    },
+    {
+      "chapterId": 3,
+      "chapterName": "Hàm số và đồ thị",
+      "contests": [
+        {
+          "testId": "chapter3-contest1",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter3-contest2",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter3-contest3",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter3-contest4",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter3-contest5",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        }
+      ]
+    },
+    {
+      "chapterId": 4,
+      "chapterName": "Hình học trực quan",
+      "contests": [
+        {
+          "testId": "chapter4-contest1",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter4-contest2",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter4-contest3",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter4-contest4",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter4-contest5",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        }
+      ]
+    },
+    {
+      "chapterId": 5,
+      "chapterName": "Tam giác, tứ giác",
+      "contests": [
+        {
+          "testId": "chapter5-contest1",
+"difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter5-contest2",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter5-contest3",
+          "difficulty": "normal",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter5-contest4",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        },
+        {
+          "testId": "chapter5-contest5",
+          "difficulty": "hard",
+          "questions": {
+            "multipleChoice": [],
+            "trueFalse": [],
+            "shortAnswer": []
+          }
+        }
+      ]
+    }
   ]
 }
