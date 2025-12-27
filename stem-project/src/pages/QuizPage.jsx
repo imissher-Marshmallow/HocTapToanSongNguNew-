@@ -439,10 +439,10 @@ function QuizPage() {
           }}
         />
         <div className="options-container">
-          {(language === 'en'
+          {((language === 'en'
             ? currentQuestion?.english_options || currentQuestion?.options
             : currentQuestion?.options
-          ).map((option, idx) => (
+          ) || []).map((option, idx) => (
             <button
               key={idx}
               onClick={() => !isReviewMode && handleOptionClick(option, idx)}

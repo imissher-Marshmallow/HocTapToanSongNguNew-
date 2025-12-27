@@ -232,16 +232,11 @@ export default function QuizList() {
                 className="btn-details-card"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (quiz.type === 'adaptive') {
-                    navigate('/adaptive-quiz-select');
-                  } else if (quiz.type === 'chapter') {
-                    // Select random contest: 1-3 for normal, 4-5 for hard (if score >= 8.5)
-                    const userScore = topicScores[quiz.chapterId] || 0;
-                    const canHard = userScore >= 8.5;
-                    const contestRange = canHard ? [1, 2, 3, 4, 5] : [1, 2, 3];
-                    const randomContest = contestRange[Math.floor(Math.random() * contestRange.length)];
-                    const quizPath = `${quiz.chapterId}-${randomContest}`;
-                    navigate(`/quiz/${quizPath}`);
+                  // Just close the modal - the card click opens it
+                  if (selectedQuiz && selectedQuiz.id === quiz.id) {
+                    setSelectedQuiz(null);
+                  } else {
+                    setSelectedQuiz(quiz);
                   }
                 }}
               >
@@ -253,14 +248,29 @@ export default function QuizList() {
                   e.stopPropagation();
                   if (quiz.type === 'adaptive') {
                     navigate('/adaptive-quiz-select');
-                  } else if (quiz.type === 'chapter') {
-                    // Select random contest: 1-3 for normal, 4-5 for hard (if score >= 8.5)
-                    const userScore = topicScores[quiz.chapterId] || 0;
-                    const canHard = userScore >= 8.5;
-                    const contestRange = canHard ? [1, 2, 3, 4, 5] : [1, 2, 3];
-                    const randomContest = contestRange[Math.floor(Math.random() * contestRange.length)];
-                    const quizPath = `${quiz.chapterId}-${randomContest}`;
+                  } else if (quiz.type === 'chapter' && quiz.chapterId) {
+                    // Determine which difficulty level contests to select from
+                    const previousScore = topicScores[quiz.chapterId] || 0;
+                    
+                    // Contests 1-3: Normal difficulty
+                    // Contests 4-5: Hard difficulty
+                    // Only unlock hard contests if previous score >= 8.5
+                    const allowHardQuiz = previousScore >= 8.5;
+                    const availableContests = allowHardQuiz 
+                      ? [1, 2, 3, 4, 5]           // Allow all difficulties
+                      : [1, 2, 3];                 // Only normal difficulty
+                    
+                    const selectedContest = availableContests[Math.floor(Math.random() * availableContests.length)];
+                    const quizPath = `${quiz.chapterId}-${selectedContest}`;
+                    
+                    console.log(`[QuizList] Starting ${quiz.title} (Chapter ${quiz.chapterId})`);
+                    console.log(`  Previous Score: ${previousScore.toFixed(1)}/10`);
+                    console.log(`  Available Contests: ${availableContests.join(',')} (difficulty: ${allowHardQuiz ? 'normal+hard' : 'normal only'})`);
+                    console.log(`  Selected: Contest ${selectedContest}, Navigating to /quiz/${quizPath}`);
+                    
                     navigate(`/quiz/${quizPath}`);
+                  } else {
+                    console.error('[QuizList] Invalid quiz:', quiz);
                   }
                 }}
               >
@@ -273,14 +283,35 @@ export default function QuizList() {
 
       {/* Modal for Quiz Details */}
       {selectedQuiz && (
-        <QuizDetailModal quiz={selectedQuiz} onClose={() => setSelectedQuiz(null)} language={language} t={t} />
+        <QuizDetailModal 
+          quiz={selectedQuiz} 
+          onClose={() => setSelectedQuiz(null)} 
+          language={language} 
+          t={t}
+          topicScores={topicScores}
+        />
       )}
     </div>
   );
 }
 
-function QuizDetailModal({ quiz, onClose, language, t }) {
+function QuizDetailModal({ quiz, onClose, language, t, topicScores = {} }) {
   const navigate = useNavigate();
+
+  const handleStartQuiz = () => {
+    if (quiz.type === 'adaptive') {
+      navigate('/adaptive-quiz-select');
+    } else if (quiz.type === 'chapter' && quiz.chapterId) {
+      // Same logic as the main Start button
+      const previousScore = topicScores[quiz.chapterId] || 0;
+      const allowHardQuiz = previousScore >= 8.5;
+      const availableContests = allowHardQuiz ? [1, 2, 3, 4, 5] : [1, 2, 3];
+      const selectedContest = availableContests[Math.floor(Math.random() * availableContests.length)];
+      const quizPath = `${quiz.chapterId}-${selectedContest}`;
+      navigate(`/quiz/${quizPath}`);
+    }
+    onClose();
+  };
 
   return (
     <motion.div
@@ -327,10 +358,7 @@ function QuizDetailModal({ quiz, onClose, language, t }) {
           </button>
           <button
             className="btn-modal-start"
-            onClick={() => {
-              navigate(`/quiz/${quiz.id}`);
-              onClose();
-            }}
+            onClick={handleStartQuiz}
           >
             {t.start}
           </button>
