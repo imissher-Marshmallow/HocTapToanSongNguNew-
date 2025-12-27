@@ -6528,25 +6528,392 @@
     }
   ]
 },
-        },
         {
-          "testId": "chapter5-contest4",
-          "difficulty": "hard",
-          "questions": {
-            "multipleChoice": [],
-            "trueFalse": [],
-            "shortAnswer": []
-          }
-        },
+  "exam_id": 4,
+  "topic": "Chương Tứ Giác - Toán 8",
+  "level_distribution": "10% NB: 30% TH: 40% VDT: 20% VDC",
+  "questions_multiple_choice": [
+    {
+      "id": 1,
+      "topic": "NB - Tính chất Hình vuông",
+      "question": "Hình vuông có các tính chất nào sau đây?",
+      "options": ["Chỉ có 2 trục đối xứng", "Hai đường chéo không bằng nhau", "Là hình thoi có 4 góc vuông", "Chỉ là hình chữ nhật"],
+      "answerIndex": 2,
+      "difficulty": "1"
+    },
+    {
+      "id": 2,
+      "topic": "TH - Góc Hình bình hành",
+      "question": "Hình bình hành ABCD có góc A = 120 độ. Số đo góc C là:",
+      "options": ["60 độ", "120 độ", "90 độ", "180 độ"],
+      "answerIndex": 1,
+      "difficulty": "2"
+    },
+    {
+      "id": 3,
+      "topic": "TH - Đường trung bình tam giác",
+      "question": "Tam giác ABC vuông tại A. M là trung điểm BC. Độ dài AM = 9 cm. Độ dài BC là:",
+      "options": ["4.5 cm", "9 cm", "18 cm", "13.5 cm"],
+      "answerIndex": 2,
+      "difficulty": "2"
+    },
+    {
+      "id": 4,
+      "topic": "TH - Tính cạnh Hình thoi",
+      "question": "Hình thoi có chu vi 36 cm. Độ dài cạnh là:",
+      "options": ["9 cm", "12 cm", "6 cm", "18 cm"],
+      "answerIndex": 0,
+      "difficulty": "2"
+    },
+    {
+      "id": 5,
+      "topic": "VDT - Đường trung bình Hình thang",
+      "question": "Hình thang có hai đáy x và y. Đường trung bình là 15 cm. Biết x = 2y. Đáy nhỏ y là:",
+      "options": ["10 cm", "15 cm", "20 cm", "5 cm"],
+      "answerIndex": 0,
+      "difficulty": "3"
+    },
+    {
+      "id": 6,
+      "topic": "VDT - Dấu hiệu Hình chữ nhật",
+      "question": "Tứ giác có hai đường chéo bằng nhau và cắt nhau tại trung điểm mỗi đường là:",
+      "options": ["Hình bình hành", "Hình thang cân", "Hình chữ nhật", "Hình thoi"],
+      "answerIndex": 2,
+      "difficulty": "3"
+    },
+    {
+      "id": 7,
+      "topic": "VDT - Tính đường chéo Hình thoi",
+      "question": "Hình thoi có cạnh 13 cm, độ dài một đường chéo là 24 cm. Đường chéo còn lại là:",
+      "options": ["5 cm", "10 cm", "12 cm", "8 cm"],
+      "answerIndex": 1,
+      "difficulty": "3"
+    },
+    {
+      "id": 8,
+      "topic": "VDT - Tính cạnh Hình thang cân",
+      "question": "Hình thang cân ABCD (AB // CD) có AB = 4, CD = 16. Chiều cao h = 5. Độ dài cạnh bên AD là:",
+      "options": ["12", "13", "10", "5\\sqrt{2}"],
+      "answerIndex": 1,
+      "difficulty": "3"
+    },
+    {
+      "id": 9,
+      "topic": "VDT - Tứ giác đặc biệt (Trung điểm)",
+      "question": "Tứ giác tạo bởi trung điểm các cạnh của hình thoi có cạnh 10 cm, đường chéo 12 cm là:",
+      "options": ["Hình thoi", "Hình chữ nhật", "Hình vuông", "Hình bình hành"],
+      "answerIndex": 1,
+      "difficulty": "3"
+    },
+    {
+      "id": 10,
+      "topic": "VDT - Góc Hình thang cân",
+      "question": "Hình thang cân ABCD (AB // CD) có góc A = 3 lần góc D. Góc C là:",
+      "options": ["45 độ", "135 độ", "90 độ", "60 độ"],
+      "answerIndex": 0,
+      "difficulty": "3"
+    },
+    {
+      "id": 11,
+      "topic": "VDC - Chứng minh Hình vuông",
+      "question": "Hình chữ nhật có độ dài đường chéo bằng 10 cm. Chu vi lớn nhất của nó có thể là giá trị nào sau đây?",
+      "options": ["40 cm", "20 cm", "20\\sqrt{2} cm", "30 cm"],
+      "answerIndex": 2,
+      "difficulty": "4"
+    },
+    {
+      "id": 12,
+      "topic": "VDC - Tính độ dài (Trung điểm)",
+      "question": "Cho tam giác ABC. Lấy D trên AB, E trên AC sao cho AD/AB = AE/AC = 1/3. Biết BC = 18 cm. Độ dài DE là:",
+      "options": ["6 cm", "9 cm", "12 cm", "10 cm"],
+      "answerIndex": 0,
+      "difficulty": "4"
+    }
+  ],
+  "questions_true_false": [
+    {
+      "id": 13,
+      "topic": "NB/TH - Tính chất cơ bản",
+      "statements": [
+        {"content_vn": "a) Tứ giác có các cạnh đối bằng nhau là hình bình hành.", "is_true": true},
+        {"content_vn": "b) Hình thoi có đường chéo là trục đối xứng.", "is_true": true},
+        {"content_vn": "c) Hình thang cân có một góc vuông là hình chữ nhật.", "is_true": true},
+        {"content_vn": "d) Hình bình hành có hai đường chéo bằng nhau là hình vuông.", "is_true": false}
+      ],
+      "difficulty": "1"
+    },
+    {
+      "id": 14,
+      "topic": "TH/VDT - Mối quan hệ giữa các hình",
+      "statements": [
+        {"content_vn": "a) Mọi hình thoi đều là hình thang.", "is_true": true},
+        {"content_vn": "b) Hình thang có hai cạnh bên bằng nhau là hình thang cân.", "is_true": false},
+        {"content_vn": "c) Hình chữ nhật có hai đường chéo là phân giác các góc là hình vuông.", "is_true": true},
+        {"content_vn": "d) Hình bình hành có hai đường chéo bằng nhau là hình chữ nhật.", "is_true": true}
+      ],
+      "difficulty": "2"
+    },
+    {
+      "id": 15,
+      "topic": "VDT - Đường trung bình",
+      "statements": [
+        {"content_vn": "a) Đường trung bình của tam giác song song với cạnh thứ ba và bằng nửa cạnh ấy.", "is_true": true},
+        {"content_vn": "b) Hình thang có đường trung bình 10 cm, đáy lớn 14 cm. Đáy nhỏ là 6 cm.", "is_true": true},
+        {"content_vn": "c) Hình chữ nhật có chu vi 34 cm, chiều dài 12 cm. Đường chéo là 13 cm.", "is_true": true},
+        {"content_vn": "d) Hình thoi có hai đường chéo d1 = 4 cm, d2 = 6 cm. Cạnh của hình thoi là \\sqrt{13} cm.", "is_true": true}
+      ],
+      "difficulty": "3"
+    },
+    {
+      "id": 16,
+      "topic": "VDC - Dấu hiệu nâng cao",
+      "statements": [
+        {"content_vn": "a) Tứ giác có hai đường chéo vuông góc với nhau tại trung điểm mỗi đường là hình thoi.", "is_true": true},
+        {"content_vn": "b) Trung điểm các cạnh của một tứ giác có hai đường chéo bằng nhau tạo thành hình thoi.", "is_true": true},
+        {"content_vn": "c) Hình bình hành có các đường cao bằng nhau là hình thoi.", "is_true": true},
+        {"content_vn": "d) Hình thoi có hai góc kề một cạnh bằng nhau là hình vuông.", "is_true": true}
+      ],
+      "difficulty": "4"
+    }
+  ],
+  "questions_short_answer": [
+    {
+      "id": 17,
+      "topic": "TH - Tính góc",
+      "question": "Hình thang cân ABCD (AB // CD) có góc D = 70 độ. Tính góc A.",
+      "numerical_answer": 110,
+      "difficulty": "2"
+    },
+    {
+      "id": 18,
+      "topic": "TH - Góc Tứ giác",
+      "question": "Tứ giác có tỉ lệ 4 góc là 1:2:3:4. Tính góc lớn nhất (độ).",
+      "numerical_answer": 144,
+      "difficulty": "2"
+    },
+    {
+      "id": 19,
+      "topic": "VDT - Tính cạnh Hình bình hành",
+      "question": "Hình bình hành có chu vi 50 cm. Hai cạnh kề hơn kém nhau 3 cm. Tính độ dài cạnh lớn hơn.",
+      "numerical_answer": 14,
+      "difficulty": "3"
+    },
+    {
+      "id": 20,
+      "topic": "VDT - Đường trung bình Hình thang",
+      "question": "Hình thang có một đáy 12 cm. Đường trung bình là 18 cm. Tính độ dài đáy còn lại.",
+      "numerical_answer": 24,
+      "difficulty": "3"
+    },
+    {
+      "id": 21,
+      "topic": "VDT - Tính cạnh Hình vuông",
+      "question": "Hình vuông có đường chéo d = 8 cm. Tính chu vi hình vuông (làm tròn đến 2 chữ số thập phân).",
+      "numerical_answer": 22.63,
+      "difficulty": "3"
+    },
+    {
+      "id": 22,
+      "topic": "VDC - Điều kiện để là Hình thoi",
+      "question": "Hình bình hành ABCD có góc A = 2x - 10 và góc B = 3x. Tính x để ABCD là hình thoi (Tức góc A = 90 độ).",
+      "numerical_answer": 50,
+      "difficulty": "4"
+    }
+  ]
+},
         {
-          "testId": "chapter5-contest5",
-          "difficulty": "hard",
-          "questions": {
-            "multipleChoice": [],
-            "trueFalse": [],
-            "shortAnswer": []
-          }
-        }
+  "exam_id": 5,
+  "topic": "Chương Tứ Giác - Toán 8",
+  "level_distribution": "10% NB: 30% TH: 40% VDT: 20% VDC",
+  "questions_multiple_choice": [
+    {
+      "id": 1,
+      "topic": "NB - Định nghĩa Hình bình hành",
+      "question": "Hình bình hành là tứ giác có:",
+      "options": ["Hai góc vuông", "Một cặp cạnh đối song song", "Các cạnh đối song song", "Các cạnh bằng nhau"],
+      "answerIndex": 2,
+      "difficulty": "1"
+    },
+    {
+      "id": 2,
+      "topic": "TH - Góc Hình bình hành",
+      "question": "Hình bình hành ABCD có góc A = 150 độ. Số đo góc D là:",
+      "options": ["30 độ", "150 độ", "90 độ", "60 độ"],
+      "answerIndex": 0,
+      "difficulty": "2"
+    },
+    {
+      "id": 3,
+      "topic": "TH - Tính cạnh Hình chữ nhật",
+      "question": "Hình chữ nhật có chiều dài gấp đôi chiều rộng. Chu vi 30 cm. Chiều rộng là:",
+      "options": ["5 cm", "10 cm", "6 cm", "12 cm"],
+      "answerIndex": 0,
+      "difficulty": "2"
+    },
+    {
+      "id": 4,
+      "topic": "TH - Đường trung bình tam giác",
+      "question": "Tam giác có hai cạnh 8 cm và 10 cm. Độ dài đường trung bình song song với cạnh thứ ba không thể là:",
+      "options": ["4 cm", "5 cm", "8 cm", "3 cm"],
+      "answerIndex": 2,
+      "difficulty": "2"
+    },
+    {
+      "id": 5,
+      "topic": "VDT - Đường trung bình Hình thang",
+      "question": "Hình thang có đường trung bình m. Một đáy a. Đáy còn lại b được tính theo công thức:",
+      "options": ["b = 2m - a", "b = 2a - m", "b = m - 2a", "b = m/2 - a"],
+      "answerIndex": 0,
+      "difficulty": "3"
+    },
+    {
+      "id": 6,
+      "topic": "VDT - Góc Hình thang cân",
+      "question": "Hình thang cân có góc A = x+20 và góc D = 2x-50. Tính góc A.",
+      "options": ["70 độ", "80 độ", "90 độ", "100 độ"],
+      "answerIndex": 2,
+      "difficulty": "3"
+    },
+    {
+      "id": 7,
+      "topic": "VDT - Dấu hiệu Hình thoi",
+      "question": "Hình bình hành ABCD có góc A = 60 độ và AC là phân giác của góc A. Tứ giác ABCD là:",
+      "options": ["Hình chữ nhật", "Hình thoi", "Hình vuông", "Hình thang cân"],
+      "answerIndex": 1,
+      "difficulty": "3"
+    },
+    {
+      "id": 8,
+      "topic": "VDT - Tính đường chéo Hình chữ nhật",
+      "question": "Hình chữ nhật có chiều rộng 5 cm, đường chéo 13 cm. Chu vi của hình chữ nhật là:",
+      "options": ["34 cm", "24 cm", "48 cm", "30 cm"],
+      "answerIndex": 0,
+      "difficulty": "3"
+    },
+    {
+      "id": 9,
+      "topic": "VDT - Tứ giác đặc biệt (Trung điểm)",
+      "question": "Tứ giác tạo bởi trung điểm các cạnh của một hình thang cân là:",
+      "options": ["Hình thoi", "Hình chữ nhật", "Hình bình hành", "Hình vuông"],
+      "answerIndex": 1,
+      "difficulty": "3"
+    },
+    {
+      "id": 10,
+      "topic": "VDT - Tính cạnh Hình thoi",
+      "question": "Hình thoi có chu vi 52 cm. Độ dài một đường chéo là 10 cm. Độ dài đường chéo còn lại là:",
+      "options": ["12 cm", "24 cm", "26 cm", "20 cm"],
+      "answerIndex": 1,
+      "difficulty": "3"
+    },
+    {
+      "id": 11,
+      "topic": "VDC - Điều kiện để là Hình vuông",
+      "question": "Hình thoi ABCD có góc A = 4x. Để ABCD là hình vuông thì x bằng:",
+      "options": ["15 độ", "22.5 độ", "30 độ", "45 độ"],
+      "answerIndex": 1,
+      "difficulty": "4"
+    },
+    {
+      "id": 12,
+      "topic": "VDC - Tính độ dài (Đường cao)",
+      "question": "Hình thang cân ABCD (AB // CD) có đáy nhỏ AB = 6 cm, chiều cao h = 4 cm, cạnh bên AD = 5 cm. Độ dài đáy lớn CD là:",
+      "options": ["12 cm", "14 cm", "10 cm", "16 cm"],
+      "answerIndex": 1,
+      "difficulty": "4"
+    }
+  ],
+  "questions_true_false": [
+    {
+      "id": 13,
+      "topic": "NB/TH - Tính chất cơ bản",
+      "statements": [
+        {"content_vn": "a) Hình bình hành có tâm đối xứng là giao điểm hai đường chéo.", "is_true": true},
+        {"content_vn": "b) Hình thoi là hình bình hành có hai đường chéo vuông góc.", "is_true": true},
+        {"content_vn": "c) Hình thang cân có các góc đối bằng nhau.", "is_true": false},
+        {"content_vn": "d) Mọi hình vuông đều là hình thoi.", "is_true": true}
+      ],
+      "difficulty": "1"
+    },
+    {
+      "id": 14,
+      "topic": "TH/VDT - Mối quan hệ giữa các hình",
+      "statements": [
+        {"content_vn": "a) Tứ giác có hai đường chéo bằng nhau là hình chữ nhật.", "is_true": false},
+        {"content_vn": "b) Hình thoi có hai đường chéo bằng nhau là hình vuông.", "is_true": true},
+        {"content_vn": "c) Hình bình hành có hai đường chéo là phân giác của các góc là hình thoi.", "is_true": true},
+        {"content_vn": "d) Hình thang có các góc kề một cạnh bên bằng nhau là hình thang cân.", "is_true": false}
+      ],
+      "difficulty": "2"
+    },
+    {
+      "id": 15,
+      "topic": "VDT - Đường trung bình",
+      "statements": [
+        {"content_vn": "a) Tam giác có một đường trung tuyến bằng nửa cạnh đối diện là tam giác vuông.", "is_true": true},
+        {"content_vn": "b) Hình thang có đường trung bình 20 cm, đáy lớn 25 cm. Đáy nhỏ là 15 cm.", "is_true": true},
+        {"content_vn": "c) Hình bình hành có chu vi 40 cm, một cạnh 12 cm. Cạnh kề là 8 cm.", "is_true": true},
+        {"content_vn": "d) Hình chữ nhật có chiều dài 2x, chiều rộng x. Đường chéo d = x\\sqrt{5}.", "is_true": true}
+      ],
+      "difficulty": "3"
+    },
+    {
+      "id": 16,
+      "topic": "VDC - Dấu hiệu nâng cao",
+      "statements": [
+        {"content_vn": "a) Tứ giác có trung điểm các cạnh tạo thành hình chữ nhật là tứ giác có hai đường chéo vuông góc.", "is_true": true},
+        {"content_vn": "b) Hình thoi có cạnh là a, một đường chéo a\\sqrt{3}. Đường chéo còn lại là a.", "is_true": true},
+        {"content_vn": "c) Hình thang cân có một góc tù bằng 120 độ thì góc còn lại kề cạnh bên là 60 độ.", "is_true": false},
+        {"content_vn": "d) Tứ giác có hai cặp cạnh đối song song và một đường chéo là phân giác của góc là hình thoi.", "is_true": true}
+      ],
+      "difficulty": "4"
+    }
+  ],
+  "questions_short_answer": [
+    {
+      "id": 17,
+      "topic": "TH - Tính góc",
+      "question": "Hình thang có hai góc kề đáy nhỏ là 100 độ và 120 độ. Tính góc kề đáy lớn nhỏ nhất (độ).",
+      "numerical_answer": 60,
+      "difficulty": "2"
+    },
+    {
+      "id": 18,
+      "topic": "TH - Góc Tứ giác",
+      "question": "Tứ giác ABCD có góc A = 90 độ, góc B = 100 độ, góc C = 80 độ. Tính góc D.",
+      "numerical_answer": 90,
+      "difficulty": "2"
+    },
+    {
+      "id": 19,
+      "topic": "VDT - Đường trung bình Hình thang",
+      "question": "Hình thang có đường trung bình 18 cm. Đáy lớn hơn đáy nhỏ 6 cm. Tính độ dài đáy nhỏ (b).",
+      "numerical_answer": 15,
+      "difficulty": "3"
+    },
+    {
+      "id": 20,
+      "topic": "VDT - Tính cạnh Hình thoi",
+      "question": "Hình thoi có d1 = 18 cm, d2 = 24 cm. Tính chu vi hình thoi (P).",
+      "numerical_answer": 60,
+      "difficulty": "3"
+    },
+    {
+      "id": 21,
+      "topic": "VDT - Tính độ dài (Đường cao)",
+      "question": "Hình thang cân ABCD (AB // CD) có AB = 4, CD = 10, AD = 5. Tính chiều cao h.",
+      "numerical_answer": 4,
+      "difficulty": "3"
+    },
+    {
+      "id": 22,
+      "topic": "VDC - Tìm điều kiện (Pythagore)",
+      "question": "Hình thoi có một cạnh a = 10 cm, một đường chéo d1 = 12 cm. Tính độ dài đường chéo d2 (cm).",
+      "numerical_answer": 16,
+      "difficulty": "4"
+    }
+  ]
+}
       ]
     }
   ]
