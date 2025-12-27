@@ -37,7 +37,8 @@ if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES
   if (process.env.OPENAI_API_KEY) console.log('✓ OPENAI_API_KEY (fallback) detected');
 }
 
-// Load from /api/data (where chapters structure exists) or fall back to /backend/data
+// Load from /api/data - use require() for Vercel bundling
+let questionsData = null;
 const questionsPath = (() => {
   const possiblePaths = [
     // PRIORITY 1: Try /api/data (the correct data file with chapters)
@@ -60,6 +61,17 @@ const questionsPath = (() => {
   }
   
   console.error('[Backend Analyzer] No questions file found. Tried:', possiblePaths);
+  
+  // As a last resort, try to require() the data (works in Vercel if bundled)
+  try {
+    console.log('[Backend Analyzer] Attempting to require questions data as fallback...');
+    questionsData = require('../../api/data/questions_updated.json');
+    console.log('[Backend Analyzer] Successfully loaded via require()');
+    return null; // Signal that we loaded via require, not fs
+  } catch (e) {
+    console.error('[Backend Analyzer] Failed to require data:', e.message);
+  }
+  
   return possiblePaths[0];
 })();
 
@@ -75,12 +87,19 @@ function shuffleArray(arr) {
 // Load questions for a quiz - accepts "1-2" format (chapter-contest)
 function loadQuestionsForQuiz(quizId) {
   try {
-    if (!fs.existsSync(questionsPath)) {
-      console.error('[Backend] Questions file does not exist at:', questionsPath);
+    let data;
+    
+    // Use require'd data if available, otherwise read from file
+    if (questionsData) {
+      data = questionsData;
+      console.log('[Backend] Using pre-loaded questions data (via require)');
+    } else if (questionsPath && fs.existsSync(questionsPath)) {
+      data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
+      console.log('[Backend] Using questions data from file:', questionsPath);
+    } else {
+      console.error('[Backend] Questions file does not exist at:', questionsPath, '| questionsData:', questionsData ? 'loaded' : 'null');
       return null;
     }
-    
-    const data = JSON.parse(fs.readFileSync(questionsPath, 'utf8'));
     
     if (!data || !data.chapters || !Array.isArray(data.chapters)) {
       console.error('[Backend] Error: Invalid file structure. Data:', data ? Object.keys(data).slice(0, 5) : 'null');
