@@ -40,9 +40,10 @@ if (!process.env.OPENAI_API_KEY_SUMMARY && !process.env.OPENAI_API_KEY_RESOURCES
 // Load from /api/data (where chapters structure exists) or fall back to /backend/data
 const questionsPath = (() => {
   const possiblePaths = [
-    path.join(__dirname, '../../api/data/questions_updated.json'),    // /api/data (chapters format)
-    path.join(__dirname, '../data/questions_updated.json'),           // /backend/data (old format)
-    path.join(process.cwd(), 'api/data/questions_updated.json'),      // From root
+    path.join(process.cwd(), 'api/data/questions_updated.json'),      // /api/data first (absolute)
+    path.join(process.cwd(), './api/data/questions_updated.json'),    // /api/data relative
+    path.join(__dirname, '../../api/data/questions_updated.json'),    // From backend/ai go to api/data
+    path.join(__dirname, '../data/questions_updated.json'),           // /backend/data fallback
     path.join(process.cwd(), 'backend/data/questions_updated.json')   // From root
   ];
   
