@@ -596,16 +596,37 @@ router.get('/quiz/personalized', async (req, res) => {
     })
 
     // Remove answers from quiz before sending to client
-    const quizForClient = personalizedQuiz.map(q => ({
-      id: q.id,
-      topic: q.topic,
-      question: q.question,
-      english_question: q.english_question,
-      options: q.options,
-      difficulty: q.difficulty,
-      bloomLevel: q.bloomLevel
-      // Don't send answerIndex!
-    }))
+    const quizForClient = personalizedQuiz.map(q => {
+      const questionData = {
+        id: q.id,
+        topic: q.topic,
+        question: q.question,
+        english_question: q.english_question,
+        difficulty: q.difficulty,
+        bloomLevel: q.bloomLevel
+        // Don't send answerIndex!
+      }
+      
+      // Include options for multiple choice
+      if (q.options && Array.isArray(q.options)) {
+        questionData.options = q.options
+      }
+      
+      // Include statements for true/false questions
+      if (q.statements && Array.isArray(q.statements)) {
+        questionData.statements = q.statements
+      }
+      
+      // Include short answer fields
+      if (q.numerical_answer !== undefined) {
+        questionData.numerical_answer = q.numerical_answer
+      }
+      if (q.text_answer !== undefined) {
+        questionData.text_answer = q.text_answer
+      }
+      
+      return questionData
+    })
 
     res.json({
       quiz: quizForClient,

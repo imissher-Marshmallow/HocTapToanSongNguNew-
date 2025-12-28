@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import '../styles/AdaptiveQuiz.css';
 
 export default function AdaptiveQuiz({ userId, onComplete }) {
   const { user: authUser } = useAuth();
+  const { language } = useLanguage();
   const finalUserId = userId || authUser?.id;
   const location = useLocation();
   
@@ -23,15 +25,23 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     // Check if quiz data was passed via navigation state
     if (location.state?.quiz) {
       console.log('[AdaptiveQuiz] Using quiz from location state');
-      const questionsWithIds = Array.isArray(location.state.quiz) 
-        ? location.state.quiz.map((q, idx) => ({
-            ...q,
-            id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`
-          }))
-        : location.state.quiz.questions?.map((q, idx) => ({
-            ...q,
-            id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`
-          })) || [];
+      const quizData = Array.isArray(location.state.quiz) ? location.state.quiz : location.state.quiz.questions || [];
+      
+      const questionsWithIds = quizData.map((q, idx) => {
+        // Detect question type based on structure
+        let qType = 'multiple-choice';
+        if (q.statements && Array.isArray(q.statements)) {
+          qType = 'true-false';
+        } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
+          qType = 'short-answer';
+        }
+        
+        return {
+          ...q,
+          id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`,
+          type: qType
+        };
+      });
 
       setQuiz({
         questions: questionsWithIds,
@@ -71,11 +81,21 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       const questions = data.quiz || data.questions || data;
       
       // Ensure each question has a unique ID and type field (use index as fallback)
-      const questionsWithIds = Array.isArray(questions) ? questions.map((q, idx) => ({
-        ...q,
-        id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`, // Ensure unique ID even if missing
-        type: q.type || (q.questions_true_false ? 'true-false' : q.questions_short_answer ? 'short-answer' : 'multiple-choice') // Default to multiple-choice
-      })) : [];
+      const questionsWithIds = Array.isArray(questions) ? questions.map((q, idx) => {
+        // Detect question type based on structure (matching QuizPage logic)
+        let qType = 'multiple-choice';
+        if (q.statements && Array.isArray(q.statements)) {
+          qType = 'true-false';
+        } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
+          qType = 'short-answer';
+        }
+        
+        return {
+          ...q,
+          id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`,
+          type: qType
+        };
+      }) : [];
       
       console.log('[AdaptiveQuiz] Loaded questions:', questionsWithIds.length, 'Types:', questionsWithIds.map(q => ({ id: q.id, type: q.type })));
       
@@ -341,46 +361,54 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
             {/* Answer Options */}
             <div className="options">
               {question.type === 'true-false' ? (
-                // True/False Question Type
-                <div className="true-false-options">
-                  <motion.label
-                    className={`option tf-option ${
-                      answers[currentQuestion] === 'true' ? 'selected' : ''
-                    }`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0 }}
-                  >
-                    <input
-                      type="radio"
-                      name={`question-${currentQuestion}`}
-                      value="true"
-                      checked={answers[currentQuestion] === 'true'}
-                      onChange={(e) =>
-                        handleAnswerSelect(currentQuestion, e.target.value)
-                      }
-                    />
-                    <span className="option-content">True</span>
-                  </motion.label>
-                  <motion.label
-                    className={`option tf-option ${
-                      answers[currentQuestion] === 'false' ? 'selected' : ''
-                    }`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    <input
-                      type="radio"
-                      name={`question-${currentQuestion}`}
-                      value="false"
-                      checked={answers[currentQuestion] === 'false'}
-                      onChange={(e) =>
-                        handleAnswerSelect(currentQuestion, e.target.value)
-                      }
-                    />
-                    <span className="option-content">False</span>
-                  </motion.label>
+                // True/False Question Type - Display statements with True/False buttons
+                <div className="true-false-container">
+                  <div className="statements-list">
+                    {(question.statements || []).map((stmt, idx) => {
+                      const statementContent = language === 'en' ? stmt.content_en : stmt.content_vn;
+                      const userAnswers = answers[currentQuestion] || {};
+                      const userAnswer = userAnswers[idx];
+                      
+                      return (
+                        <div key={idx} className="statement-item">
+                          <div
+                            className="statement-text"
+                            dangerouslySetInnerHTML={{ __html: statementContent }}
+                          />
+                          <div className="statement-buttons">
+                            <motion.button
+                              className={`tf-button true-btn ${
+                                userAnswer === true ? 'selected' : ''
+                              }`}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.05 }}
+                              onClick={() => {
+                                const updatedAnswers = { ...userAnswers, [idx]: true };
+                                handleAnswerSelect(currentQuestion, updatedAnswers);
+                              }}
+                            >
+                              ✓ {language === 'en' ? 'True' : 'Đúng'}
+                            </motion.button>
+                            <motion.button
+                              className={`tf-button false-btn ${
+                                userAnswer === false ? 'selected' : ''
+                              }`}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.05 + 0.05 }}
+                              onClick={() => {
+                                const updatedAnswers = { ...userAnswers, [idx]: false };
+                                handleAnswerSelect(currentQuestion, updatedAnswers);
+                              }}
+                            >
+                              ✗ {language === 'en' ? 'False' : 'Sai'}
+                            </motion.button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : question.type === 'short-answer' ? (
                 // Short Answer Question Type
@@ -395,12 +423,14 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                     onChange={(e) =>
                       handleAnswerSelect(currentQuestion, e.target.value)
                     }
-                    placeholder="Enter your answer here..."
+                    placeholder={language === 'en' ? 'Enter your answer here...' : 'Nhập câu trả lời...'}
                     className="answer-textarea"
                     rows="4"
                   />
                   <p className="answer-hint">
-                    Write your answer clearly. Your response will be reviewed for accuracy.
+                    {language === 'en' 
+                      ? 'Write your answer clearly. Your response will be reviewed for accuracy.'
+                      : 'Viết câu trả lời rõ ràng. Câu trả lời của bạn sẽ được kiểm tra lại'}
                   </p>
                 </motion.div>
               ) : (
