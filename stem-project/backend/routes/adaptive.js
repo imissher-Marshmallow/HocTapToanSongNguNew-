@@ -642,6 +642,47 @@ router.get('/quiz/personalized', async (req, res) => {
 })
 
 /**
+ * Helper function to determine if an answer is correct
+ * Handles multiple choice, true/false, and short answer questions
+ */
+function isAnswerCorrect(question, studentAnswer) {
+  // For multiple choice questions
+  if (question.answerIndex !== undefined) {
+    return question.answerIndex === studentAnswer;
+  }
+  
+  // For true/false questions with statements
+  if (question.statements && Array.isArray(question.statements)) {
+    if (!studentAnswer || typeof studentAnswer !== 'object') {
+      return false; // Unanswered
+    }
+    // Check if all statements were answered correctly
+    return question.statements.every((stmt, idx) => {
+      return studentAnswer[idx] === stmt.is_true;
+    });
+  }
+  
+  // For short answer questions
+  if (question.text_answer !== undefined) {
+    if (!studentAnswer) return false;
+    // Case-insensitive comparison
+    return String(studentAnswer).toLowerCase().trim() === 
+           String(question.text_answer).toLowerCase().trim();
+  }
+  
+  // For numerical answer questions
+  if (question.numerical_answer !== undefined) {
+    if (!studentAnswer) return false;
+    const tolerance = 0.01; // Allow small floating point differences
+    const studentNum = parseFloat(studentAnswer);
+    const correctNum = parseFloat(question.numerical_answer);
+    return Math.abs(studentNum - correctNum) < tolerance;
+  }
+  
+  return false;
+}
+
+/**
  * POST /api/adaptive/analyze
  * Analyze quiz and update learning profile
  * Body: { userId, quizId, answers: [{questionId, answer}], timeSpent }
@@ -806,15 +847,16 @@ router.post('/analyze', async (req, res) => {
       return res.status(400).json({ error: 'No questions found for quiz' })
     }
 
-    // Convert answers from object format {questionId, answer} to array format for assessment
-    // Convert answers from {questionId, answer} format to array of indices
-    // answer field should contain the index directly from frontend
+    // Convert answers from {questionId, answer} format to array of raw answers
+    // answer can be:
+    // - For multiple choice: number index (0, 1, 2, 3)
+    // - For true/false: object {0: true, 1: false, ...}
+    // - For short answer: string text
+    // - For unanswered: null/undefined
     const answerArray = answers.map((a, idx) => {
-      // Frontend sends answer as the index (0, 1, 2, or 3)
-      // If it's null or undefined, return -1 (unanswered)
-      if (a.answer === null || a.answer === undefined) return -1
-      // Ensure it's a number
-      return Number.isInteger(a.answer) ? a.answer : -1
+      // Return the answer as-is, let isAnswerCorrect handle the validation
+      if (a.answer === null || a.answer === undefined) return null;
+      return a.answer;
     })
 
     // ============================================
@@ -860,12 +902,12 @@ router.post('/analyze', async (req, res) => {
           answerIndex: question.answerIndex,
           answerArrayValue: answerArray[idx],
           answerArrayType: typeof answerArray[idx],
-          isCorrect: question.answerIndex === answerArray[idx],
+          isCorrect: isAnswerCorrect(question, answerArray[idx]),
           comparison: `${question.answerIndex} === ${answerArray[idx]}`
         })
       }
       
-      const isCorrect = question.answerIndex === answerArray[idx]
+      const isCorrect = isAnswerCorrect(question, answerArray[idx])
       if (isCorrect) {
         topicAnalysis[topic].correct += 1
       }
@@ -1044,15 +1086,34 @@ router.post('/analyze', async (req, res) => {
       },
       topicFeedback,
       timeSpent: req.body.timeSpent || 0,
-      answerDetails: questions.map((question, idx) => ({
-        questionId: question.id,
-        questionText: question.question || question.text,
-        topic: question.topic || 'Chung',
-        difficulty: question.difficulty || '1',
-        studentAnswer: answerArray[idx],
-        correctAnswer: question.answerIndex,
-        isCorrect: question.answerIndex === answerArray[idx]
-      }))
+      answerDetails: questions.map((question, idx) => {
+        const answerDetail = {
+          questionId: question.id,
+          questionText: question.question || question.text,
+          topic: question.topic || 'Chung',
+          difficulty: question.difficulty || '1',
+          studentAnswer: answerArray[idx],
+          isCorrect: isAnswerCorrect(question, answerArray[idx])
+        };
+        
+        // Include options for multiple choice questions
+        if (question.options && Array.isArray(question.options)) {
+          answerDetail.options = question.options;
+          answerDetail.correctAnswer = question.answerIndex;
+        }
+        // For true/false and short answer, store the correct answer differently
+        else if (question.statements && Array.isArray(question.statements)) {
+          answerDetail.statements = question.statements;
+        }
+        else if (question.text_answer !== undefined) {
+          answerDetail.correctAnswer = question.text_answer;
+        }
+        else if (question.numerical_answer !== undefined) {
+          answerDetail.correctAnswer = question.numerical_answer;
+        }
+        
+        return answerDetail;
+      })
     })
 
     // Get next quiz recommendation
@@ -1081,7 +1142,6 @@ router.post('/analyze', async (req, res) => {
             : [], // TEXT[] - array of strings
           learning_path: learningProfile.learningPath || null, // JSONB - can be null
           quizzes_taken: quizzesTaken,
-          last_score: scoreOutOf10,
           roadmap_status: shouldGenerateRoadmap ? 'generated' : 'pending',
           last_updated: new Date().toISOString()
         };

@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import '../styles/AdaptiveQuiz.css';
 
 export default function AdaptiveQuiz({ userId, onComplete }) {
@@ -122,6 +124,28 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       console.log('[AdaptiveQuiz] Answer selected - Index:', questionIndex, 'Answer:', selectedAnswer, 'All Answers:', updated);
       return updated;
     });
+  };
+
+  // Math formatter: convert LaTeX $...$ to HTML with KaTeX
+  const formatMath = (text) => {
+    if (!text) return '';
+    
+    let html = text;
+    
+    // Replace $...$ patterns with KaTeX-rendered HTML
+    html = html.replace(/\$([^\$]+)\$/g, (match, latex) => {
+      try {
+        return katex.renderToString(latex, { throwOnError: false });
+      } catch (e) {
+        console.warn('KaTeX render error:', e);
+        return match;
+      }
+    });
+    
+    // Also handle ^digits for fallback (convert to <sup>)
+    html = html.replace(/\^(\d+)/g, '<sup>$1</sup>');
+    
+    return html;
   };
 
   const handleNext = () => {
@@ -352,9 +376,9 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
             {/* Question */}
             <div className="question">
-              <h2>{question.question}</h2>
+              <h2 dangerouslySetInnerHTML={{ __html: formatMath(question.question) }} />
               {question.description && (
-                <p className="question-context">{question.description}</p>
+                <p className="question-context" dangerouslySetInnerHTML={{ __html: formatMath(question.description) }} />
               )}
             </div>
 
@@ -373,7 +397,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                         <div key={idx} className="statement-item">
                           <div
                             className="statement-text"
-                            dangerouslySetInnerHTML={{ __html: statementContent }}
+                            dangerouslySetInnerHTML={{ __html: formatMath(statementContent) }}
                           />
                           <div className="statement-buttons">
                             <motion.button
@@ -454,7 +478,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
                         handleAnswerSelect(currentQuestion, parseInt(e.target.value))
                       }
                     />
-                    <span className="option-content">{option}</span>
+                    <span className="option-content" dangerouslySetInnerHTML={{ __html: formatMath(option) }} />
                   </motion.label>
                 ))
               )}
@@ -923,16 +947,30 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
                   </div>
                   
                   <div className="question-text">
-                    <strong>Question {idx + 1}:</strong> {answer.questionText}
+                    <strong>Question {idx + 1}:</strong> <span dangerouslySetInnerHTML={{ __html: formatMath(answer.questionText) }} />
                   </div>
                   
                   <div className="answer-details">
                     <div className="student-answer">
-                      <p><strong>Your Answer:</strong> {answer.options[answer.studentAnswer] || 'Not answered'}</p>
+                      <p>
+                        <strong>Your Answer:</strong>{' '}
+                        {answer.studentAnswer !== null && answer.studentAnswer !== undefined 
+                          ? (answer.options && answer.options[answer.studentAnswer]) 
+                            ? <span dangerouslySetInnerHTML={{ __html: formatMath(answer.options[answer.studentAnswer]) }} />
+                            : <span dangerouslySetInnerHTML={{ __html: formatMath(String(answer.studentAnswer)) }} />
+                          : 'Not answered'
+                        }
+                      </p>
                     </div>
-                    {!answer.isCorrect && (
+                    {!answer.isCorrect && answer.correctAnswer !== null && answer.correctAnswer !== undefined && (
                       <div className="correct-answer">
-                        <p><strong>Correct Answer:</strong> {answer.options[answer.correctAnswer]}</p>
+                        <p>
+                          <strong>Correct Answer:</strong>{' '}
+                          {(answer.options && answer.options[answer.correctAnswer])
+                            ? <span dangerouslySetInnerHTML={{ __html: formatMath(answer.options[answer.correctAnswer]) }} />
+                            : <span dangerouslySetInnerHTML={{ __html: formatMath(String(answer.correctAnswer)) }} />
+                          }
+                        </p>
                       </div>
                     )}
                   </div>
