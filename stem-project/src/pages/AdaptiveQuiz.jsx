@@ -8,6 +8,29 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import '../styles/AdaptiveQuiz.css';
 
+// Math formatter: convert LaTeX $...$ to HTML with KaTeX
+// Shared between AdaptiveQuiz and QuizResults components
+const formatMath = (text) => {
+  if (!text) return '';
+  
+  let html = text;
+  
+  // Replace $...$ patterns with KaTeX-rendered HTML
+  html = html.replace(/\$([^\$]+)\$/g, (match, latex) => {
+    try {
+      return katex.renderToString(latex, { throwOnError: false });
+    } catch (e) {
+      console.warn('KaTeX render error:', e);
+      return match;
+    }
+  });
+  
+  // Also handle ^digits for fallback (convert to <sup>)
+  html = html.replace(/\^(\d+)/g, '<sup>$1</sup>');
+  
+  return html;
+};
+
 export default function AdaptiveQuiz({ userId, onComplete }) {
   const { user: authUser } = useAuth();
   const { language } = useLanguage();
@@ -124,28 +147,6 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       console.log('[AdaptiveQuiz] Answer selected - Index:', questionIndex, 'Answer:', selectedAnswer, 'All Answers:', updated);
       return updated;
     });
-  };
-
-  // Math formatter: convert LaTeX $...$ to HTML with KaTeX
-  const formatMath = (text) => {
-    if (!text) return '';
-    
-    let html = text;
-    
-    // Replace $...$ patterns with KaTeX-rendered HTML
-    html = html.replace(/\$([^\$]+)\$/g, (match, latex) => {
-      try {
-        return katex.renderToString(latex, { throwOnError: false });
-      } catch (e) {
-        console.warn('KaTeX render error:', e);
-        return match;
-      }
-    });
-    
-    // Also handle ^digits for fallback (convert to <sup>)
-    html = html.replace(/\^(\d+)/g, '<sup>$1</sup>');
-    
-    return html;
   };
 
   const handleNext = () => {
