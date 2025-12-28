@@ -262,8 +262,11 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   // Guard: if no question is loaded, show loading state
   if (!question) {
     return (
-      <div className="adaptive-quiz">
-        <Spinner />
+      <div className="adaptive-quiz loading">
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <h2>Loading Question...</h2>
+        </div>
       </div>
     );
   }
