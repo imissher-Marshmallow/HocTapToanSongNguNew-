@@ -158,8 +158,8 @@ function QuizPage() {
     };
   }, [started]);
 
-  // Countdown timer (default 30 minutes = 1800 seconds)
-  const [remainingSec, setRemainingSec] = useState(30 * 60);
+  // Countdown timer (default 60 minutes = 3600 seconds)
+  const [remainingSec, setRemainingSec] = useState(60 * 60);
   const answersRef = React.useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
@@ -178,7 +178,7 @@ function QuizPage() {
   useEffect(() => {
     if (!started) return;
     // reset timer when quiz starts
-    setRemainingSec(30 * 60);
+    setRemainingSec(60 * 60);
     const interval = setInterval(() => {
       setRemainingSec(prev => {
         if (prev <= 1) {
