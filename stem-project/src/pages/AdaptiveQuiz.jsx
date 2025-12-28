@@ -13,10 +13,13 @@ import '../styles/AdaptiveQuiz.css';
 const formatMath = (text) => {
   if (!text) return '';
   
-  let html = text;
+  let html = String(text);
+  
+  // First, handle escaped dollar signs \$ and convert to regular $
+  html = html.replace(/\\\$/g, '$');
   
   // Replace $...$ patterns with KaTeX-rendered HTML
-  html = html.replace(/\$([^\$]+)\$/g, (match, latex) => {
+  html = html.replace(/\$([^$]+)\$/g, (match, latex) => {
     try {
       return katex.renderToString(latex, { throwOnError: false });
     } catch (e) {
@@ -956,9 +959,23 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
                       <p>
                         <strong>Your Answer:</strong>{' '}
                         {answer.studentAnswer !== null && answer.studentAnswer !== undefined 
-                          ? (answer.options && answer.options[answer.studentAnswer]) 
-                            ? <span dangerouslySetInnerHTML={{ __html: formatMath(answer.options[answer.studentAnswer]) }} />
-                            : <span dangerouslySetInnerHTML={{ __html: formatMath(String(answer.studentAnswer)) }} />
+                          ? answer.statements && Array.isArray(answer.statements)
+                            ? // For True/False questions - show the statement with answer
+                              <span>
+                                {Object.entries(answer.studentAnswer || {}).map(([idx, value]) => {
+                                  const statementIdx = parseInt(idx, 10);
+                                  const statement = answer.statements[statementIdx];
+                                  return (
+                                    <div key={idx} style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#f3f4f6', borderRadius: '4px' }}>
+                                      <span dangerouslySetInnerHTML={{ __html: formatMath((statement?.content_vn || statement?.content_en || '')) }} /> 
+                                      <strong style={{ marginLeft: '0.5rem' }}>{value ? '✓ Đúng' : '✗ Sai'}</strong>
+                                    </div>
+                                  );
+                                })}
+                              </span>
+                            : (answer.options && answer.options[answer.studentAnswer]) 
+                              ? <span dangerouslySetInnerHTML={{ __html: formatMath(answer.options[answer.studentAnswer]) }} />
+                              : <span dangerouslySetInnerHTML={{ __html: formatMath(String(answer.studentAnswer)) }} />
                           : 'Not answered'
                         }
                       </p>
@@ -967,9 +984,19 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
                       <div className="correct-answer">
                         <p>
                           <strong>Correct Answer:</strong>{' '}
-                          {(answer.options && answer.options[answer.correctAnswer])
-                            ? <span dangerouslySetInnerHTML={{ __html: formatMath(answer.options[answer.correctAnswer]) }} />
-                            : <span dangerouslySetInnerHTML={{ __html: formatMath(String(answer.correctAnswer)) }} />
+                          {answer.statements && Array.isArray(answer.statements)
+                            ? // For True/False - show correct answers
+                              <span>
+                                {answer.statements.map((stmt, idx) => (
+                                  <div key={idx} style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#d1fae5', borderRadius: '4px' }}>
+                                    <span dangerouslySetInnerHTML={{ __html: formatMath((stmt?.content_vn || stmt?.content_en || '')) }} />
+                                    <strong style={{ marginLeft: '0.5rem' }}>{stmt?.is_true ? '✓ Đúng' : '✗ Sai'}</strong>
+                                  </div>
+                                ))}
+                              </span>
+                            : (answer.options && answer.options[answer.correctAnswer])
+                              ? <span dangerouslySetInnerHTML={{ __html: formatMath(answer.options[answer.correctAnswer]) }} />
+                              : <span dangerouslySetInnerHTML={{ __html: formatMath(String(answer.correctAnswer)) }} />
                           }
                         </p>
                       </div>
