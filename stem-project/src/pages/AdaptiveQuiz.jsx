@@ -189,8 +189,20 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       console.log('[AdaptiveQuiz] Analysis successful:', {
         overallScore: analysisResults.overallScore,
         correctAnswers: analysisResults.correctAnswers,
-        cognitiveAnalysis: analysisResults.cognitiveAnalysis
+        aiCoachFeedback: analysisResults.aiCoachFeedback ? analysisResults.aiCoachFeedback.substring(0, 100) + '...' : 'N/A',
+        aiSource: analysisResults.aiSource,
+        cognitiveAnalysis: analysisResults.cognitiveAnalysis,
+        topicFeedbackCount: Object.keys(analysisResults.topicFeedback || {}).length,
+        hasBrainPath: !!analysisResults.learningPath,
+        savedToDatabase: analysisResults.savedToDatabase
       });
+      
+      // Verify AI feedback was generated properly
+      if (analysisResults.aiSource === 'fallback') {
+        console.warn('[AdaptiveQuiz] ⚠️ Using fallback AI feedback - OpenAI API may not be available');
+      } else if (analysisResults.aiSource === 'openai') {
+        console.log('[AdaptiveQuiz] ✅ Using real OpenAI-generated feedback');
+      }
       
       // Store results in session storage so other pages can access updated data
       sessionStorage.setItem('lastQuizResults', JSON.stringify(analysisResults));
@@ -245,7 +257,17 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     return <QuizResults results={results} timeSpent={elapsedTime} />;
   }
 
-  const question = quiz.questions[currentQuestion];
+  const question = quiz?.questions?.[currentQuestion];
+  
+  // Guard: if no question is loaded, show loading state
+  if (!question) {
+    return (
+      <div className="adaptive-quiz">
+        <Spinner />
+      </div>
+    );
+  }
+  
   const isAnswered = answers[currentQuestion] !== undefined && answers[currentQuestion] !== null;
   // Count only valid (non-null, non-undefined) answers using indices
   const answeredCount = Object.values(answers).filter(ans => ans !== null && ans !== undefined).length;
@@ -452,6 +474,39 @@ function QuizResults({ results, timeSpent }) {
           </p>
         </motion.section>
 
+        {/* AI Coach Feedback Section - PROMINENT */}
+        {results.aiCoachFeedback && (
+          <motion.section
+            className="ai-coach-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            style={{
+              background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+              borderLeft: '4px solid #0ea5e9'
+            }}
+          >
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              🤖 AI Coach Feedback
+            </h2>
+            <div style={{
+              background: 'white',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              lineHeight: '1.8',
+              fontSize: '1.05rem',
+              color: '#1f2937'
+            }}>
+              <p>{results.aiCoachFeedback}</p>
+              {results.aiSource === 'fallback' && (
+                <p style={{ fontSize: '0.85rem', color: '#9ca3af', marginTop: '1rem' }}>
+                  📌 Note: This is generated feedback. Check back after additional quizzes for personalized AI coaching.
+                </p>
+              )}
+            </div>
+          </motion.section>
+        )}
+
         {/* Cognitive Level Analysis */}
         <motion.section
           className="cognitive-analysis"
@@ -517,7 +572,7 @@ function QuizResults({ results, timeSpent }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <h2>📖 Detailed Feedback by Topic</h2>
+            <h2>🎯 Topic-by-Topic Analysis</h2>
             <div className="feedback-cards">
               {Object.entries(results.topicFeedback).map(([topicName, feedback], idx) => (
                 <motion.div
@@ -526,50 +581,110 @@ function QuizResults({ results, timeSpent }) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 + idx * 0.08 }}
+                  style={{
+                    borderLeft: feedback.percentage >= 80 
+                      ? '4px solid #10b981' 
+                      : feedback.percentage >= 60 
+                      ? '4px solid #f59e0b'
+                      : '4px solid #ef4444'
+                  }}
                 >
                   <div className="feedback-header">
-                    <h3>{topicName}</h3>
-                    <span className="feedback-score">{feedback.percentage}%</span>
+                    <h3>
+                      {feedback.percentage >= 80 ? '✅' : feedback.percentage >= 60 ? '📚' : '⚠️'} {topicName}
+                    </h3>
+                    <span className="feedback-score" style={{
+                      background: feedback.percentage >= 80 ? '#d1fae5' : feedback.percentage >= 60 ? '#fef3c7' : '#fee2e2',
+                      color: feedback.percentage >= 80 ? '#065f46' : feedback.percentage >= 60 ? '#b45309' : '#7f1d1d',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '20px',
+                      fontWeight: '600'
+                    }}>
+                      {feedback.percentage}%
+                    </span>
                   </div>
-                  <p className="feedback-summary">{feedback.summary}</p>
                   
-                  <div className="feedback-section">
-                    <h4>✅ Strengths:</h4>
-                    <ul>
-                      {feedback.strengths.map((strength, i) => (
-                        <li key={i}>{strength}</li>
-                      ))}
-                    </ul>
+                  {/* Main feedback message */}
+                  <p style={{
+                    fontSize: '1rem',
+                    marginBottom: '1.5rem',
+                    lineHeight: '1.6',
+                    color: '#374151',
+                    fontStyle: 'italic',
+                    background: '#f9fafb',
+                    padding: '1rem',
+                    borderRadius: '6px'
+                  }}>
+                    💬 {feedback.feedback}
+                  </p>
+                  
+                  {/* Quick Stats */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '1rem',
+                    marginBottom: '1.5rem',
+                    fontSize: '0.9rem'
+                  }}>
+                    <div style={{
+                      background: '#f0f9ff',
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      textAlign: 'center'
+                    }}>
+                      <p style={{ color: '#0284c7', fontWeight: '600' }}>Correct Answers</p>
+                      <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0284c7' }}>{feedback.correct}/{feedback.total}</p>
+                    </div>
+                    <div style={{
+                      background: '#fef3c7',
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      textAlign: 'center'
+                    }}>
+                      <p style={{ color: '#b45309', fontWeight: '600' }}>Accuracy Rate</p>
+                      <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b45309' }}>{feedback.percentage}%</p>
+                    </div>
                   </div>
                   
-                  {feedback.weaknesses.length > 0 && (
+                  {/* Improvement suggestions */}
+                  {feedback.improvements && feedback.improvements.length > 0 && (
                     <div className="feedback-section">
-                      <h4>⚠️ Areas to Improve:</h4>
-                      <ul>
-                        {feedback.weaknesses.map((weakness, i) => (
-                          <li key={i}>{weakness}</li>
+                      <h4>🚀 How to Improve:</h4>
+                      <ul style={{ listStyle: 'none', padding: '0', margin: '0.5rem 0 0 0' }}>
+                        {feedback.improvements.map((improvement, i) => (
+                          <li key={i} style={{
+                            marginBottom: '0.5rem',
+                            padding: '0.5rem',
+                            background: '#f3f4f6',
+                            borderRadius: '4px',
+                            borderLeft: '3px solid #3b82f6'
+                          }}>
+                            • {improvement}
+                          </li>
                         ))}
                       </ul>
                     </div>
                   )}
                   
-                  <div className="feedback-section">
-                    <h4>🎯 Next Steps:</h4>
-                    <ul>
-                      {feedback.improvements.map((improvement, i) => (
-                        <li key={i}>{improvement}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="feedback-section">
-                    <h4>🔍 Search & Learn:</h4>
-                    <ul>
-                      {feedback.resources.map((resource, i) => (
-                        <li key={i}>{resource}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  {/* Learning Resources */}
+                  {feedback.resources && feedback.resources.length > 0 && (
+                    <div className="feedback-section">
+                      <h4>📚 Learning Resources:</h4>
+                      <ul style={{ listStyle: 'none', padding: '0', margin: '0.5rem 0 0 0' }}>
+                        {feedback.resources.map((resource, i) => (
+                          <li key={i} style={{
+                            marginBottom: '0.5rem',
+                            padding: '0.5rem',
+                            background: '#f0fdf4',
+                            borderRadius: '4px',
+                            borderLeft: '3px solid #10b981'
+                          }}>
+                            🔗 {resource}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>

@@ -5,6 +5,8 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { useLanguage } from '../contexts/LanguageContext';
 import AICoach from '../components/AICoach';
 import '../styles/ResultPage.css';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 const translations = {
   en: {
@@ -67,6 +69,15 @@ const translations = {
   }
 };
 
+// KaTeX rendering helper for result page
+const renderMath = (text) => {
+  if (!text) return '';
+  try {
+    return { __html: text.replace(/\$([^\$]+)\$/g, (m, latex) => katex.renderToString(latex, { throwOnError: false })) };
+  } catch (e) {
+    return { __html: text };
+  }
+};
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function ResultPage() {
@@ -363,19 +374,15 @@ export default function ResultPage() {
                       {answer.isCorrect ? '✓ Đúng' : '✗ Sai'}
                     </div>
                   </div>
-                  <div className="question-text">{answer.question}</div>
+                  <div className="question-text" dangerouslySetInnerHTML={renderMath(answer.question)} />
                   <div className="answer-compare">
                     <div className="user-answer-box">
                       <div className="answer-label">Câu trả lời của bạn</div>
-                      <div className={`answer-content ${answer.isCorrect ? 'correct' : 'incorrect'}`}>
-                        {answer.userAnswer}
-                      </div>
+                      <div className={`answer-content ${answer.isCorrect ? 'correct' : 'incorrect'}`} dangerouslySetInnerHTML={renderMath(answer.userAnswer)} />
                     </div>
                     <div className="correct-answer-box">
                       <div className="answer-label">Đáp án đúng</div>
-                      <div className="answer-content correct">
-                        {answer.correctAnswer}
-                      </div>
+                      <div className="answer-content correct" dangerouslySetInnerHTML={renderMath(answer.correctAnswer)} />
                     </div>
                   </div>
                   {answer.explanation && (

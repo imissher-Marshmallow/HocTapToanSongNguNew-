@@ -8,6 +8,8 @@ import { quizTranslations } from '../translations/quizTranslations';
 import { trackQuizAttempt } from '../helpers/learningHomeIntegration';
 import '../styles/AzotaQuiz.css';
 import classNames from 'classnames';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // Small timer display component
 function TimerDisplay({ seconds }) {
@@ -197,13 +199,26 @@ function QuizPage() {
     setSelectedAnswer(null); // Reset selection when changing questions
   }, [currentQuestionIndex]);
 
-  // Simple math formatter: convert x^2 to x<sup>2</sup> for nicer display
+  // Math formatter: convert LaTeX $...$ to HTML with KaTeX and handle x^2 notation
   const formatMath = (text) => {
     if (!text) return '';
-    // replace ^{digits} or ^digit patterns
-    let out = text.replace(/\^(\d+)/g, '<sup>$1</sup>');
-    // replace occurrences like x^2 or a^10, and handle spaced expressions
-    return out;
+    
+    let html = text;
+    
+    // Replace $...$ patterns with KaTeX-rendered HTML
+    html = html.replace(/\$([^\$]+)\$/g, (match, latex) => {
+      try {
+        return katex.renderToString(latex, { throwOnError: false });
+      } catch (e) {
+        console.warn('KaTeX render error:', e);
+        return match; // return original if fails
+      }
+    });
+    
+    // Also handle ^digits for fallback (convert to <sup>)
+    html = html.replace(/\^(\d+)/g, '<sup>$1</sup>');
+    
+    return html;
   };
 
   // Adapt remaining questions: move questions of the same topic earlier

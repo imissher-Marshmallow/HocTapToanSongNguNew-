@@ -1,51 +1,399 @@
 /**
- * Learning Profile Dashboard Styles
- * Responsive, modern design with gradient accents
+ * AI-Guided Learning Profile Styles
+ * Modern, human-centered design focusing on guidance, not analytics
  */
 
-.learning-profile {
+.learning-profile-ai {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
   padding: 2rem 1rem;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #1f2937;
 }
 
-/* ==========================================
-   LOADING STATE
-   ========================================== */
-
-.learning-profile.loading {
+.learning-profile-ai.loading,
+.learning-profile-ai.error {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100vh;
+  color: white;
   gap: 2rem;
 }
 
-.learning-profile.loading .spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.learning-profile.loading p {
-  color: white;
-  font-size: 1.2rem;
+.learning-profile-ai.error {
+  color: #ef4444;
 }
 
 /* ==========================================
-   ERROR STATE
+   HEADER
    ========================================== */
+
+.ai-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  color: white;
+}
+
+.ai-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.ai-header p {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 300;
+}
+
+/* ==========================================
+   SECTION STYLES
+   ========================================== */
+
+section {
+  max-width: 1200px;
+  margin: 0 auto 3rem;
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+section h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #0f172a;
+}
+
+section h2 svg {
+  color: #3b82f6;
+}
+
+/* ==========================================
+   AI INSIGHT SECTION
+   ========================================== */
+
+.ai-insight-section {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.insight-card {
+  background: white;
+  border-left: 4px solid #3b82f6;
+  padding: 2rem;
+  border-radius: 8px;
+  line-height: 1.8;
+}
+
+.insight-card h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #0f172a;
+}
+
+.insight-text {
+  font-size: 1.05rem;
+  color: #475569;
+  margin-bottom: 1.5rem;
+}
+
+.insight-card hr {
+  border: none;
+  border-top: 2px solid #e2e8f0;
+  margin: 1.5rem 0;
+}
+
+/* ==========================================
+   PRIMARY ACTION SECTION
+   ========================================== */
+
+.primary-action-section {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-top: 4px solid #3b82f6;
+}
+
+.primary-action-card {
+  background: white;
+  border-left: 4px solid #0ea5e9;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.action-header h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.completion-hint {
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.action-description {
+  font-size: 1.05rem;
+  color: #475569;
+  margin: 1rem 0;
+  line-height: 1.7;
+}
+
+.mastery-note {
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1.5rem 0;
+  color: #78350f;
+  font-weight: 500;
+}
+
+.btn-primary-large {
+  background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.btn-primary-large:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+}
+
+/* ==========================================
+   ROADMAP SECTION
+   ========================================== */
+
+.roadmap-section {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.roadmap-subtitle {
+  color: #64748b;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 2rem;
+}
+
+.roadmap-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.roadmap-week {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border-left: 4px solid #9ca3af;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.roadmap-week.week-1 {
+  border-left-color: #f59e0b;
+}
+
+.roadmap-week.week-2 {
+  border-left-color: #3b82f6;
+}
+
+.roadmap-week.week-3 {
+  border-left-color: #10b981;
+}
+
+.roadmap-week.week-4 {
+  border-left-color: #8b5cf6;
+}
+
+.roadmap-week:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+}
+
+.week-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.active-indicator {
+  color: #3b82f6;
+  animation: pulse 2s infinite;
+}
+
+.completed-indicator {
+  color: #10b981;
+}
+
+.locked-indicator {
+  color: #9ca3af;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.roadmap-week h4 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.week-focus {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.5rem;
+}
+
+.week-detail {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.completed-label,
+.current-label,
+.locked-label {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.completed-label {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.current-label {
+  background: #dbeafe;
+  color: #0c4a6e;
+}
+
+.locked-label {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* ==========================================
+   OTHER LEVELS SECTION
+   ========================================== */
+
+.other-levels-section {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.levels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.level-card {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  border: 2px dashed #cbd5e1;
+}
+
+.level-card.locked {
+  opacity: 0.7;
+}
+
+.level-card svg {
+  color: #cbd5e1;
+  margin-bottom: 1rem;
+}
+
+.level-card h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+}
+
+.level-card p {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* ==========================================
+   ACTION BUTTONS SECTION
+   ========================================== */
+
+.action-buttons-section {
+  text-align: center;
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.btn-secondary {
+  background: white;
+  color: #3b82f6;
+  border: 2px solid #3b82f6;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 0.5rem;
+}
+
+.btn-secondary:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 768px) {
+  section {
+    padding: 1.5rem;
+  }
+
+  .ai-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .roadmap-container {
+    grid-template-columns: 1fr;
+  }
+
+  .levels-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 .learning-profile.error {
   display: flex;
@@ -651,74 +999,78 @@
    RESPONSIVE DESIGN
    ========================================== */
 
+/* Old learning-profile classes (for backward compat) */
+.learning-profile {
+  min-height: 100vh;
+  background: white;
+  padding: 2rem 1rem;
+}
+
+.learning-profile section {
+  max-width: 1200px;
+  margin: 0 auto 2rem;
+}
+
+.learning-profile h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.learning-profile h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+
 @media (max-width: 768px) {
+  .learning-profile-ai,
   .learning-profile {
     padding: 1rem;
   }
 
-  .learning-profile > section {
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+  section {
+    padding: 1.5rem !important;
+    margin-bottom: 2rem !important;
   }
 
-  .profile-header h1 {
+  .ai-header h1 {
     font-size: 2rem;
   }
 
-  .profile-header p {
+  .ai-header p {
     font-size: 1rem;
   }
 
-  .cognitive-grid {
-    grid-template-columns: 1fr;
+  .roadmap-container {
+    grid-template-columns: 1fr !important;
   }
 
-  .weak-areas-list,
-  .strong-areas-list {
-    grid-template-columns: 1fr;
-  }
-
-  .recommendation-card {
-    grid-template-columns: 1fr;
-  }
-
-  .learning-path {
-    grid-template-columns: 1fr;
+  .levels-grid {
+    grid-template-columns: 1fr !important;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-
-  .action-section {
-    flex-direction: column;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    width: 100%;
-  }
 }
 
 @media (max-width: 480px) {
-  .profile-header h1 {
+  .ai-header h1 {
     font-size: 1.5rem;
   }
 
-  .learning-profile h2 {
+  section h2 {
     font-size: 1.4rem;
+  }
+
+  .roadmap-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .levels-grid {
+    grid-template-columns: 1fr !important;
   }
 
   .stats-grid {
     grid-template-columns: 1fr;
-  }
-
-  .weak-area-header {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .priority-badge {
-    align-self: flex-start;
   }
 }

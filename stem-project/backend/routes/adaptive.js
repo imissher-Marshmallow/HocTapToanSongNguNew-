@@ -37,7 +37,7 @@ function generateTopicFeedback(topicAnalysis, cognitiveScores) {
   topicAnalysis.forEach(topic => {
     const { topic: topicName, percentage, correct, total, performance } = topic
     
-    // Generate emoji feedback (AI-style with emoji)
+    // Generate Vietnamese emoji feedback
     let emojiFeedback = '';
     if (percentage >= 90) {
       emojiFeedback = `🌟 Xuất sắc ở ${topicName}! Đúng ${correct}/${total} câu. Tiếp tục phát huy!`;
@@ -53,52 +53,34 @@ function generateTopicFeedback(topicAnalysis, cognitiveScores) {
       emojiFeedback = `❌ ${topicName}: Chỉ đúng ${correct}/${total}. Bắt đầu ôn từ những bài cơ bản.`;
     }
     
-    // Generate strengths
-    let strengths = []
-    if (percentage >= 80) {
-      strengths.push(`You demonstrated strong understanding of ${topicName}`)
-      strengths.push(`High accuracy rate (${percentage}%) shows solid mastery`)
-    } else if (percentage >= 60) {
-      strengths.push(`You have a good foundation in ${topicName}`)
-    }
-    
-    // Generate weaknesses
-    let weaknesses = []
-    if (percentage < 70) {
-      weaknesses.push(`${topicName} needs more focused practice`)
-      weaknesses.push(`${total - correct} out of ${total} questions were incorrect`)
-    }
-    if (percentage < 50) {
-      weaknesses.push(`This is a critical area for improvement`)
-    }
-    
-    // Generate improvement suggestions
+    // Generate detailed improvement suggestions
     let improvements = []
     if (percentage < 60) {
-      improvements.push(`Review the fundamental concepts of ${topicName}`)
-      improvements.push(`Practice basic problems before advanced ones`)
-      improvements.push(`Use step-by-step problem solving approaches`)
+      improvements.push(`Ôn lại khái niệm cơ bản của ${topicName}`)
+      improvements.push(`Làm bài tập từ dễ đến khó để xây dựng nền tảng`)
+      improvements.push(`Giải từng bước một để hiểu rõ cách giải`)
     } else if (percentage < 80) {
-      improvements.push(`Work on more challenging ${topicName} problems`)
-      improvements.push(`Focus on edge cases and special scenarios`)
-      improvements.push(`Practice time management on ${topicName} questions`)
+      improvements.push(`Luyện tập thêm các bài toán khó về ${topicName}`)
+      improvements.push(`Chú ý đến các trường hợp đặc biệt`)
+      improvements.push(`Kiểm tra lại các câu sai để tìm lỗi sơ suất`)
     } else {
-      improvements.push(`Maintain your current level with regular practice`)
-      improvements.push(`Try advanced problems to deepen your understanding`)
+      improvements.push(`Duy trì mức hiểu hiện tại với luyện tập thường xuyên`)
+      improvements.push(`Thử các bài toán nâng cao để mở rộng hiểu biết`)
     }
     
-    // Generate resources
+    // Generate resources for searching
     let resources = []
     if (percentage < 50) {
-      resources.push(`Search: "${topicName} fundamentals"`)
-      resources.push(`Search: "${topicName} tutorial"`)
-      resources.push(`Search: "${topicName} practice problems"`)
+      resources.push(`${topicName} - Khái niệm cơ bản`)
+      resources.push(`Hướng dẫn ${topicName} cho người mới bắt đầu`)
+      resources.push(`Bài tập luyện ${topicName}`)
     } else if (percentage < 70) {
-      resources.push(`Search: "${topicName} advanced concepts"`)
-      resources.push(`Search: "${topicName} worked examples"`)
+      resources.push(`${topicName} - Bài tập nâng cao`)
+      resources.push(`Ví dụ chi tiết về ${topicName}`)
+      resources.push(`Mẹo giải nhanh ${topicName}`)
     } else {
-      resources.push(`Search: "${topicName} challenging problems"`)
-      resources.push(`Search: "${topicName} competitive problems"`)
+      resources.push(`${topicName} - Các bài toán khó`)
+      resources.push(`${topicName} thi chuyên - Vào lớp 10`)
     }
     
     feedback[topicName] = {
@@ -106,15 +88,13 @@ function generateTopicFeedback(topicAnalysis, cognitiveScores) {
       performance,
       correct,
       total,
-      feedback: emojiFeedback, // AI-style feedback with emoji
-      strengths: strengths.length > 0 ? strengths : ["Good effort on this topic"],
-      weaknesses: weaknesses.length > 0 ? weaknesses : ["No major weaknesses identified"],
+      feedback: emojiFeedback,
       improvements,
       resources,
-      summary: `You scored ${percentage}% on ${topicName}. ${
-        percentage >= 80 ? 'Excellent! Keep it up.' : 
-        percentage >= 60 ? 'Good progress. More practice needed.' :
-        'This topic needs more focus. Review and practice more.'
+      summary: `${percentage}% chính xác (${correct}/${total} câu). ${
+        percentage >= 80 ? 'Xuất sắc! Tiếp tục phát huy.' : 
+        percentage >= 60 ? 'Tốt. Cần thêm luyện tập.' :
+        'Cần ôn tập lại kỹ. Bắt đầu từ các bài cơ bản.'
       }`
     }
   })
