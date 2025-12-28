@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -82,12 +82,36 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function ResultPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { language } = useLanguage();
   const t = translations[language];
   const result = (location && (location.state && (location.state.result || location.state))) || null;
   const summary = result ? result.summary || null : null;
   const [showSummary, setShowSummary] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(!!summary);
+
+  // Hard mode popup trigger effect
+  useEffect(() => {
+    if (result && result.score >= 8.5 && result.type === 'normal') {
+      // Small delay to ensure page loads first, then show popup
+      const timer = setTimeout(() => {
+        const quizType = result.quizId || result.topic || '';
+        navigate('/quizzes', {
+          state: {
+            showHardModePopup: true,
+            hardModeQuiz: {
+              title: result.title || quizType,
+              chapterId: result.chapterId || quizType,
+              normalScore: result.score,
+              language: language
+            }
+          },
+          replace: false
+        });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [result, navigate, language]);
 
   useEffect(() => {
     if (summary) {

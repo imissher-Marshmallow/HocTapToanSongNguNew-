@@ -405,6 +405,11 @@ async function analyzeQuiz(payload) {
     rulesTriggered.push('auto_submitted');
   }
 
+  // 📊 Balanced 10-point scoring system
+  // True/False: 0.25 pts each, Multiple Choice/Short Answer: 1.0 pt each
+  let totalPoints = 0;
+  let maxPossiblePoints = 0;
+
   for (const ans of answers) {
     const q = questions.find(x => x.id === ans.questionId);
     if (!q) continue;
@@ -443,6 +448,12 @@ async function analyzeQuiz(payload) {
     
     if (isCorrect) correct++;
 
+    // Calculate weighted points for this question
+    const questionType = ans.questionType || q.type;
+    const pointValue = (questionType === 'true_false' || q.type === 'true_false') ? 0.25 : 1.0;
+    maxPossiblePoints += pointValue;
+    if (isCorrect) totalPoints += pointValue;
+
     topicStats[q.topic] = topicStats[q.topic] || { wrong: 0, total: 0, correct: 0 };
     if (!isCorrect) topicStats[q.topic].wrong++;
     else topicStats[q.topic].correct++;
@@ -467,7 +478,8 @@ async function analyzeQuiz(payload) {
     }
   }
 
-  const score = answers.length > 0 ? Math.round((correct / answers.length) * 10) : 0;
+  // Calculate 10-point score from weighted points
+  const score = maxPossiblePoints > 0 ? Math.round((totalPoints / maxPossiblePoints) * 10 * 100) / 100 : 0;
   
   // Detect anti-cheat flags: auto-submit with incomplete answers suggests cheating
   // If user only answered few questions and got high score, it's suspicious
@@ -578,6 +590,10 @@ async function analyzeQuiz(payload) {
 
   return {
     score,
+    scoreOutOf10: score,
+    maxScore: 10,
+    maxPossiblePoints,
+    totalPoints,
     performanceLabel,
     weakAreas,
     feedback: feedbackOut,

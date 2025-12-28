@@ -383,6 +383,263 @@
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
+/* ========== MODE INDICATOR ========== */
+.mode-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.mode-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.mode-icon {
+  font-size: 1.5rem;
+}
+
+.mode-title {
+  letter-spacing: 0.5px;
+}
+
+/* ========== PAGINATION ========== */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 4rem;
+  padding: 2rem 0;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.pagination-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  min-width: 120px;
+}
+
+.pagination-button:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.pagination-button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.page-num {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.page-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ========== HARD MODE POPUP ========== */
+.hard-mode-popup {
+  background: white;
+  border-radius: 24px;
+  padding: 3rem 2rem;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.popup-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: bounce 0.6s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.hard-mode-popup h2 {
+  font-size: 2rem;
+  color: #1f2937;
+  margin-bottom: 1rem;
+  font-weight: 800;
+}
+
+.popup-message {
+  font-size: 1rem;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.difficulty-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.diff-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.diff-item.normal {
+  opacity: 0.7;
+}
+
+.diff-item.hard {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.diff-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.diff-icon {
+  font-size: 2.5rem;
+}
+
+.arrow {
+  font-size: 1.5rem;
+  color: #9ca3af;
+  margin-bottom: 1rem;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-popup-no,
+.btn-popup-yes {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.btn-popup-no {
+  background: #9ca3af;
+}
+
+.btn-popup-no:hover {
+  background: #6b7280;
+  transform: translateY(-2px);
+}
+
+.btn-popup-yes {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-popup-yes:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+/* ========== UPDATED MODAL ========== */
+.modal-content-quiz {
+  background: white;
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 600px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header-section {
+  margin-bottom: 2rem;
+}
+
+.modal-header-section h2 {
+  font-size: 1.8rem;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+}
+
+.modal-header-section p {
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.modal-details {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.detail-value {
+  color: #6b7280;
+  font-weight: 500;
+}
+
 @media (max-width: 640px) {
   .quiz-list-header h1 {
     font-size: 2rem;
@@ -408,4 +665,28 @@
   .modal-content {
     padding: 1.5rem;
   }
-}
+
+  .pagination-button {
+    padding: 0.6rem 1rem;
+    min-width: 100px;
+  }
+
+  .hard-mode-popup {
+    padding: 2rem 1.5rem;
+    max-width: 90vw;
+  }
+
+  .hard-mode-popup h2 {
+    font-size: 1.5rem;
+  }
+
+  .popup-message {
+    font-size: 0.9rem;
+  }
+
+  .difficulty-comparison {
+    gap: 0.5rem;
+  }
+
+  .diff-icon {
+    font-size: 2rem;

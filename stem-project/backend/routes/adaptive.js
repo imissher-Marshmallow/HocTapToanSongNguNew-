@@ -887,19 +887,41 @@ router.post('/analyze', async (req, res) => {
 
     console.log('[Analyze] Fast analysis completed - topics analyzed:', Object.keys(topicAnalysis).length)
 
-    // Calculate total correct answers
-    const totalCorrect = questions.reduce((sum, q, i) => {
+    // ============================================
+    // BALANCED 10-POINT SCORING SYSTEM
+    // ============================================
+    // True/False: 0.25 pts each (4 T/F = 1 pt)
+    // Multiple Choice: 1 pt each
+    // Short Answer: 1 pt each
+    // Normalize to 10-point scale
+    
+    let totalPoints = 0;
+    let maxPossiblePoints = 0;
+    
+    questions.forEach((q, i) => {
       const studentAnswer = answerArray[i]
       const isCorrect = q.answerIndex === studentAnswer
-      return sum + (isCorrect ? 1 : 0)
-    }, 0)
+      
+      let pointValue = 1.0;
+      if (q.type === 'true_false' || q.questionType === 'true_false') {
+        pointValue = 0.25;
+      }
+      
+      maxPossiblePoints += pointValue;
+      if (isCorrect) {
+        totalPoints += pointValue;
+      }
+    });
     
-    console.log('[Analyze] Answer comparison:', {
-      totalQuestions: questions.length,
-      totalCorrect,
-      answerArrayLength: answerArray.length,
-      sampleAnswers: answerArray.slice(0, 3),
-      sampleQuestions: questions.slice(0, 3).map(q => ({ id: q.id, correctIndex: q.answerIndex }))
+    const totalCorrect = Math.round((totalPoints / maxPossiblePoints) * 10 * 100) / 100;
+    const maxScore = 10;
+    const scoreOutOf10 = totalCorrect;
+    
+    console.log('[Analyze] 10-Point Scoring:', {
+      rawPoints: totalPoints,
+      maxPoints: maxPossiblePoints,
+      scoreOutOf10: scoreOutOf10,
+      percentage: Math.round((scoreOutOf10 / maxScore) * 100)
     })
 
     // ============================================
@@ -927,22 +949,35 @@ router.post('/analyze', async (req, res) => {
       : LearningProfileManager.createProfile(userId, assessment)
 
     // ============================================
+    // CONDITIONAL ROADMAP (Unlock after 2+ quizzes with good scores)
+    // ============================================
+    
+    let learningRoadmap = null;
+    let shouldGenerateRoadmap = false;
+    const quizzesTaken = (currentProfile?.quizzes_taken || 0) + 1;
+    
+    if (quizzesTaken >= 2 && scoreOutOf10 >= 6.0) {
+      shouldGenerateRoadmap = true;
+      console.log('[Analyze] ✅ Roadmap unlock: Quiz', quizzesTaken, 'Score', scoreOutOf10);
+      learningRoadmap = await generateLearningRoadmap(learningProfile, topicFeedback);
+      learningProfile.learningPath = learningRoadmap;
+    } else {
+      console.log('[Analyze] ⏳ Roadmap locked: Need quizzes:', quizzesTaken, '<2 or score:', scoreOutOf10, '<6.0');
+      learningProfile.learningPath = null;
+    }
+    
+    // ============================================
     // AI FEEDBACK GENERATION (Vietnamese)
     // ============================================
     
     // Generate AI summary with OpenAI (fallback if fails)
     const aiSummaryResult = await generateAISummary({
-      overallScore: assessment.overallScore,
-      correctAnswers: totalCorrect,
+      overallScore: scoreOutOf10,
+      correctAnswers: totalPoints,
       totalQuestions: questions.length,
-      topicFeedback
+      topicFeedback,
+      maxPossiblePoints: maxPossiblePoints
     })
-
-    // Generate learning roadmap
-    const learningRoadmap = await generateLearningRoadmap(learningProfile, topicFeedback)
-    
-    // ⭐ IMPORTANT: Assign the AI-generated roadmap to the learning profile
-    learningProfile.learningPath = learningRoadmap
 
     // ============================================
     // SAVE COMPLETE RESULTS TO SUPABASE
@@ -1024,7 +1059,9 @@ router.post('/analyze', async (req, res) => {
             ? learningProfile.recommendations
             : [], // TEXT[] - array of strings
           learning_path: learningProfile.learningPath || null, // JSONB - can be null
-          quizzes_taken: (currentProfile?.quizzes_taken || 0) + 1,
+          quizzes_taken: quizzesTaken,
+          last_score: scoreOutOf10,
+          roadmap_status: shouldGenerateRoadmap ? 'generated' : 'pending',
           last_updated: new Date().toISOString()
         };
 
@@ -1093,10 +1130,13 @@ router.post('/analyze', async (req, res) => {
     // ============================================
 
     res.json({
-      // Basic results
-      overallScore: assessment.overallScore,
+      // Basic results (10-point scale)
+      overallScore: scoreOutOf10,
+      scoreOutOf10: scoreOutOf10,
+      maxScore: maxScore,
       totalQuestions: questions.length,
-      correctAnswers: totalCorrect,
+      correctAnswers: totalPoints,
+      maxPossiblePoints: maxPossiblePoints,
       
       // Cognitive level breakdown
       cognitiveAnalysis: {
@@ -1143,7 +1183,8 @@ router.post('/analyze', async (req, res) => {
           .map(([topic]) => topic),
         recommendations: learningProfile.recommendations || [],
         learningPath: learningProfile.learningPath,
-        quizzesTaken: (currentProfile?.quizzes_taken || 0) + 1
+        quizzesTaken: quizzesTaken,
+        roadmapUnlocked: shouldGenerateRoadmap
       },
       
       // AI feedback - extract topics from topicFeedback instead of old structures

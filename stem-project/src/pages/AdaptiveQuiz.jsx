@@ -339,7 +339,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
             {/* Answer Options */}
             <div className="options">
-              {question.options.map((option, idx) => (
+              {(question.options || []).map((option, idx) => (
                 <motion.label
                   key={idx}
                   className={`option ${

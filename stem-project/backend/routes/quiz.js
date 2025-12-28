@@ -1,5 +1,7 @@
 const express = require('express');
 const { analyzeQuiz, loadQuestionsForQuiz, loadGroupedQuestionsForQuiz } = require('../ai/analyzer');
+const { generateLearningRoadmap } = require('../utils/aiSummary');
+const { supabase } = require('../database');
 const jwt = require('jsonwebtoken');
 const { dbHelpers } = require('../database');
 
@@ -104,6 +106,83 @@ router.post('/analyze-quiz', async (req, res) => {
 
       const numericUserId = finalUserId && finalUserId !== 'anonymous' ? Number(finalUserId) : null;
       if (numericUserId && !Number.isNaN(numericUserId)) {
+        // 📊 Handle roadmap unlock for regular quizzes (same as adaptive)
+        let shouldGenerateRoadmap = false;
+        let learningRoadmap = null;
+        const scoreOutOf10 = result.scoreOutOf10 || result.score || 0;
+
+        try {
+          // Get or create user learning profile in Supabase
+          const { data: currentProfile, error: profileError } = await supabase
+            .from('user_learning_profiles')
+            .select('*')
+            .eq('user_id', finalUserId)
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            console.warn('[AnalyzeQuiz] Error fetching profile:', profileError);
+          }
+
+          const quizzesTaken = (currentProfile?.quizzes_taken || 0) + 1;
+
+          // ✅ Roadmap unlock condition: quizzesTaken >= 2 AND scoreOutOf10 >= 6.0
+          if (quizzesTaken >= 2 && scoreOutOf10 >= 6.0) {
+            shouldGenerateRoadmap = true;
+            console.log(`✅ [RegularQuiz] Roadmap unlock! quizzesTaken=${quizzesTaken}, score=${scoreOutOf10}`);
+
+            // Generate AI roadmap
+            try {
+              const weakAreas = result.weakAreas || [];
+              learningRoadmap = await generateLearningRoadmap(finalUserId, scoreOutOf10, weakAreas);
+              console.log('[RegularQuiz] Generated learning roadmap');
+            } catch (aiError) {
+              console.warn('[RegularQuiz] Failed to generate roadmap:', aiError.message);
+              learningRoadmap = null;
+            }
+          } else {
+            console.log(`⏳ [RegularQuiz] Roadmap locked. quizzesTaken=${quizzesTaken}, score=${scoreOutOf10}/10. Need: 2+ quizzes AND score >= 6.0`);
+          }
+
+          // Save to Supabase learning profile
+          const learningProfileData = {
+            user_id: finalUserId,
+            last_score: scoreOutOf10,
+            quizzes_taken: quizzesTaken,
+            roadmap_status: shouldGenerateRoadmap ? 'generated' : 'pending',
+            learning_path: learningRoadmap,
+            weak_areas: result.weakAreas || [],
+            updated_at: new Date().toISOString()
+          };
+
+          if (currentProfile) {
+            // Update existing profile
+            await supabase
+              .from('user_learning_profiles')
+              .update(learningProfileData)
+              .eq('user_id', finalUserId);
+            console.log('[RegularQuiz] Updated learning profile in Supabase');
+          } else {
+            // Insert new profile
+            await supabase
+              .from('user_learning_profiles')
+              .insert([learningProfileData]);
+            console.log('[RegularQuiz] Created new learning profile in Supabase');
+          }
+
+          // Add roadmap unlock info to result
+          result.roadmapUnlocked = shouldGenerateRoadmap;
+          result.quizzesTaken = quizzesTaken;
+          result.learningProfile = {
+            userId: finalUserId,
+            roadmapUnlocked: shouldGenerateRoadmap,
+            quizzesTaken,
+            weakAreas: result.weakAreas || [],
+            learningPath: learningRoadmap
+          };
+        } catch (supabaseError) {
+          console.warn('[RegularQuiz] Supabase operations failed:', supabaseError.message);
+        }
+
         // Save placeholder result and then AI analysis + score update
         const quizId = payload.quizId || payload.quiz || 'unknown-quiz';
         const answers = Array.isArray(payload.answers) ? payload.answers : [];

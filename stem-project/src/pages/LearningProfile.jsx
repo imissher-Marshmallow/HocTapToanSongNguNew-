@@ -113,6 +113,9 @@ export default function LearningProfile({ userId }) {
   const [insight, setInsight] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [roadmapStatus, setRoadmapStatus] = useState(null); // 'pending', 'generated', or null
+  const [quizzesTaken, setQuizzesTaken] = useState(0);
+  const [lastScore, setLastScore] = useState(0);
 
   useEffect(() => {
     if (finalUserId) {
@@ -144,9 +147,15 @@ export default function LearningProfile({ userId }) {
       if (!response.ok) throw new Error('Failed to fetch');
       
       const data = await response.json();
+      const profile = data.profile || data;
       
-      // Generate AI insight from dashboard profile
-      const aiInsight = generateAIInsight(data.profile || data);
+      // Extract roadmap status and quiz data
+      setRoadmapStatus(profile.roadmapStatus || profile.roadmap_status);
+      setQuizzesTaken(profile.quizzesTaken || profile.quizzes_taken || 0);
+      setLastScore(profile.lastScore || profile.last_score || 0);
+      
+      // Generate AI insight from dashboard profile - now with real OpenAI call
+      const aiInsight = await generateAIInsight(profile, finalUserId);
       setInsight(aiInsight);
     } catch (err) {
       setError(err.message);
@@ -240,83 +249,161 @@ export default function LearningProfile({ userId }) {
         </motion.div>
       </section>
 
-      {/* ========== 4-WEEK ROADMAP ========== */}
-      <section className="roadmap-section">
-        <h2>
-          <TrendingUp size={24} />
-          {t.fourWeekRoadmap}
-        </h2>
-        <p className="roadmap-subtitle">{t.suggestedPath}</p>
-        
-        <div className="roadmap-container">
-          {insight.roadmap.map((week, idx) => (
-            <motion.div
-              key={idx}
-              className={`roadmap-week week-${idx + 1}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.1 }}
-            >
-              <div className="week-badge">
-                {idx + 1 === insight.activeWeek ? (
-                  <CheckCircle size={20} className="active-indicator" />
-                ) : idx + 1 < insight.activeWeek ? (
-                  <CheckCircle size={20} className="completed-indicator" />
-                ) : (
-                  <Lock size={20} className="locked-indicator" />
-                )}
+      {/* ========== UNLOCK PROGRESS (if roadmap locked) ========== */}
+      {roadmapStatus === 'pending' && (
+        <section className="unlock-progress-section">
+          <motion.div
+            className="unlock-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Lock size={48} className="unlock-icon" />
+            <h3>🔓 {t.fourWeekRoadmap}</h3>
+            <p className="unlock-message">
+              Hoàn thành thêm {Math.max(0, 2 - quizzesTaken)} bài kiểm tra với điểm số ≥ 6.0/10 để mở khóa lộ trình AI của bạn.
+            </p>
+            
+            <div className="progress-tracker">
+              <div className="progress-item">
+                <div className="progress-label">Quizzes Completed: {quizzesTaken}/2</div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${Math.min(100, (quizzesTaken / 2) * 100)}%` }}
+                  ></div>
+                </div>
               </div>
               
-              <h4>{t.week} {idx + 1}</h4>
-              
-              <p className="week-focus">{week.focus}</p>
-              <p className="week-detail">{week.detail}</p>
-              
-              {idx + 1 < insight.activeWeek && (
-                <span className="completed-label">✓ {t.keepGoing}</span>
+              {lastScore > 0 && (
+                <div className="progress-item">
+                  <div className="progress-label">Last Score: {lastScore}/10</div>
+                  <div className="score-badge" style={{
+                    backgroundColor: lastScore >= 6.0 ? '#4CAF50' : '#FF9800'
+                  }}>
+                    {lastScore >= 6.0 ? '✓ Meets Target' : '⚠️ Below 6.0'}
+                  </div>
+                </div>
               )}
-              
-              {idx + 1 === insight.activeWeek && (
-                <span className="current-label">→ {t.youreDoingGreat}</span>
-              )}
-              
-              {idx + 1 > insight.activeWeek && (
-                <span className="locked-label">
-                  {t.unlockedAfter} Week {idx}
-                </span>
-              )}
-            </motion.div>
-          ))}
-        </div>
-      </section>
+            </div>
+            
+            <p className="unlock-hint">
+              Luyện tập thêm để cải thiện kỹ năng và mở khóa lộ trình 4 tuần được tạo bởi AI.
+            </p>
+          </motion.div>
+        </section>
+      )}
+
+      {/* ========== 4-WEEK ROADMAP (only if unlocked) ========== */}
+      {roadmapStatus === 'generated' && (
+        <section className="roadmap-section">
+          <h2>
+            <TrendingUp size={24} />
+            {t.fourWeekRoadmap}
+          </h2>
+          <p className="roadmap-subtitle">{t.suggestedPath}</p>
+          
+          <div className="roadmap-container">
+            {insight.roadmap.map((week, idx) => (
+              <motion.div
+                key={idx}
+                className={`roadmap-week week-${idx + 1}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+              >
+                <div className="week-badge">
+                  {idx + 1 === insight.activeWeek ? (
+                    <CheckCircle size={20} className="active-indicator" />
+                  ) : idx + 1 < insight.activeWeek ? (
+                    <CheckCircle size={20} className="completed-indicator" />
+                  ) : (
+                    <Lock size={20} className="locked-indicator" />
+                  )}
+                </div>
+                
+                <h4>{t.week} {idx + 1}</h4>
+                
+                <p className="week-focus">{week.focus}</p>
+                <p className="week-detail">{week.detail}</p>
+                
+                {idx + 1 < insight.activeWeek && (
+                  <span className="completed-label">✓ {t.keepGoing}</span>
+                )}
+                
+                {idx + 1 === insight.activeWeek && (
+                  <span className="current-label">→ {t.youreDoingGreat}</span>
+                )}
+                
+                {idx + 1 > insight.activeWeek && (
+                  <span className="locked-label">
+                    {t.unlockedAfter} Week {idx}
+                  </span>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ========== OTHER LEARNING LEVELS ========== */}
       <section className="other-levels-section">
         <h2>Other Learning Levels</h2>
         
         <div className="levels-grid">
+          {/* High Application Level */}
           <motion.div
-            className="level-card locked"
+            className={`level-card ${insight.activeWeek >= 2 ? 'unlocked' : 'locked'}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            whileHover={insight.activeWeek >= 2 ? { scale: 1.05 } : {}}
           >
-            <Lock size={32} />
+            {insight.activeWeek >= 2 ? (
+              <CheckCircle size={32} className="unlocked-icon" />
+            ) : (
+              <Lock size={32} className="locked-icon" />
+            )}
             <h4>High Application</h4>
             <p>
-              {t.unlockedAfter} Low Application mastery
+              {insight.activeWeek >= 2 
+                ? '✓ Unlocked - Ready to challenge yourself!' 
+                : `${t.unlockedAfter} Low Application mastery`}
             </p>
+            {insight.activeWeek >= 2 && (
+              <button
+                className="btn-level-unlock"
+                onClick={() => navigate('/adaptive-quiz-select?level=high')}
+              >
+                Start High Application
+              </button>
+            )}
           </motion.div>
           
+          {/* Analysis Level */}
           <motion.div
-            className="level-card locked"
+            className={`level-card ${insight.activeWeek >= 3 ? 'unlocked' : 'locked'}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            whileHover={insight.activeWeek >= 3 ? { scale: 1.05 } : {}}
           >
-            <Lock size={32} />
+            {insight.activeWeek >= 3 ? (
+              <CheckCircle size={32} className="unlocked-icon" />
+            ) : (
+              <Lock size={32} className="locked-icon" />
+            )}
             <h4>Analysis Level</h4>
             <p>
-              {t.unlockedAfter} High Application completion
+              {insight.activeWeek >= 3 
+                ? '✓ Unlocked - Master complex problem solving!' 
+                : `${t.unlockedAfter} High Application completion`}
             </p>
+            {insight.activeWeek >= 3 && (
+              <button
+                className="btn-level-unlock"
+                onClick={() => navigate('/adaptive-quiz-select?level=analysis')}
+              >
+                Start Analysis Level
+              </button>
+            )}
           </motion.div>
         </div>
       </section>
@@ -335,10 +422,60 @@ export default function LearningProfile({ userId }) {
 }
 
 /**
- * Generate AI Insight from profile data
- * This is where real AI analysis would be integrated
+ * Generate AI Insight from profile data using OpenAI
+ * Replaces hardcoded templates with real AI analysis
  */
-function generateAIInsight(profile) {
+async function generateAIInsight(profile, userId) {
+  try {
+    // Call backend API that uses OpenAI to generate real insights
+    const response = await fetch('/api/ai/generate-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        profile: {
+          scores: profile.scores || {},
+          weakAreas: profile.weakAreas || [],
+          strongAreas: profile.strongAreas || [],
+          quizzesTaken: profile.quizzesTaken || 0,
+          lastScore: profile.lastScore || 0,
+          roadmapUnlocked: profile.roadmapUnlocked || false
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate AI insight');
+    }
+
+    const data = await response.json();
+    
+    // Validate response has required fields
+    if (data && data.strengths && data.bottleneck && data.primaryAction) {
+      return {
+        strengths: data.strengths,
+        bottleneck: data.bottleneck,
+        primaryAction: data.primaryAction,
+        actionDescription: data.actionDescription,
+        activeWeek: data.activeWeek || 2,
+        roadmap: data.roadmap || getDefaultRoadmap()
+      };
+    } else {
+      // Fallback if AI response is incomplete
+      console.warn('[LearningProfile] Incomplete AI response, using fallback');
+      return getDefaultAIInsight(profile);
+    }
+  } catch (error) {
+    console.warn('[LearningProfile] AI generation failed, using fallback:', error.message);
+    // Fall back to template-based insight
+    return getDefaultAIInsight(profile);
+  }
+}
+
+/**
+ * Fallback function for hardcoded templates (used when AI fails)
+ */
+function getDefaultAIInsight(profile) {
   const level1 = profile.scores?.level1 || 0;
   const level2 = profile.scores?.level2 || 0;
   const level3 = profile.scores?.level3 || 0;
@@ -379,8 +516,21 @@ function generateAIInsight(profile) {
     activeWeek = 3;
   }
 
-  // Create 4-week roadmap
-  const roadmap = [
+  return {
+    strengths,
+    bottleneck,
+    primaryAction,
+    actionDescription,
+    activeWeek,
+    roadmap: getDefaultRoadmap()
+  };
+}
+
+/**
+ * Default roadmap structure
+ */
+function getDefaultRoadmap() {
+  return [
     {
       focus: '🎯 Tuần 1: Tăng cường kiến thức + Luyện tập ứng dụng cơ bản',
       detail: 'Ôn tập các khái niệm chính; giải quyết vấn đề đơn giản từng bước.'
@@ -398,13 +548,4 @@ function generateAIInsight(profile) {
       detail: 'Ôn tập chéo; khám phá cách suy nghĩ cá nhân và mô hình lỗi.'
     }
   ];
-
-  return {
-    strengths,
-    bottleneck,
-    primaryAction,
-    actionDescription,
-    activeWeek,
-    roadmap
-  };
 }
