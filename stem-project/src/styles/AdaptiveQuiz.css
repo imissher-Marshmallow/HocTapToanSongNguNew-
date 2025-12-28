@@ -1800,3 +1800,42 @@
   margin: 0.75rem 0 0;
   font-style: italic;
 }
+/* ========== ADAPTIVE QUIZ REVIEW SECTION ========== */
+.quiz-review {
+  margin: 3rem 0 2rem;
+  padding: 2rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.quiz-review h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  color: #1f2937;
+}
+
+.review-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.review-card {
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.review-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.review-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1f2937;
+}
+
+.review-card p {
+  color: #374151;
+  line-height: 1.5;
+}

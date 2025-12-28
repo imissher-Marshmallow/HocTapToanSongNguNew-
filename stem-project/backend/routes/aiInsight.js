@@ -43,7 +43,8 @@ router.post('/generate-insight', async (req, res) => {
     const prompt = buildInsightPrompt(profile);
 
     try {
-      const completion = await openai.chat.completions.create({
+      // Use Promise.race to implement timeout (OpenAI SDK doesn't support timeout parameter)
+      const completionPromise = openai.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           {
@@ -56,9 +57,15 @@ router.post('/generate-insight', async (req, res) => {
           }
         ],
         temperature: 0.7,
-        max_tokens: 1200,
-        timeout: 8000
+        max_tokens: 1200
       });
+
+      // Implement timeout using Promise.race
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('OpenAI API request timeout')), 8000)
+      );
+
+      const completion = await Promise.race([completionPromise, timeoutPromise]);
 
       const responseText = completion.choices[0]?.message?.content || '';
       

@@ -70,13 +70,14 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       // Backend returns {quiz: [...], questionCount, userId, message}
       const questions = data.quiz || data.questions || data;
       
-      // Ensure each question has a unique ID (use index as fallback)
+      // Ensure each question has a unique ID and type field (use index as fallback)
       const questionsWithIds = Array.isArray(questions) ? questions.map((q, idx) => ({
         ...q,
-        id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}` // Ensure unique ID even if missing
+        id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`, // Ensure unique ID even if missing
+        type: q.type || (q.questions_true_false ? 'true-false' : q.questions_short_answer ? 'short-answer' : 'multiple-choice') // Default to multiple-choice
       })) : [];
       
-      console.log('[AdaptiveQuiz] Loaded questions:', questionsWithIds.length, 'IDs:', questionsWithIds.map(q => q.id));
+      console.log('[AdaptiveQuiz] Loaded questions:', questionsWithIds.length, 'Types:', questionsWithIds.map(q => ({ id: q.id, type: q.type })));
       
       setQuiz({
         questions: questionsWithIds,
@@ -254,7 +255,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   }
 
   if (results) {
-    return <QuizResults results={results} timeSpent={elapsedTime} />;
+    return <QuizResults results={results} timeSpent={elapsedTime} quizQuestions={quiz.questions} quizAnswers={answers} />;
   }
 
   const question = quiz?.questions?.[currentQuestion];
@@ -510,8 +511,9 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
  * Quiz Results Component
  * Displays adaptive analysis and personalized recommendations
  */
-function QuizResults({ results, timeSpent }) {
+function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} }) {
   const [viewingDetails, setViewingDetails] = useState(null);
+  const [showReview, setShowReview] = useState(false);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -573,6 +575,108 @@ function QuizResults({ results, timeSpent }) {
                 </p>
               )}
             </div>
+          </motion.section>
+        )}
+
+        {/* Quiz Review Section */}
+        {quizQuestions.length > 0 && (
+          <motion.section
+            className="quiz-review"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2>📋 Question Review</h2>
+              <button
+                onClick={() => setShowReview(!showReview)}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: showReview ? '#ef4444' : '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {showReview ? 'Hide' : 'Show'} Details
+              </button>
+            </div>
+
+            {showReview && (
+              <div className="review-grid" style={{ display: 'grid', gap: '1.5rem' }}>
+                {quizQuestions.map((question, idx) => {
+                  const userAnswer = quizAnswers[idx];
+                  const isAnswered = userAnswer !== null && userAnswer !== undefined;
+                  const isCorrect = question.correctAnswer !== undefined && 
+                    ((question.type === 'true-false' && userAnswer === (question.correctAnswer ? 'true' : 'false')) ||
+                     (question.type === 'short-answer' && userAnswer?.toLowerCase() === question.text_answer?.toLowerCase()) ||
+                     (question.type === 'multiple-choice' && userAnswer === question.answerIndex));
+
+                  return (
+                    <motion.div
+                      key={`review-${idx}`}
+                      className="review-card"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + idx * 0.05 }}
+                      style={{
+                        background: isAnswered ? (isCorrect ? '#d1fae5' : '#fee2e2') : '#f3f4f6',
+                        border: `2px solid ${isAnswered ? (isCorrect ? '#10b981' : '#ef4444') : '#d1d5db'}`,
+                        borderRadius: '8px',
+                        padding: '1.5rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+                        <div>
+                          <h3 style={{ margin: '0 0 0.5rem 0' }}>
+                            {isAnswered ? (isCorrect ? '✅' : '❌') : '⭕'} Question {idx + 1}
+                          </h3>
+                          <p style={{ margin: '0', color: '#6b7280', fontSize: '0.9rem' }}>
+                            Type: <strong>{question.type || 'multiple-choice'}</strong>
+                            {question.topic && ` | Topic: ${question.topic}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ background: 'white', padding: '1rem', borderRadius: '6px', marginBottom: '1rem' }}>
+                        <p style={{ margin: '0', fontWeight: '600', lineHeight: '1.6' }}>
+                          {question.question || question.content_vn || question.english_question || 'Question text not available'}
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        <div>
+                          <p style={{ margin: '0', fontSize: '0.9rem', color: '#6b7280' }}>Your Answer:</p>
+                          <p style={{ margin: '0.5rem 0 0 0', fontWeight: '600', color: isAnswered ? (isCorrect ? '#10b981' : '#ef4444') : '#6b7280' }}>
+                            {isAnswered ? (
+                              question.type === 'true-false' 
+                                ? (userAnswer === 'true' ? '✓ True' : '✗ False')
+                                : question.type === 'short-answer'
+                                ? `"${userAnswer}"`
+                                : (question.options?.[userAnswer] || `Option ${userAnswer + 1}`)
+                            ) : '(Not answered)'}
+                          </p>
+                        </div>
+
+                        {isAnswered && !isCorrect && (question.type === 'multiple-choice' || question.type === 'true-false') && (
+                          <div>
+                            <p style={{ margin: '0', fontSize: '0.9rem', color: '#6b7280' }}>Correct Answer:</p>
+                            <p style={{ margin: '0.5rem 0 0 0', fontWeight: '600', color: '#10b981' }}>
+                              {question.type === 'true-false'
+                                ? (question.correctAnswer ? '✓ True' : '✗ False')
+                                : (question.options?.[question.answerIndex] || `Option ${question.answerIndex + 1}`)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </motion.section>
         )}
 
