@@ -71,7 +71,7 @@ function LearningHome() {
           }
         } else {
           setSummary(null);
-        }
+        } //fix
       } catch (err) {
         console.error('[LearningHome] Error:', err.message);
         setError(err.message);

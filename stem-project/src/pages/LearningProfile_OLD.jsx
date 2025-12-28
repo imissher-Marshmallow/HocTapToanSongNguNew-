@@ -64,7 +64,7 @@ const translations = {
     goal: 'Mục Tiêu',
     quizzes: 'Bài Kiểm Tra',
     topics: 'Chủ Đề',
-    startHere: '🎯 BẮT ĐẦU ĐÂY',
+    startHere: 'BẮT ĐẦU ĐÂY',
     
     // Stats
     quizzesTaken: 'Bài Kiểm Tra Đã Tham Gia',
