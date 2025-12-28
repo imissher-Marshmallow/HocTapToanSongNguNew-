@@ -395,7 +395,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   color: white;
   border-radius: 50px;
   font-weight: 600;
@@ -448,7 +448,7 @@
 }
 
 .pagination-button.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #667eea;
   color: white;
   border-color: #667eea;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
@@ -576,7 +576,7 @@
 }
 
 .btn-popup-yes {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: #10b981;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 

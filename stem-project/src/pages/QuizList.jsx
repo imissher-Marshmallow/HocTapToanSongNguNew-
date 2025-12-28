@@ -114,7 +114,7 @@ export default function QuizList() {
         type: 'chapter',
         difficulty: language === 'vi' ? 'Khó' : 'Hard',
         time: '60 phút / 60 min',
-        questionsCount: 25
+        questionsCount: 22
       }))
     },
     {

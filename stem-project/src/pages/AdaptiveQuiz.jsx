@@ -339,28 +339,94 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
             {/* Answer Options */}
             <div className="options">
-              {(question.options || []).map((option, idx) => (
-                <motion.label
-                  key={idx}
-                  className={`option ${
-                    answers[currentQuestion] === idx ? 'selected' : ''
-                  }`}
+              {question.type === 'true-false' ? (
+                // True/False Question Type
+                <div className="true-false-options">
+                  <motion.label
+                    className={`option tf-option ${
+                      answers[currentQuestion] === 'true' ? 'selected' : ''
+                    }`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0 }}
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion}`}
+                      value="true"
+                      checked={answers[currentQuestion] === 'true'}
+                      onChange={(e) =>
+                        handleAnswerSelect(currentQuestion, e.target.value)
+                      }
+                    />
+                    <span className="option-content">True</span>
+                  </motion.label>
+                  <motion.label
+                    className={`option tf-option ${
+                      answers[currentQuestion] === 'false' ? 'selected' : ''
+                    }`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion}`}
+                      value="false"
+                      checked={answers[currentQuestion] === 'false'}
+                      onChange={(e) =>
+                        handleAnswerSelect(currentQuestion, e.target.value)
+                      }
+                    />
+                    <span className="option-content">False</span>
+                  </motion.label>
+                </div>
+              ) : question.type === 'short-answer' ? (
+                // Short Answer Question Type
+                <motion.div
+                  className="short-answer-input"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
+                  transition={{ delay: 0 }}
                 >
-                  <input
-                    type="radio"
-                    name={`question-${currentQuestion}`}
-                    value={idx}
-                    checked={answers[currentQuestion] === idx}
+                  <textarea
+                    value={answers[currentQuestion] || ''}
                     onChange={(e) =>
-                      handleAnswerSelect(currentQuestion, parseInt(e.target.value))
+                      handleAnswerSelect(currentQuestion, e.target.value)
                     }
+                    placeholder="Enter your answer here..."
+                    className="answer-textarea"
+                    rows="4"
                   />
-                  <span className="option-content">{option}</span>
-                </motion.label>
-              ))}
+                  <p className="answer-hint">
+                    Write your answer clearly. Your response will be reviewed for accuracy.
+                  </p>
+                </motion.div>
+              ) : (
+                // Multiple Choice (default)
+                (question.options || []).map((option, idx) => (
+                  <motion.label
+                    key={idx}
+                    className={`option ${
+                      answers[currentQuestion] === idx ? 'selected' : ''
+                    }`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion}`}
+                      value={idx}
+                      checked={answers[currentQuestion] === idx}
+                      onChange={(e) =>
+                        handleAnswerSelect(currentQuestion, parseInt(e.target.value))
+                      }
+                    />
+                    <span className="option-content">{option}</span>
+                  </motion.label>
+                ))
+              )}
             </div>
 
             {/* Question Info */}
