@@ -663,6 +663,178 @@ router.get('/quiz/personalized', async (req, res) => {
 })
 
 /**
+ * POST /api/adaptive/quiz
+ * Generate adaptive quiz based on quiz type selection
+ * Used by AdaptiveQuizSelect to create quizzes for different modes
+ */
+router.post('/quiz', async (req, res) => {
+  try {
+    const { userId, quizType, focusTopic } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    console.log('[AdaptiveQuiz/Generate] Generating quiz:', { userId, quizType, focusTopic });
+
+    // Load questions data
+    const questionData = loadQuestionsData();
+    if (!questionData || !questionData.chapters) {
+      return res.status(500).json({ error: 'Questions data unavailable' });
+    }
+
+    let quiz = [];
+    let recommendation = null;
+
+    // Get user's learning profile for intelligent quiz selection
+    let userProfile = null;
+    if (supabase) {
+      try {
+        const numericUserId = parseInt(userId, 10);
+        const { data } = await supabase
+          .from('user_learning_profiles')
+          .select('*')
+          .eq('user_id', numericUserId)
+          .single();
+        userProfile = data;
+      } catch (err) {
+        console.log('[AdaptiveQuiz/Generate] No profile for user:', userId);
+      }
+    }
+
+    // Generate quiz based on type
+    if (quizType === 'personalized') {
+      // Standard personalized quiz based on profile
+      quiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
+        questionData.chapters,
+        userProfile?.weak_areas || [],
+        userProfile?.cognitive_levels || {}
+      );
+      recommendation = {
+        type: 'personalized',
+        message: 'Bài kiểm tra được tạo dựa trên hiệu suất của bạn',
+        focusAreas: userProfile?.weak_areas || []
+      };
+    } else if (quizType === 'hard' || quizType === 'hardMode') {
+      // Hard mode - more challenging questions (contest 4-5)
+      const chapters = questionData.chapters || [];
+      const hardQuestions = [];
+      
+      for (const chapter of chapters) {
+        const contests = chapter.contests || [];
+        // Get hard contests (4-5)
+        for (const contest of contests) {
+          if (contest.exam_id >= 4) {
+            const allQuestions = [
+              ...(contest.questions_multiple_choice || []),
+              ...(contest.questions_true_false || []),
+              ...(contest.questions_short_answer || [])
+            ];
+            hardQuestions.push(...allQuestions);
+          }
+        }
+      }
+
+      // Shuffle and select ~20 random questions
+      quiz = hardQuestions
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 20);
+
+      recommendation = {
+        type: 'hardMode',
+        message: 'Chế độ khó - Hãy thử thách bản thân với những câu hỏi nâng cao',
+        difficulty: 'ADVANCED'
+      };
+    } else if (quizType === 'targeted' && focusTopic) {
+      // Targeted quiz - focus on specific weak area
+      const chapters = questionData.chapters || [];
+      const focusedQuestions = [];
+      
+      for (const chapter of chapters) {
+        const contests = chapter.contests || [];
+        for (const contest of contests) {
+          const allQuestions = [
+            ...(contest.questions_multiple_choice || []),
+            ...(contest.questions_true_false || []),
+            ...(contest.questions_short_answer || [])
+          ];
+          focusedQuestions.push(
+            ...allQuestions.filter(q => q.topic && q.topic.toLowerCase().includes(focusTopic.toLowerCase()))
+          );
+        }
+      }
+
+      quiz = focusedQuestions
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 20);
+
+      recommendation = {
+        type: 'targeted',
+        message: `Bài kiểm tra tập trung vào: ${focusTopic}`,
+        focusArea: focusTopic
+      };
+    } else {
+      // Default to personalized
+      quiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
+        questionData.chapters,
+        userProfile?.weak_areas || [],
+        userProfile?.cognitive_levels || {}
+      );
+      recommendation = {
+        type: 'personalized',
+        message: 'Bài kiểm tra được tạo dựa trên hiệu suất của bạn'
+      };
+    }
+
+    // Remove answer keys before sending to frontend
+    const quizForClient = quiz.map(q => {
+      const questionData = {
+        id: q.id,
+        type: q.statements ? 'true-false' : (q.numerical_answer !== undefined ? 'short-answer' : 'multiple-choice'),
+        topic: q.topic,
+        question: q.question,
+        english_question: q.english_question,
+        difficulty: q.difficulty,
+        bloomLevel: q.bloomLevel
+      };
+
+      if (q.options && Array.isArray(q.options)) {
+        questionData.options = q.options;
+      }
+
+      if (q.statements && Array.isArray(q.statements)) {
+        questionData.statements = q.statements;
+      }
+
+      if (q.numerical_answer !== undefined) {
+        questionData.numerical_answer = q.numerical_answer;
+      }
+      if (q.text_answer !== undefined) {
+        questionData.text_answer = q.text_answer;
+      }
+
+      return questionData;
+    });
+
+    console.log('[AdaptiveQuiz/Generate] Quiz generated:', {
+      count: quizForClient.length,
+      type: quizType,
+      recommendation: recommendation?.message
+    });
+
+    res.json({
+      quiz: quizForClient,
+      questionCount: quizForClient.length,
+      recommendation,
+      quizType
+    });
+  } catch (error) {
+    console.error('[AdaptiveQuiz/Generate] Error:', error);
+    res.status(500).json({ error: 'Failed to generate quiz' });
+  }
+});
+
+/**
  * Helper function to determine if an answer is correct
  * Handles multiple choice, true/false, and short answer questions
  */
