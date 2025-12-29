@@ -372,6 +372,8 @@ router.get('/dashboard/:userId', async (req, res) => {
       return res.status(400).json({ error: 'User ID is required' })
     }
 
+    console.log('[Dashboard] Fetching profile for userId:', userId);
+
     // Create default profile
     const getDefaultProfile = () => ({
       userId,
@@ -406,7 +408,9 @@ router.get('/dashboard/:userId', async (req, res) => {
           return res.status(400).json({ error: 'Invalid user ID format' });
         }
 
-        const { data } = await supabase
+        console.log('[Dashboard] Querying Supabase for user_id:', numericUserId);
+
+        const { data, error } = await supabase
           .from('user_learning_profiles')
           .select(`
             id, user_id, cognitive_levels, weak_areas, strong_areas, 
@@ -416,7 +420,15 @@ router.get('/dashboard/:userId', async (req, res) => {
           .eq('user_id', numericUserId)
           .single()
 
-        if (data) {
+        if (error) {
+          console.warn('[Dashboard] Supabase query error:', error.message);
+        } else if (data) {
+          console.log('[Dashboard] ✅ Found profile in Supabase for user:', numericUserId);
+          console.log('[Dashboard] Profile data:', {
+            quizzes_taken: data.quizzes_taken,
+            weak_areas_count: data.weak_areas?.length || 0,
+            last_updated: data.last_updated
+          });
           // Parse weak_areas array properly - ensure they include topic names
           const weakAreasArray = data.weak_areas || [];
           const parsedWeakAreas = weakAreasArray.map((area, idx) => {
@@ -1327,14 +1339,12 @@ router.post('/analyze', async (req, res) => {
       // Updated learning profile
       learningProfile: {
         userId,
-        weakAreas: Object.entries(topicFeedback || {})
-          .filter(([_, data]) => data.performance === 'WEAK')
-          .map(([topic]) => topic),
-        strongAreas: Object.entries(topicFeedback || {})
-          .filter(([_, data]) => data.performance === 'STRONG')
-          .map(([topic]) => topic),
+        scores: learningProfile.scores || {},
+        proficiency: learningProfile.proficiency || {},
+        weakAreas: learningProfile.weakAreas || [],
+        strongAreas: learningProfile.strongAreas || [],
         recommendations: learningProfile.recommendations || [],
-        learningPath: learningProfile.learningPath,
+        learningPath: learningProfile.learningPath || null,
         quizzesTaken: quizzesTaken,
         roadmapUnlocked: shouldGenerateRoadmap
       },
@@ -1378,18 +1388,39 @@ router.post('/analyze', async (req, res) => {
       // Topic-by-topic analysis
       topicAnalysis: aiAnalysis.topicAnalysis || [],
       
-      // Answer details for review (WITHOUT explanation - user requested removal)
-      answerDetails: questions.map((question, idx) => ({
-        questionId: question.id,
-        questionText: question.question || question.text,
-        topic: question.topic || 'Chung',
-        difficulty: question.difficulty || '1',
-        studentAnswer: answerArray[idx],
-        correctAnswer: question.answerIndex,
-        options: question.options,
-        isCorrect: question.answerIndex === answerArray[idx]
-        // explanation removed as requested
-      })),
+      // Answer details for review - includes all question types
+      answerDetails: questions.map((question, idx) => {
+        let qType = 'multiple-choice';
+        if (question.statements && Array.isArray(question.statements)) {
+          qType = 'true-false';
+        } else if (question.numerical_answer !== undefined || question.text_answer !== undefined) {
+          qType = 'short-answer';
+        }
+        
+        const detail = {
+          questionId: question.id,
+          questionText: question.question || question.text,
+          questionType: qType,
+          topic: question.topic || 'Chung',
+          difficulty: question.difficulty || '1',
+          studentAnswer: answerArray[idx],
+          isCorrect: isAnswerCorrect(question, answerArray[idx])
+        };
+        
+        // Include appropriate answer fields based on question type
+        if (question.options && Array.isArray(question.options)) {
+          detail.options = question.options;
+          detail.correctAnswer = question.answerIndex;
+        } else if (question.statements && Array.isArray(question.statements)) {
+          detail.statements = question.statements;
+        } else if (question.text_answer !== undefined) {
+          detail.correctAnswer = question.text_answer;
+        } else if (question.numerical_answer !== undefined) {
+          detail.correctAnswer = question.numerical_answer;
+        }
+        
+        return detail;
+      }),
       
       // Additional AI insights
       aiSummary: aiAnalysis.summary,
