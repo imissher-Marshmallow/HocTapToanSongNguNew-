@@ -597,8 +597,17 @@ router.get('/quiz/personalized', async (req, res) => {
 
     // Remove answers from quiz before sending to client
     const quizForClient = personalizedQuiz.map(q => {
+      // Detect question type based on structure
+      let qType = 'multiple-choice';
+      if (q.statements && Array.isArray(q.statements)) {
+        qType = 'true-false';
+      } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
+        qType = 'short-answer';
+      }
+      
       const questionData = {
         id: q.id,
+        type: qType,  // Include type for frontend
         topic: q.topic,
         question: q.question,
         english_question: q.english_question,
@@ -646,14 +655,20 @@ router.get('/quiz/personalized', async (req, res) => {
  * Handles multiple choice, true/false, and short answer questions
  */
 function isAnswerCorrect(question, studentAnswer) {
-  // For multiple choice questions
+  // Null/undefined answer is always wrong
+  if (studentAnswer === null || studentAnswer === undefined) {
+    return false;
+  }
+  
+  // For multiple choice questions - compare by index
   if (question.answerIndex !== undefined) {
-    return question.answerIndex === studentAnswer;
+    const answerIndex = parseInt(studentAnswer, 10);
+    return !isNaN(answerIndex) && question.answerIndex === answerIndex;
   }
   
   // For true/false questions with statements
   if (question.statements && Array.isArray(question.statements)) {
-    if (!studentAnswer || typeof studentAnswer !== 'object') {
+    if (typeof studentAnswer !== 'object' || studentAnswer === null) {
       return false; // Unanswered
     }
     // Check if all statements were answered correctly
@@ -662,9 +677,8 @@ function isAnswerCorrect(question, studentAnswer) {
     });
   }
   
-  // For short answer questions
+  // For short answer questions (text matching)
   if (question.text_answer !== undefined) {
-    if (!studentAnswer) return false;
     // Case-insensitive comparison
     return String(studentAnswer).toLowerCase().trim() === 
            String(question.text_answer).toLowerCase().trim();
@@ -672,12 +686,38 @@ function isAnswerCorrect(question, studentAnswer) {
   
   // For numerical answer questions
   if (question.numerical_answer !== undefined) {
-    if (!studentAnswer) return false;
     const tolerance = 0.01; // Allow small floating point differences
     const studentNum = parseFloat(studentAnswer);
     const correctNum = parseFloat(question.numerical_answer);
-    return Math.abs(studentNum - correctNum) < tolerance;
+    return !isNaN(studentNum) && Math.abs(studentNum - correctNum) < tolerance;
   }
+  
+  return false;
+}
+
+/**
+ * Calculate partial credit for an answer (especially for true/false with multiple statements)
+ * Returns a number from 0 to 1 representing the fraction of the answer that is correct
+ */
+function calculatePartialCredit(question, studentAnswer) {
+  // For true/false questions, calculate per-statement accuracy
+  if (question.statements && Array.isArray(question.statements)) {
+    if (studentAnswer === null || studentAnswer === undefined || typeof studentAnswer !== 'object') {
+      return 0; // No answer
+    }
+    
+    let correctStatements = 0;
+    question.statements.forEach((stmt, idx) => {
+      if (studentAnswer[idx] === stmt.is_true) {
+        correctStatements++;
+      }
+    });
+    
+    return correctStatements / question.statements.length;
+  }
+  
+  // For other question types, it's either 1 (correct) or 0 (incorrect)
+  return isAnswerCorrect(question, studentAnswer) ? 1 : 0;
   
   return false;
 }
@@ -908,8 +948,12 @@ router.post('/analyze', async (req, res) => {
       }
       
       const isCorrect = isAnswerCorrect(question, answerArray[idx])
-      if (isCorrect) {
-        topicAnalysis[topic].correct += 1
+      // For true/false, add partial credit per statement
+      if (question.statements && Array.isArray(question.statements)) {
+        const partialCredit = calculatePartialCredit(question, answerArray[idx]);
+        topicAnalysis[topic].correct += partialCredit;
+      } else if (isCorrect) {
+        topicAnalysis[topic].correct += 1;
       }
       topicAnalysis[topic].percentage = Math.round((topicAnalysis[topic].correct / topicAnalysis[topic].total) * 100)
     })
@@ -953,7 +997,7 @@ router.post('/analyze', async (req, res) => {
     // ============================================
     // BALANCED 10-POINT SCORING SYSTEM
     // ============================================
-    // True/False: 0.25 pts each (4 T/F = 1 pt)
+    // True/False: 0.25 pts per statement (4 statements = 1 pt total per question)
     // Multiple Choice: 1 pt each
     // Short Answer: 1 pt each
     // Normalize to 10-point scale
@@ -963,16 +1007,30 @@ router.post('/analyze', async (req, res) => {
     
     questions.forEach((q, i) => {
       const studentAnswer = answerArray[i]
-      const isCorrect = q.answerIndex === studentAnswer
       
-      let pointValue = 1.0;
-      if (q.type === 'true_false' || q.questionType === 'true_false') {
-        pointValue = 0.25;
-      }
-      
-      maxPossiblePoints += pointValue;
-      if (isCorrect) {
-        totalPoints += pointValue;
+      // For true/false questions with multiple statements, award points per statement
+      if (q.statements && Array.isArray(q.statements)) {
+        const statementCount = q.statements.length;
+        const pointPerStatement = 1.0 / statementCount; // Each statement worth equal points
+        
+        maxPossiblePoints += 1.0; // Total 1 point per true/false question
+        
+        // Check each statement individually
+        if (studentAnswer && typeof studentAnswer === 'object') {
+          q.statements.forEach((stmt, idx) => {
+            if (studentAnswer[idx] === stmt.is_true) {
+              totalPoints += pointPerStatement;
+            }
+          });
+        }
+        // If no answer for this question, contribute 0 points
+      } else {
+        // Regular multiple choice or short answer
+        const isCorrect = isAnswerCorrect(q, studentAnswer);
+        maxPossiblePoints += 1.0;
+        if (isCorrect) {
+          totalPoints += 1.0;
+        }
       }
     });
     
@@ -984,7 +1042,9 @@ router.post('/analyze', async (req, res) => {
       rawPoints: totalPoints,
       maxPoints: maxPossiblePoints,
       scoreOutOf10: scoreOutOf10,
-      percentage: Math.round((scoreOutOf10 / maxScore) * 100)
+      percentage: Math.round((scoreOutOf10 / maxScore) * 100),
+      questionsCount: questions.length,
+      answersCount: answerArray.length
     })
 
     // ============================================
@@ -1087,8 +1147,17 @@ router.post('/analyze', async (req, res) => {
       topicFeedback,
       timeSpent: req.body.timeSpent || 0,
       answerDetails: questions.map((question, idx) => {
+        // Detect question type based on structure
+        let qType = 'multiple-choice';
+        if (question.statements && Array.isArray(question.statements)) {
+          qType = 'true-false';
+        } else if (question.numerical_answer !== undefined || question.text_answer !== undefined) {
+          qType = 'short-answer';
+        }
+        
         const answerDetail = {
           questionId: question.id,
+          questionType: qType,
           questionText: question.question || question.text,
           topic: question.topic || 'Chung',
           difficulty: question.difficulty || '1',

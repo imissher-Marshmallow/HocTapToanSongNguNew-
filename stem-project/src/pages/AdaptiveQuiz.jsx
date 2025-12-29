@@ -172,6 +172,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       // Convert from index-based answers to question ID format
       const formattedAnswers = quiz.questions.map((q, idx) => ({
         questionId: q.id,
+        questionType: q.type || 'multiple-choice',  // Include question type
         answer: answers[idx] || null
       }));
 
@@ -182,7 +183,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         totalQuestions: quiz.questions.length,
         answeredQuestions: answeredQuestions.length,
         unansweredQuestions: quiz.questions.length - answeredQuestions.length,
-        allAnswers: formattedAnswers.map(a => ({ id: a.questionId, answered: a.answer !== null }))
+        allAnswers: formattedAnswers.map(a => ({ id: a.questionId, type: a.questionType, answered: a.answer !== null }))
       });
 
       // Require at least one answer before submitting
@@ -667,11 +668,31 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
               <div className="review-grid" style={{ display: 'grid', gap: '1.5rem' }}>
                 {quizQuestions.map((question, idx) => {
                   const userAnswer = quizAnswers[idx];
-                  const isAnswered = userAnswer !== null && userAnswer !== undefined;
-                  const isCorrect = question.correctAnswer !== undefined && 
-                    ((question.type === 'true-false' && userAnswer === (question.correctAnswer ? 'true' : 'false')) ||
-                     (question.type === 'short-answer' && userAnswer?.toLowerCase() === question.text_answer?.toLowerCase()) ||
-                     (question.type === 'multiple-choice' && userAnswer === question.answerIndex));
+                  // For true/false questions, check if the answer object has any properties
+                  const isTrueFalseQuestion = question.type === 'true-false' || (question.statements && Array.isArray(question.statements));
+                  const isAnswered = userAnswer !== null && userAnswer !== undefined && 
+                    (typeof userAnswer === 'object' && isTrueFalseQuestion ? Object.keys(userAnswer).length > 0 : true);
+                  
+                  // Determine correct answer based on question type
+                  let isCorrect = false;
+                  if (isAnswered) {
+                    if (isTrueFalseQuestion && question.statements && Array.isArray(question.statements) && typeof userAnswer === 'object') {
+                      // True/false: all statements must match
+                      isCorrect = question.statements.every((stmt, i) => userAnswer[i] === stmt.is_true);
+                    } else if (question.type === 'short-answer') {
+                      // Short answer: text or numerical matching
+                      if (question.text_answer !== undefined) {
+                        isCorrect = String(userAnswer).toLowerCase().trim() === String(question.text_answer).toLowerCase().trim();
+                      } else if (question.numerical_answer !== undefined) {
+                        const userNum = parseFloat(userAnswer);
+                        const correctNum = parseFloat(question.numerical_answer);
+                        isCorrect = !isNaN(userNum) && Math.abs(userNum - correctNum) < 0.01;
+                      }
+                    } else if (question.type === 'multiple-choice') {
+                      // Multiple choice: index matching
+                      isCorrect = userAnswer === question.answerIndex;
+                    }
+                  }
 
                   return (
                     <motion.div
@@ -710,8 +731,17 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
                           <p style={{ margin: '0', fontSize: '0.9rem', color: '#6b7280' }}>Your Answer:</p>
                           <p style={{ margin: '0.5rem 0 0 0', fontWeight: '600', color: isAnswered ? (isCorrect ? '#10b981' : '#ef4444') : '#6b7280' }}>
                             {isAnswered ? (
-                              question.type === 'true-false' 
-                                ? (userAnswer === 'true' ? '✓ True' : '✗ False')
+                              isTrueFalseQuestion && typeof userAnswer === 'object' && question.statements
+                                ? <div style={{ marginTop: '0.5rem' }}>
+                                    {question.statements.map((stmt, i) => (
+                                      <div key={i} style={{ marginBottom: '0.5rem', padding: '0.5rem', background: '#f3f4f6', borderRadius: '4px' }}>
+                                        <span>{stmt.content_vn || stmt.content_en || `Statement ${i + 1}`}</span>
+                                        <strong style={{ marginLeft: '0.5rem' }}>
+                                          {userAnswer[i] ? '✓ True' : '✗ False'}
+                                        </strong>
+                                      </div>
+                                    ))}
+                                  </div>
                                 : question.type === 'short-answer'
                                 ? `"${userAnswer}"`
                                 : (question.options?.[userAnswer] || `Option ${userAnswer + 1}`)
@@ -719,13 +749,46 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
                           </p>
                         </div>
 
-                        {isAnswered && !isCorrect && (question.type === 'multiple-choice' || question.type === 'true-false') && (
+                        {isAnswered && !isCorrect && (isTrueFalseQuestion) && (
+                          <div>
+                            <p style={{ margin: '0', fontSize: '0.9rem', color: '#6b7280' }}>Correct Answer:</p>
+                            {question.statements && Array.isArray(question.statements) ? (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                {question.statements.map((stmt, i) => (
+                                  <div key={i} style={{ marginBottom: '0.5rem', padding: '0.5rem', background: '#d1fae5', borderRadius: '4px' }}>
+                                    <span>{stmt.content_vn || stmt.content_en || `Statement ${i + 1}`}</span>
+                                    <strong style={{ marginLeft: '0.5rem' }}>
+                                      {stmt.is_true ? '✓ True' : '✗ False'}
+                                    </strong>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p style={{ margin: '0.5rem 0 0 0', fontWeight: '600', color: '#10b981' }}>
+                                {question.correctAnswer ? '✓ True' : '✗ False'}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {isAnswered && !isCorrect && (question.type === 'short-answer') && (
                           <div>
                             <p style={{ margin: '0', fontSize: '0.9rem', color: '#6b7280' }}>Correct Answer:</p>
                             <p style={{ margin: '0.5rem 0 0 0', fontWeight: '600', color: '#10b981' }}>
-                              {question.type === 'true-false'
-                                ? (question.correctAnswer ? '✓ True' : '✗ False')
-                                : (question.options?.[question.answerIndex] || `Option ${question.answerIndex + 1}`)}
+                              {question.text_answer 
+                                ? `"${question.text_answer}"` 
+                                : (question.numerical_answer !== undefined 
+                                  ? `${question.numerical_answer}` 
+                                  : 'Not available')}
+                            </p>
+                          </div>
+                        )}
+
+                        {isAnswered && !isCorrect && (question.type === 'multiple-choice') && (
+                          <div>
+                            <p style={{ margin: '0', fontSize: '0.9rem', color: '#6b7280' }}>Correct Answer:</p>
+                            <p style={{ margin: '0.5rem 0 0 0', fontWeight: '600', color: '#10b981' }}>
+                              {question.options?.[question.correctAnswer] || (question.answerIndex !== undefined ? question.options?.[question.answerIndex] : 'Not available')}
                             </p>
                           </div>
                         )}
@@ -1060,7 +1123,7 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.36 }}
           >
-            <h2>💬 Phản hồi từ AI Coach</h2>
+            <h2>Phản hồi từ AI Coach</h2>
             <div className="feedback-content">
               <p>{results.aiCoachFeedback}</p>
               <small style={{color: '#666', marginTop: '10px', display: 'block'}}>
@@ -1265,15 +1328,45 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
                   
                   <div className="question-answers">
                     <div className="answer-section">
-                      <p><strong>Câu trả lời của bạn:</strong> {detail.options && detail.options.length > 0 ? (detail.options[detail.studentAnswer] || 'Không trả lời') : 'Không trả lời'}</p>
+                      <p><strong>Câu trả lời của bạn:</strong> {
+                        detail.questionType === 'true_false' || detail.statements
+                          ? // For True/False questions
+                            detail.statements ? detail.statements.map((stmt, idx) => (
+                              <div key={idx} style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#f3f4f6', borderRadius: '4px' }}>
+                                <span>{stmt.content_vn || stmt.content_en || 'Statement'}</span>
+                                <strong style={{ marginLeft: '0.5rem' }}>
+                                  {detail.studentAnswer && detail.studentAnswer[idx] !== undefined 
+                                    ? detail.studentAnswer[idx] ? '✓ Đúng' : '✗ Sai'
+                                    : '⭕ Không trả lời'}
+                                </strong>
+                              </div>
+                            )) : 'Không trả lời'
+                          : detail.options && detail.options.length > 0 
+                            ? (detail.options[detail.studentAnswer] || 'Không trả lời') 
+                            : 'Không trả lời'
+                      }</p>
                       <p className={`answer-status ${detail.isCorrect ? 'correct' : 'incorrect'}`}>
-                        {detail.isCorrect ? ' Chính xác' : ' Chưa chính xác'}
+                        {detail.isCorrect ? ' ✓ Chính xác' : ' ✗ Chưa chính xác'}
                       </p>
                     </div>
                     
-                    {!detail.isCorrect && (
+                    {!detail.isCorrect && detail.statements && detail.statements.length > 0 && (
                       <div className="answer-section">
-                        <p><strong>Đáp án đúng:</strong> {detail.options && detail.options.length > 0 ? detail.options[detail.correctAnswer] : 'Không có'}</p>
+                        <p><strong>Đáp án đúng:</strong></p>
+                        {detail.statements.map((stmt, idx) => (
+                          <div key={idx} style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#d1fae5', borderRadius: '4px' }}>
+                            <span>{stmt.content_vn || stmt.content_en || 'Statement'}</span>
+                            <strong style={{ marginLeft: '0.5rem' }}>
+                              {stmt.is_true ? '✓ Đúng' : '✗ Sai'}
+                            </strong>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {!detail.isCorrect && detail.options && detail.options.length > 0 && (
+                      <div className="answer-section">
+                        <p><strong>Đáp án đúng:</strong> {detail.options[detail.correctAnswer] || 'Không có'}</p>
                       </div>
                     )}
                   </div>
