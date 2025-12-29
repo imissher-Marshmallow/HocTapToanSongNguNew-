@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, TrendingUp, Lock, CheckCircle } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Spinner from '../components/Spinner';
 import '../styles/LearningProfile.css';
@@ -104,7 +104,7 @@ const translations = {
 };
 
 export default function LearningProfile({ userId }) {
-  const { user: authUser } = useAuth();
+  const { user: authUser, token } = useAuth();
   const { language } = useLanguage();
   const navigate = useNavigate();
   const t = translations[language] || translations.vi;
@@ -162,6 +162,39 @@ export default function LearningProfile({ userId }) {
       console.error('[LearningProfile] Error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartAdaptiveQuiz = async () => {
+    try {
+      const apiBase = getApiBase();
+      
+      const response = await fetch(`${apiBase}/api/adaptive/quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          userId: finalUserId,
+          quizType: 'personalized'
+        })
+      });
+
+      if (response.ok) {
+        const quizData = await response.json();
+        navigate('/adaptive-quiz', {
+          state: {
+            quiz: quizData.quiz,
+            recommendation: quizData.recommendation,
+            quizType: 'personalized'
+          }
+        });
+      } else {
+        console.error('Failed to generate quiz:', response.status);
+      }
+    } catch (error) {
+      console.error('Error generating adaptive quiz:', error);
     }
   };
 
@@ -242,7 +275,7 @@ export default function LearningProfile({ userId }) {
           
           <button
             className="btn-primary-large"
-            onClick={() => navigate('/adaptive-quiz-select')}
+            onClick={handleStartAdaptiveQuiz}
           >
             {t.startPrimaryAction}
           </button>
@@ -371,7 +404,7 @@ export default function LearningProfile({ userId }) {
             {insight.activeWeek >= 2 && (
               <button
                 className="btn-level-unlock"
-                onClick={() => navigate('/adaptive-quiz-select?level=high')}
+                onClick={handleStartAdaptiveQuiz}
               >
                 Start High Application
               </button>
@@ -399,7 +432,7 @@ export default function LearningProfile({ userId }) {
             {insight.activeWeek >= 3 && (
               <button
                 className="btn-level-unlock"
-                onClick={() => navigate('/adaptive-quiz-select?level=analysis')}
+                onClick={handleStartAdaptiveQuiz}
               >
                 Start Analysis Level
               </button>

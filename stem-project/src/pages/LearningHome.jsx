@@ -106,6 +106,38 @@ function LearningHome() {
     icon: area.icon || '💪'
   }));
 
+  const handleStartAdaptiveQuiz = async () => {
+    try {
+      const apiBase = getApiBase();
+      
+      const response = await fetch(`${apiBase}/api/adaptive/quiz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          userId: userId,
+          quizType: 'personalized'
+        })
+      });
+
+      if (response.ok) {
+        const quizData = await response.json();
+        navigate('/adaptive-quiz', {
+          state: {
+            quiz: quizData.quiz,
+            recommendation: quizData.recommendation,
+            quizType: 'personalized'
+          }
+        });
+      } else {
+        console.error('Failed to generate quiz:', response.status);
+      }
+    } catch (error) {
+      console.error('Error generating adaptive quiz:', error);
+    }
+  };
 
   const getStreakMessage = () => {
     if (language === 'vi') {
@@ -240,7 +272,7 @@ function LearningHome() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 + index * 0.05 }}
                     whileHover={{ y: -4 }}
-                    onClick={() => navigate('/adaptive-quiz-select')}
+                    onClick={handleStartAdaptiveQuiz}
                   >
                     <div className="area-icon">{area.icon}</div>
                     <h3>{area.name}</h3>
@@ -283,7 +315,7 @@ function LearningHome() {
               <QuickActionButton
                 icon="📝"
                 label={language === 'vi' ? 'Bài Kiểm Tra Thích Hợp' : 'Adaptive Quiz'}
-                onClick={() => navigate('/adaptive-quiz-select')}
+                onClick={handleStartAdaptiveQuiz}
               />
               <QuickActionButton
                 icon="📚"

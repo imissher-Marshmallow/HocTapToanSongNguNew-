@@ -55,33 +55,42 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     if (location.state?.quiz) {
       console.log('[AdaptiveQuiz] Using quiz from location state');
       const quizData = Array.isArray(location.state.quiz) ? location.state.quiz : location.state.quiz.questions || [];
+      console.log('[AdaptiveQuiz] Raw quiz data:', quizData);
       
-      const questionsWithIds = quizData.map((q, idx) => {
-        // Detect question type based on structure
-        let qType = 'multiple-choice';
-        if (q.statements && Array.isArray(q.statements)) {
-          qType = 'true-false';
-        } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
-          qType = 'short-answer';
-        }
-        
-        return {
-          ...q,
-          id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`,
-          type: qType
-        };
-      });
+      if (quizData.length > 0) {
+        const questionsWithIds = quizData.map((q, idx) => {
+          // Detect question type based on structure
+          let qType = 'multiple-choice';
+          if (q.statements && Array.isArray(q.statements)) {
+            qType = 'true-false';
+          } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
+            qType = 'short-answer';
+          }
+          
+          return {
+            ...q,
+            id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`,
+            type: qType
+          };
+        });
 
-      setQuiz({
-        questions: questionsWithIds,
-        userId: finalUserId,
-        questionCount: questionsWithIds.length,
-        recommendation: location.state.recommendation,
-        quizType: location.state.quizType
-      });
-      setTimeStarted(Date.now());
-      setLoading(false);
+        const newQuiz = {
+          questions: questionsWithIds,
+          userId: finalUserId,
+          questionCount: questionsWithIds.length,
+          recommendation: location.state.recommendation,
+          quizType: location.state.quizType
+        };
+        console.log('[AdaptiveQuiz] Setting quiz with', questionsWithIds.length, 'questions');
+        setQuiz(newQuiz);
+        setTimeStarted(Date.now());
+        setLoading(false);
+      } else {
+        console.error('[AdaptiveQuiz] Quiz data is empty');
+        setLoading(false);
+      }
     } else if (finalUserId) {
+      console.log('[AdaptiveQuiz] No location state, loading personalized quiz');
       loadPersonalizedQuiz();
     }
   }, [finalUserId, location.state]);

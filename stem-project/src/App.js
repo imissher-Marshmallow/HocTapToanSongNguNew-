@@ -13,7 +13,7 @@ import Study from './pages/Study';
 import Resources from './pages/Resources';
 import History from './pages/History';
 import AdaptiveQuiz from './pages/AdaptiveQuiz';
-import AdaptiveQuizSelect from './pages/AdaptiveQuizSelect';
+// Removed: AdaptiveQuizSelect - Now auto-generates adaptive quiz directly
 import LearningProfile from './pages/LearningProfile';
 import Signup from './components/Signup';
 import Signin from './components/Signin';
@@ -87,14 +87,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/adaptive-quiz-select"
-                  element={
-                    <ProtectedRoute>
-                      <AdaptiveQuizSelect />
-                    </ProtectedRoute>
-                  }
-                />
+                {/* Removed: /adaptive-quiz-select route - Now auto-generates adaptive quiz directly */}
                 <Route
                   path="/learning-profile"
                   element={

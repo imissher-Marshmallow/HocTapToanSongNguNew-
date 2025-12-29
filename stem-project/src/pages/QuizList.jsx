@@ -146,9 +146,40 @@ export default function QuizList() {
     return '#f59e0b';
   };
 
-  const handleStartQuiz = (quiz) => {
+  const handleStartQuiz = async (quiz) => {
     if (quiz.type === 'adaptive') {
-      navigate('/adaptive-quiz-select');
+      // Auto-generate personalized adaptive quiz without selection screen
+      try {
+        const userId = getUserId();
+        const apiBase = getApiBase();
+        
+        const response = await fetch(`${apiBase}/api/adaptive/quiz`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({
+            userId,
+            quizType: 'personalized' // Auto-select personalized type
+          })
+        });
+
+        if (response.ok) {
+          const quizData = await response.json();
+          navigate('/adaptive-quiz', {
+            state: {
+              quiz: quizData.quiz,
+              recommendation: quizData.recommendation,
+              quizType: 'personalized'
+            }
+          });
+        } else {
+          console.error('Failed to generate quiz:', response.status);
+        }
+      } catch (error) {
+        console.error('Error generating adaptive quiz:', error);
+      }
     } else if (quiz.type === 'chapter' && quiz.chapterId) {
       const contestNum = currentPageData.contests[Math.floor(Math.random() * currentPageData.contests.length)];
       const quizPath = `${quiz.chapterId}-${contestNum}`;
@@ -304,8 +335,8 @@ export default function QuizList() {
           onYes={() => {
             setShowHardModePopup(false);
             if (hardModeQuiz.type === 'adaptive') {
-              // For adaptive quiz, go to adaptive quiz select page for hard mode
-              navigate('/adaptive-quiz-select', { state: { hardMode: true } });
+              // For adaptive quiz, auto-generate hard mode adaptive quiz directly
+              handleStartQuiz({ type: 'adaptive' });
             } else if (hardModeQuiz.chapterId) {
               // For regular quizzes, navigate to hard mode quiz
               const quizPath = `${hardModeQuiz.chapterId}-${[4, 5][Math.floor(Math.random() * 2)]}`;
