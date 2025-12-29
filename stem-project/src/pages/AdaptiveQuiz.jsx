@@ -148,7 +148,12 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         ...prev,
         [questionIndex]: selectedAnswer
       };
-      console.log('[AdaptiveQuiz] Answer selected - Index:', questionIndex, 'Answer:', selectedAnswer, 'All Answers:', updated);
+      // Better logging for object answers (true/false)
+      let answerDisplay = selectedAnswer;
+      if (typeof selectedAnswer === 'object' && selectedAnswer !== null) {
+        answerDisplay = JSON.stringify(selectedAnswer);
+      }
+      console.log('[AdaptiveQuiz] Answer selected - Index:', questionIndex, 'Answer:', answerDisplay, 'AllAnswers:', updated);
       return updated;
     });
   };

@@ -679,9 +679,10 @@ function isAnswerCorrect(question, studentAnswer) {
   
   // For short answer questions (text matching)
   if (question.text_answer !== undefined) {
-    // Case-insensitive comparison
-    return String(studentAnswer).toLowerCase().trim() === 
-           String(question.text_answer).toLowerCase().trim();
+    // Remove all spaces and convert to lowercase for comparison
+    const studentText = String(studentAnswer).toLowerCase().replace(/\s+/g, '').trim();
+    const correctText = String(question.text_answer).toLowerCase().replace(/\s+/g, '').trim();
+    return studentText === correctText;
   }
   
   // For numerical answer questions
@@ -934,20 +935,21 @@ router.post('/analyze', async (req, res) => {
       }
       topicAnalysis[topic].total += 1
       
-      // Debug answer comparison
-      if (idx < 3) {
-        console.log(`[Analyze] Answer comparison debug for question ${idx}:`, {
-          questionId: question.id,
-          hasAnswerIndex: question.answerIndex !== undefined,
-          answerIndex: question.answerIndex,
-          answerArrayValue: answerArray[idx],
-          answerArrayType: typeof answerArray[idx],
-          isCorrect: isAnswerCorrect(question, answerArray[idx]),
-          comparison: `${question.answerIndex} === ${answerArray[idx]}`
-        })
-      }
-      
+      // Debug answer validation for each question
       const isCorrect = isAnswerCorrect(question, answerArray[idx])
+      
+      console.log(`[Analyze] Question ${idx + 1} validation:`, {
+        questionId: question.id,
+        questionType: question.statements ? 'true-false' : (question.text_answer !== undefined ? 'short-text' : (question.numerical_answer !== undefined ? 'short-numeric' : 'multiple-choice')),
+        hasAnswerIndex: question.answerIndex !== undefined,
+        hasStatements: question.statements ? question.statements.length : 0,
+        hasTextAnswer: question.text_answer !== undefined,
+        hasNumericalAnswer: question.numerical_answer !== undefined,
+        studentAnswer: typeof answerArray[idx] === 'object' ? JSON.stringify(answerArray[idx]) : answerArray[idx],
+        studentAnswerType: typeof answerArray[idx],
+        isCorrect: isCorrect,
+        topic: topic
+      })
       // For true/false, add partial credit per statement
       if (question.statements && Array.isArray(question.statements)) {
         const partialCredit = calculatePartialCredit(question, answerArray[idx]);
