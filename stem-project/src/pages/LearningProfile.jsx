@@ -238,6 +238,9 @@ export default function LearningProfile({ userId }) {
     );
   }
 
+  // Extract topic performance data from insight
+  const topicPerformance = insight?.topicPerformance || {};
+
   return (
     <div className="learning-profile-ai">
       {/* Header */}
