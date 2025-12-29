@@ -14,6 +14,7 @@ function Footer() {
           <a href="#about">Giới thiệu</a>
           <a href="#contact">Liên hệ</a>
           <a href="#faq">Hỏi đáp</a>
+          <a href="https://fconline.garena.vn/">FCO for bobo</a>
         </div>
 
         <div className="footer-right">
