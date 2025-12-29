@@ -413,9 +413,10 @@ router.get('/dashboard/:userId', async (req, res) => {
         const { data, error } = await supabase
           .from('user_learning_profiles')
           .select(`
-            id, user_id, cognitive_levels, weak_areas, strong_areas, 
-            proficiency_status, recommendations, learning_path, 
-            quizzes_taken, last_updated, created_at
+            id, user_id, cognitive_levels, weak_areas, strong_areas,
+            proficiency_status, recommendations, learning_path,
+            quizzes_taken, last_updated, created_at,
+            topic_performance, topics_attempted, first_quiz_completed
           `)
           .eq('user_id', numericUserId)
           .single()
@@ -466,7 +467,11 @@ router.get('/dashboard/:userId', async (req, res) => {
             learningPath: data.learning_path, // AI-generated roadmap from Supabase
             quizzesTaken: data.quizzes_taken || 0,
             lastUpdated: data.last_updated,
-            createdAt: data.created_at
+            createdAt: data.created_at,
+            // New fields for topic performance and first-quiz tracking
+            topic_performance: data.topic_performance || {},
+            topics_attempted: data.topics_attempted || [],
+            first_quiz_completed: data.first_quiz_completed || false
           }
         }
       } catch (err) {

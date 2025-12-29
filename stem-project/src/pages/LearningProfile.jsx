@@ -198,6 +198,29 @@ export default function LearningProfile({ userId }) {
     }
   };
 
+  // Calculate score for each Bloom's level based on topic performance
+  const calculateLevelScore = (topicPerf, level) => {
+    if (!topicPerf || Object.keys(topicPerf).length === 0) return 0;
+    
+    const topicScores = Object.values(topicPerf)
+      .filter(topic => topic.skill_level === level)
+      .map(topic => topic.accuracy_percentage || 0);
+    
+    if (topicScores.length === 0) return 0;
+    
+    const average = topicScores.reduce((a, b) => a + b, 0) / topicScores.length;
+    return Math.min(Math.round(average), 100);
+  };
+
+  // Get proficiency badge text based on score
+  const getProficiencyBadge = (score) => {
+    if (score === 0) return 'NOT_STARTED';
+    if (score < 40) return 'STRUGGLING';
+    if (score < 60) return 'DEVELOPING';
+    if (score < 80) return 'PROFICIENT';
+    return 'MASTERED';
+  };
+
   if (loading) {
     return (
       <div className="learning-profile-ai">
@@ -249,6 +272,88 @@ export default function LearningProfile({ userId }) {
           </div>
         </motion.div>
       </section>
+
+      {/* ========== TOPIC PERFORMANCE PANEL ========== */}
+      {insight?.topicPerformance && Object.keys(insight.topicPerformance).length > 0 && (
+        <section className="topic-performance-section">
+          <h2>
+            <TrendingUp size={24} />
+            📊 {language === 'vi' ? 'Hiệu Suất Theo Chủ Đề' : 'Topic Performance'}
+          </h2>
+          
+          <div className="topics-grid">
+            {Object.entries(insight.topicPerformance).slice(0, 5).map(([topicName, data], idx) => {
+              const skillLevels = {
+                1: { name: language === 'vi' ? 'Nhớ' : 'Remember', color: '#ef4444' },
+                2: { name: language === 'vi' ? 'Hiểu' : 'Understand', color: '#f97316' },
+                3: { name: language === 'vi' ? 'Áp Dụng' : 'Apply', color: '#eab308' },
+                4: { name: language === 'vi' ? 'Phân Tích' : 'Analyze', color: '#22c55e' }
+              };
+              
+              const level = data.skill_level || 1;
+              const accuracy = data.accuracy || 0;
+              const skillInfo = skillLevels[level];
+              
+              return (
+                <motion.div
+                  key={topicName}
+                  className="topic-card"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  style={{
+                    borderLeftColor: skillInfo.color,
+                    borderLeftWidth: '4px'
+                  }}
+                >
+                  <div className="topic-header">
+                    <h4>{topicName}</h4>
+                    <span 
+                      className="skill-badge"
+                      style={{ backgroundColor: skillInfo.color }}
+                    >
+                      {skillInfo.name}
+                    </span>
+                  </div>
+                  
+                  <div className="topic-stats">
+                    <div className="stat-item">
+                      <span className="stat-label">{language === 'vi' ? 'Chính xác' : 'Accuracy'}</span>
+                      <span className="stat-value">{accuracy}%</span>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill"
+                          style={{ width: `${accuracy}%`, backgroundColor: skillInfo.color }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="stat-item">
+                      <span className="stat-label">{language === 'vi' ? 'Câu Hỏi' : 'Questions'}</span>
+                      <span className="stat-value">{data.questions_correct}/{data.questions_total}</span>
+                    </div>
+                  </div>
+                  
+                  {data.last_updated && (
+                    <div className="topic-footer">
+                      <small>
+                        {language === 'vi' ? 'Cập nhật lần cuối: ' : 'Last updated: '}
+                        {new Date(data.last_updated).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')}
+                      </small>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+          
+          <p className="topic-note">
+            {language === 'vi' 
+              ? '💡 Chỉ cập nhật từ bài kiểm tra thích ứng. Bài tập luyện không ảnh hưởng đến điểm kỹ năng chủ đề.'
+              : '💡 Only updated from adaptive quizzes. Practice quizzes do not affect topic skill scores.'}
+          </p>
+        </section>
+      )}
 
       {/* ========== PRIMARY ACTION ========== */}
       <section className="primary-action-section">
@@ -378,66 +483,153 @@ export default function LearningProfile({ userId }) {
         </section>
       )}
 
-      {/* ========== OTHER LEARNING LEVELS ========== */}
-      <section className="other-levels-section">
-        <h2>Other Learning Levels</h2>
+      {/* ========== LEARNING LEVELS PROGRESSION ========== */}
+      <section className="learning-levels-section">
+        <h2>
+          <TrendingUp size={24} />
+          {language === 'vi' ? '📚 Cấp Độ Học Tập' : '📚 Learning Levels'}
+        </h2>
         
         <div className="levels-grid">
-          {/* High Application Level */}
+          {/* Level 1: Remember */}
           <motion.div
-            className={`level-card ${insight.activeWeek >= 2 ? 'unlocked' : 'locked'}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            whileHover={insight.activeWeek >= 2 ? { scale: 1.05 } : {}}
+            className="level-card level-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.02 }}
           >
-            {insight.activeWeek >= 2 ? (
-              <CheckCircle size={32} className="unlocked-icon" />
-            ) : (
-              <Lock size={32} className="locked-icon" />
-            )}
-            <h4>High Application</h4>
-            <p>
-              {insight.activeWeek >= 2 
-                ? '✓ Unlocked - Ready to challenge yourself!' 
-                : `${t.unlockedAfter} Low Application mastery`}
-            </p>
-            {insight.activeWeek >= 2 && (
-              <button
-                className="btn-level-unlock"
-                onClick={handleStartAdaptiveQuiz}
-              >
-                Start High Application
-              </button>
-            )}
+            <div className="level-header">
+              <span className="level-number">1</span>
+              <div>
+                <h4>{language === 'vi' ? 'Nhận Biết' : 'Remember'}</h4>
+              </div>
+            </div>
+            <div className="level-description">
+              {language === 'vi' 
+                ? 'Nhớ và nhận ra các khái niệm cơ bản từ các chủ đề'
+                : 'Recall and recognize fundamental concepts'}
+            </div>
+            <div className="level-score">
+              <div className="score-bar">
+                <div 
+                  className="score-fill"
+                  style={{ width: `${calculateLevelScore(topicPerformance, 1)}%` }}
+                ></div>
+              </div>
+              <span className="score-text">{calculateLevelScore(topicPerformance, 1)}/100</span>
+            </div>
+            <span className="status-badge">
+              {getProficiencyBadge(calculateLevelScore(topicPerformance, 1))}
+            </span>
           </motion.div>
-          
-          {/* Analysis Level */}
+
+          {/* Level 2: Understand */}
           <motion.div
-            className={`level-card ${insight.activeWeek >= 3 ? 'unlocked' : 'locked'}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            whileHover={insight.activeWeek >= 3 ? { scale: 1.05 } : {}}
+            className="level-card level-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ scale: 1.02 }}
           >
-            {insight.activeWeek >= 3 ? (
-              <CheckCircle size={32} className="unlocked-icon" />
-            ) : (
-              <Lock size={32} className="locked-icon" />
-            )}
-            <h4>Analysis Level</h4>
-            <p>
-              {insight.activeWeek >= 3 
-                ? '✓ Unlocked - Master complex problem solving!' 
-                : `${t.unlockedAfter} High Application completion`}
-            </p>
-            {insight.activeWeek >= 3 && (
-              <button
-                className="btn-level-unlock"
-                onClick={handleStartAdaptiveQuiz}
-              >
-                Start Analysis Level
-              </button>
-            )}
+            <div className="level-header">
+              <span className="level-number">2</span>
+              <div>
+                <h4>{language === 'vi' ? 'Thông Hiểu' : 'Understand'}</h4>
+              </div>
+            </div>
+            <div className="level-description">
+              {language === 'vi'
+                ? 'Giải thích ý tưởng và mối quan hệ giữa chúng'
+                : 'Explain ideas and relationships'}
+            </div>
+            <div className="level-score">
+              <div className="score-bar">
+                <div 
+                  className="score-fill"
+                  style={{ width: `${calculateLevelScore(topicPerformance, 2)}%` }}
+                ></div>
+              </div>
+              <span className="score-text">{calculateLevelScore(topicPerformance, 2)}/100</span>
+            </div>
+            <span className="status-badge">
+              {getProficiencyBadge(calculateLevelScore(topicPerformance, 2))}
+            </span>
           </motion.div>
+
+          {/* Level 3: Apply */}
+          <motion.div
+            className="level-card level-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="level-header">
+              <span className="level-number">3</span>
+              <div>
+                <h4>{language === 'vi' ? 'Vận Dụng' : 'Apply'}</h4>
+              </div>
+            </div>
+            <div className="level-description">
+              {language === 'vi'
+                ? 'Áp dụng kiến thức vào các tình huống mới'
+                : 'Use knowledge in new situations'}
+            </div>
+            <div className="level-score">
+              <div className="score-bar">
+                <div 
+                  className="score-fill"
+                  style={{ width: `${calculateLevelScore(topicPerformance, 3)}%` }}
+                ></div>
+              </div>
+              <span className="score-text">{calculateLevelScore(topicPerformance, 3)}/100</span>
+            </div>
+            <span className="status-badge">
+              {getProficiencyBadge(calculateLevelScore(topicPerformance, 3))}
+            </span>
+          </motion.div>
+
+          {/* Level 4: Analyze */}
+          <motion.div
+            className="level-card level-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            whileHover={{ scale: 1.02 }}
+          >
+            <div className="level-header">
+              <span className="level-number">4</span>
+              <div>
+                <h4>{language === 'vi' ? 'Phân Tích' : 'Analyze'}</h4>
+              </div>
+            </div>
+            <div className="level-description">
+              {language === 'vi'
+                ? 'Tách rã và tổng hợp các khái niệm phức tạp'
+                : 'Break down and synthesize complex concepts'}
+            </div>
+            <div className="level-score">
+              <div className="score-bar">
+                <div 
+                  className="score-fill"
+                  style={{ width: `${calculateLevelScore(topicPerformance, 4)}%` }}
+                ></div>
+              </div>
+              <span className="score-text">{calculateLevelScore(topicPerformance, 4)}/100</span>
+            </div>
+            <span className="status-badge">
+              {getProficiencyBadge(calculateLevelScore(topicPerformance, 4))}
+            </span>
+          </motion.div>
+        </div>
+
+        <div className="levels-action">
+          <button 
+            className="btn-practice-all"
+            onClick={handleStartAdaptiveQuiz}
+          >
+            {language === 'vi' ? '🎯 Luyện Tất Cả Cấp Độ' : '🎯 Practice All Levels'}
+          </button>
         </div>
       </section>
 
@@ -472,7 +664,8 @@ async function generateAIInsight(profile, userId) {
           strongAreas: profile.strongAreas || [],
           quizzesTaken: profile.quizzesTaken || 0,
           lastScore: profile.lastScore || 0,
-          roadmapUnlocked: profile.roadmapUnlocked || false
+          roadmapUnlocked: profile.roadmapUnlocked || false,
+          topicPerformance: profile.topic_performance || {}
         }
       })
     });
@@ -491,7 +684,8 @@ async function generateAIInsight(profile, userId) {
         primaryAction: data.primaryAction,
         actionDescription: data.actionDescription,
         activeWeek: data.activeWeek || 2,
-        roadmap: data.roadmap || getDefaultRoadmap()
+        roadmap: data.roadmap || getDefaultRoadmap(),
+        topicPerformance: profile.topic_performance || {}
       };
     } else {
       // Fallback if AI response is incomplete
@@ -555,7 +749,8 @@ function getDefaultAIInsight(profile) {
     primaryAction,
     actionDescription,
     activeWeek,
-    roadmap: getDefaultRoadmap()
+    roadmap: getDefaultRoadmap(),
+    topicPerformance: profile.topic_performance || {}
   };
 }
 

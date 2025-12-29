@@ -1122,11 +1122,19 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
           >
             <h2>⚠️ Areas Needing Improvement</h2>
             <div className="weak-areas-list">
-              {results.learningProfile.weakAreas.map((area, idx) => (
-                <div key={idx} className="weak-area-item">
-                  <span className="weak-area-topic">{area}</span>
-                </div>
-              ))}
+              {results.learningProfile.weakAreas.map((area, idx) => {
+                // Handle both object and string formats
+                const topicName = typeof area === 'string' ? area : area.topWeakTopic || area.levelName || `Level ${area.level}`;
+                const score = typeof area === 'object' ? (area.score || 0) : 0;
+                return (
+                  <div key={`weak-${idx}`} className="weak-area-item">
+                    <span className="weak-area-topic">{topicName}</span>
+                    {score !== undefined && score !== null && (
+                      <span className="weak-area-score">{score}%</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </motion.section>
         )}
@@ -1141,11 +1149,19 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
           >
             <h2>✨ Your Strengths</h2>
             <div className="strong-areas-list">
-              {results.learningProfile.strongAreas.map((area, idx) => (
-                <div key={idx} className="strong-area-item">
-                  <span className="strong-area-topic">{area}</span>
-                </div>
-              ))}
+              {results.learningProfile.strongAreas.map((area, idx) => {
+                // Handle both object and string formats
+                const topicName = typeof area === 'string' ? area : area.topicName || area.levelName || `Level ${area.level}`;
+                const score = typeof area === 'object' ? (area.score || 0) : 0;
+                return (
+                  <div key={`strong-${idx}`} className="strong-area-item">
+                    <span className="strong-area-topic">{topicName}</span>
+                    {score !== undefined && score !== null && (
+                      <span className="strong-area-score">{score}%</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </motion.section>
         )}

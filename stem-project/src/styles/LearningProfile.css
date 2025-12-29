@@ -1269,4 +1269,378 @@ section h2 svg {
   .stats-grid {
     grid-template-columns: 1fr;
   }
+
+  .topics-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ==========================================
+   TOPIC PERFORMANCE SECTION
+   ========================================== */
+
+.topic-performance-section {
+  margin: 3rem 0;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.topic-performance-section h2 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.topic-card {
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.topic-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.topic-header h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  flex: 1;
+}
+
+.skill-badge {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  border-radius: 20px;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.topic-stats {
+  margin-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.35rem;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.topic-footer {
+  text-align: right;
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.topic-note {
+  font-size: 0.95rem;
+  color: #6b7280;
+  text-align: center;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+/* Learning Levels Section - Bloom's Taxonomy */
+.learning-levels-section {
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  border-radius: 12px;
+  padding: 2.5rem;
+  margin-top: 2.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.learning-levels-section h2 {
+  color: #1f2937;
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.levels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.level-card {
+  background: white;
+  border-radius: 10px;
+  padding: 1.5rem;
+  border-left: 4px solid;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.level-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Color themes for each level */
+.level-card.level-1 {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+}
+
+.level-card.level-2 {
+  border-left-color: #f97316;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+}
+
+.level-card.level-3 {
+  border-left-color: #eab308;
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.level-card.level-4 {
+  border-left-color: #22c55e;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+
+.level-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.level-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.level-card.level-1 .level-number {
+  background: #ef4444;
+}
+
+.level-card.level-2 .level-number {
+  background: #f97316;
+}
+
+.level-card.level-3 .level-number {
+  background: #eab308;
+  color: #1f2937;
+}
+
+.level-card.level-4 .level-number {
+  background: #22c55e;
+}
+
+.level-header h4 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.1rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.level-description {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 1.2rem;
+  line-height: 1.4;
+  min-height: 2.8rem;
+}
+
+.level-score {
+  margin-bottom: 1rem;
+}
+
+.score-bar {
+  background: #e5e7eb;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.score-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+.level-card.level-1 .score-fill {
+  background: linear-gradient(90deg, #fca5a5, #ef4444);
+}
+
+.level-card.level-2 .score-fill {
+  background: linear-gradient(90deg, #fed7aa, #f97316);
+}
+
+.level-card.level-3 .score-fill {
+  background: linear-gradient(90deg, #fef3c7, #eab308);
+}
+
+.level-card.level-4 .score-fill {
+  background: linear-gradient(90deg, #bbf7d0, #22c55e);
+}
+
+.score-text {
+  display: block;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.level-card.level-1 .status-badge {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.level-card.level-2 .status-badge {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.level-card.level-3 .status-badge {
+  background: #fef08a;
+  color: #ca8a04;
+}
+
+.level-card.level-4 .status-badge {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.levels-action {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.btn-practice-all {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-practice-all:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.btn-practice-all:active {
+  transform: translateY(0);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .learning-levels-section {
+    padding: 1.5rem;
+  }
+
+  .learning-levels-section h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .levels-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .level-card {
+    padding: 1.2rem;
+  }
+
+  .level-header {
+    margin-bottom: 0.8rem;
+  }
+
+  .level-description {
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    min-height: auto;
+  }
 }
