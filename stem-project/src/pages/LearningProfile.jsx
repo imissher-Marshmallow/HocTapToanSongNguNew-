@@ -358,140 +358,17 @@ export default function LearningProfile({ userId }) {
         </section>
       )}
 
-      {/* ========== PRIMARY ACTION ========== */}
-      <section className="primary-action-section">
-        <h2>
-          <Target size={24} />
-          {t.primaryFocus}
-        </h2>
-        
-        <motion.div
-          className="primary-action-card"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <div className="action-header">
-            <h3>🎯 {insight.primaryAction}</h3>
-            <p className="completion-hint">{t.completionTime}</p>
-          </div>
-          
-          <p className="action-description">{insight.actionDescription}</p>
-          
-          <div className="mastery-note">
-            {t.masteryNotSpeed}
-          </div>
-          
-          <button
-            className="btn-primary-large"
-            onClick={handleStartAdaptiveQuiz}
-          >
-            {t.startPrimaryAction}
-          </button>
-        </motion.div>
-      </section>
-
-      {/* ========== UNLOCK PROGRESS (if roadmap locked) ========== */}
-      {roadmapStatus === 'pending' && (
-        <section className="unlock-progress-section">
-          <motion.div
-            className="unlock-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Lock size={48} className="unlock-icon" />
-            <h3>🔓 {t.fourWeekRoadmap}</h3>
-            <p className="unlock-message">
-              Hoàn thành thêm {Math.max(0, 2 - quizzesTaken)} bài kiểm tra với điểm số ≥ 6.0/10 để mở khóa lộ trình AI của bạn.
-            </p>
-            
-            <div className="progress-tracker">
-              <div className="progress-item">
-                <div className="progress-label">Quizzes Completed: {quizzesTaken}/2</div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${Math.min(100, (quizzesTaken / 2) * 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {lastScore > 0 && (
-                <div className="progress-item">
-                  <div className="progress-label">Last Score: {lastScore}/10</div>
-                  <div className="score-badge" style={{
-                    backgroundColor: lastScore >= 6.0 ? '#4CAF50' : '#FF9800'
-                  }}>
-                    {lastScore >= 6.0 ? '✓ Meets Target' : '⚠️ Below 6.0'}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <p className="unlock-hint">
-              Luyện tập thêm để cải thiện kỹ năng và mở khóa lộ trình 4 tuần được tạo bởi AI.
-            </p>
-          </motion.div>
-        </section>
-      )}
-
-      {/* ========== 4-WEEK ROADMAP (only if unlocked) ========== */}
-      {roadmapStatus === 'generated' && (
-        <section className="roadmap-section">
-          <h2>
-            <TrendingUp size={24} />
-            {t.fourWeekRoadmap}
-          </h2>
-          <p className="roadmap-subtitle">{t.suggestedPath}</p>
-          
-          <div className="roadmap-container">
-            {insight.roadmap.map((week, idx) => (
-              <motion.div
-                key={idx}
-                className={`roadmap-week week-${idx + 1}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <div className="week-badge">
-                  {idx + 1 === insight.activeWeek ? (
-                    <CheckCircle size={20} className="active-indicator" />
-                  ) : idx + 1 < insight.activeWeek ? (
-                    <CheckCircle size={20} className="completed-indicator" />
-                  ) : (
-                    <Lock size={20} className="locked-indicator" />
-                  )}
-                </div>
-                
-                <h4>{t.week} {idx + 1}</h4>
-                
-                <p className="week-focus">{week.focus}</p>
-                <p className="week-detail">{week.detail}</p>
-                
-                {idx + 1 < insight.activeWeek && (
-                  <span className="completed-label">✓ {t.keepGoing}</span>
-                )}
-                
-                {idx + 1 === insight.activeWeek && (
-                  <span className="current-label">→ {t.youreDoingGreat}</span>
-                )}
-                
-                {idx + 1 > insight.activeWeek && (
-                  <span className="locked-label">
-                    {t.unlockedAfter} Week {idx}
-                  </span>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ========== LEARNING LEVELS PROGRESSION ========== */}
+      {/* ========== LEARNING LEVELS PROGRESSION (Near Topic Skills) ========== */}
       <section className="learning-levels-section">
         <h2>
           <TrendingUp size={24} />
-          {language === 'vi' ? '📚 Cấp Độ Học Tập' : '📚 Learning Levels'}
+          {language === 'vi' ? '📚 Cấp Độ Học Tập - 4 Mức Bloom' : '📚 Learning Levels - Bloom\'s Taxonomy'}
         </h2>
+        <p className="section-subtitle">
+          {language === 'vi'
+            ? 'Tiến độ của bạn trên 4 cấp độ nhận thức từ cơ bản đến nâng cao'
+            : 'Your progress across 4 cognitive levels from basic to advanced'}
+        </p>
         
         <div className="levels-grid">
           {/* Level 1: Remember */}
@@ -635,6 +512,134 @@ export default function LearningProfile({ userId }) {
           </button>
         </div>
       </section>
+
+      {/* ========== PRIMARY ACTION ========== */}
+      <section className="primary-action-section">
+        <h2>
+          <Target size={24} />
+          {t.primaryFocus}
+        </h2>
+        
+        <motion.div
+          className="primary-action-card"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <div className="action-header">
+            <h3>🎯 {insight.primaryAction}</h3>
+            <p className="completion-hint">{t.completionTime}</p>
+          </div>
+          
+          <p className="action-description">{insight.actionDescription}</p>
+          
+          <div className="mastery-note">
+            {t.masteryNotSpeed}
+          </div>
+          
+          <button
+            className="btn-primary-large"
+            onClick={handleStartAdaptiveQuiz}
+          >
+            {t.startPrimaryAction}
+          </button>
+        </motion.div>
+      </section>
+
+      {/* ========== UNLOCK PROGRESS (if roadmap locked) ========== */}
+      {roadmapStatus === 'pending' && (
+        <section className="unlock-progress-section">
+          <motion.div
+            className="unlock-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Lock size={48} className="unlock-icon" />
+            <h3>🔓 {t.fourWeekRoadmap}</h3>
+            <p className="unlock-message">
+              Hoàn thành thêm {Math.max(0, 2 - quizzesTaken)} bài kiểm tra với điểm số ≥ 6.0/10 để mở khóa lộ trình AI của bạn.
+            </p>
+            
+            <div className="progress-tracker">
+              <div className="progress-item">
+                <div className="progress-label">Quizzes Completed: {quizzesTaken}/2</div>
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${Math.min(100, (quizzesTaken / 2) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              {lastScore > 0 && (
+                <div className="progress-item">
+                  <div className="progress-label">Last Score: {lastScore}/10</div>
+                  <div className="score-badge" style={{
+                    backgroundColor: lastScore >= 6.0 ? '#4CAF50' : '#FF9800'
+                  }}>
+                    {lastScore >= 6.0 ? '✓ Meets Target' : '⚠️ Below 6.0'}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <p className="unlock-hint">
+              Luyện tập thêm để cải thiện kỹ năng và mở khóa lộ trình 4 tuần được tạo bởi AI.
+            </p>
+          </motion.div>
+        </section>
+      )}
+
+      {/* ========== 4-WEEK ROADMAP (only if unlocked) ========== */}
+      {roadmapStatus === 'generated' && (
+        <section className="roadmap-section">
+          <h2>
+            <TrendingUp size={24} />
+            {t.fourWeekRoadmap}
+          </h2>
+          <p className="roadmap-subtitle">{t.suggestedPath}</p>
+          
+          <div className="roadmap-container">
+            {insight.roadmap.map((week, idx) => (
+              <motion.div
+                key={idx}
+                className={`roadmap-week week-${idx + 1}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+              >
+                <div className="week-badge">
+                  {idx + 1 === insight.activeWeek ? (
+                    <CheckCircle size={20} className="active-indicator" />
+                  ) : idx + 1 < insight.activeWeek ? (
+                    <CheckCircle size={20} className="completed-indicator" />
+                  ) : (
+                    <Lock size={20} className="locked-indicator" />
+                  )}
+                </div>
+                
+                <h4>{t.week} {idx + 1}</h4>
+                
+                <p className="week-focus">{week.focus}</p>
+                <p className="week-detail">{week.detail}</p>
+                
+                {idx + 1 < insight.activeWeek && (
+                  <span className="completed-label">✓ {t.keepGoing}</span>
+                )}
+                
+                {idx + 1 === insight.activeWeek && (
+                  <span className="current-label">→ {t.youreDoingGreat}</span>
+                )}
+                
+                {idx + 1 > insight.activeWeek && (
+                  <span className="locked-label">
+                    {t.unlockedAfter} Week {idx}
+                  </span>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ========== ACTION BUTTONS ========== */}
       <section className="action-buttons-section">

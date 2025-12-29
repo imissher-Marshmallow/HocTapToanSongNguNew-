@@ -738,7 +738,7 @@ router.post('/quiz', async (req, res) => {
     } else if (quizType === 'hard' || quizType === 'hardMode') {
       // Hard mode - more challenging questions (contest 4-5)
       const chapters = questionData.chapters || [];
-      const hardQuestions = [];
+      const hardQuestions = []; //fix
       
       for (const chapter of chapters) {
         const contests = chapter.contests || [];
@@ -1301,6 +1301,51 @@ router.post('/analyze', async (req, res) => {
       : LearningProfileManager.createProfile(userId, assessment)
 
     // ============================================
+    // CALCULATE TOPIC-LEVEL PERFORMANCE
+    // ============================================
+    
+    // Group answers by topic to track which topics were tested
+    const topicPerformanceTemp = {};
+    const topicsAttemptedInQuiz = [];
+    
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      const topic = question.topic || 'General';
+      const isCorrect = isAnswerCorrect(question, answerArray[i]);
+      
+      if (!topicPerformanceTemp[topic]) {
+        topicPerformanceTemp[topic] = {
+          skill_level: 0,
+          accuracy: 0,
+          questions_total: 0,
+          questions_correct: 0,
+          last_updated: new Date().toISOString()
+        };
+        topicsAttemptedInQuiz.push(topic);
+      }
+      
+      topicPerformanceTemp[topic].questions_total += 1;
+      if (isCorrect) topicPerformanceTemp[topic].questions_correct += 1;
+    }
+    
+    // Calculate skill level per topic (1-4 Bloom's levels)
+    for (const topic in topicPerformanceTemp) {
+      const data = topicPerformanceTemp[topic];
+      data.accuracy = Math.round((data.questions_correct / data.questions_total) * 100);
+      
+      // Map accuracy to skill level
+      if (data.accuracy >= 80) {
+        data.skill_level = 4; // Analyze
+      } else if (data.accuracy >= 60) {
+        data.skill_level = 3; // Apply
+      } else if (data.accuracy >= 40) {
+        data.skill_level = 2; // Understand
+      } else {
+        data.skill_level = 1; // Remember
+      }
+    }
+
+    // ============================================
     // ROADMAP GENERATION - After completing all 5 topics
     // ============================================
     
@@ -1308,7 +1353,7 @@ router.post('/analyze', async (req, res) => {
     let shouldGenerateRoadmap = false;
     const quizzesTaken = (currentProfile?.quizzes_taken || 0) + 1;
     const currentTopicsAttempted = currentProfile?.topics_attempted || [];
-    const allTopicsAttempted = new Set([...currentTopicsAttempted, ...topicsAttempted]);
+    const allTopicsAttempted = new Set([...currentTopicsAttempted, ...topicsAttemptedInQuiz]);
     
     // Check if student has attempted at least 5 different topics
     const topicCount = allTopicsAttempted.size;
@@ -1425,47 +1470,9 @@ router.post('/analyze', async (req, res) => {
     // Save to Supabase if available
     if (supabase && learningProfile) {
       try {
-        // Calculate topic-level performance
-        const topicPerformance = {};
-        const topicsAttempted = [];
-        
-        // Group answers by topic
-        for (let i = 0; i < questions.length; i++) {
-          const question = questions[i];
-          const topic = question.topic || 'General';
-          const isCorrect = isAnswerCorrect(question, answerArray[i]);
-          
-          if (!topicPerformance[topic]) {
-            topicPerformance[topic] = {
-              skill_level: 0,
-              accuracy: 0,
-              questions_total: 0,
-              questions_correct: 0,
-              last_updated: new Date().toISOString()
-            };
-            topicsAttempted.push(topic);
-          }
-          
-          topicPerformance[topic].questions_total += 1;
-          if (isCorrect) topicPerformance[topic].questions_correct += 1;
-        }
-        
-        // Calculate skill level per topic (1-4 Bloom's levels)
-        for (const topic in topicPerformance) {
-          const data = topicPerformance[topic];
-          data.accuracy = Math.round((data.questions_correct / data.questions_total) * 100);
-          
-          // Map accuracy to skill level
-          if (data.accuracy >= 80) {
-            data.skill_level = 4; // Analyze
-          } else if (data.accuracy >= 60) {
-            data.skill_level = 3; // Apply
-          } else if (data.accuracy >= 40) {
-            data.skill_level = 2; // Understand
-          } else {
-            data.skill_level = 1; // Remember
-          }
-        }
+        // Use pre-calculated topic performance data
+        const topicPerformance = topicPerformanceTemp;
+        const topicsAttempted = topicsAttemptedInQuiz;
         
         console.log('[Analyze] Topic performance calculated:', {
           topicsCount: Object.keys(topicPerformance).length,
