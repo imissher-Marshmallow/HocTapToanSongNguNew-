@@ -270,8 +270,9 @@ class AdaptiveQuestionSelector {
    */
   static selectQuestionsForLevel(level, count, studentScore, allQuestions) {
     // Filter questions by cognitive level
+    // Note: difficulty can be string or number, so compare as strings
     const levelQuestions = allQuestions.filter(q => 
-      parseInt(q.difficulty) === level
+      String(q.difficulty) === String(level)
     )
 
     if (levelQuestions.length === 0) {

@@ -680,8 +680,14 @@ router.post('/quiz', async (req, res) => {
     // Load questions data
     const questionData = loadQuestionsData();
     if (!questionData || !questionData.chapters) {
+      console.error('[AdaptiveQuiz/Generate] Questions data unavailable');
       return res.status(500).json({ error: 'Questions data unavailable' });
     }
+
+    console.log('[AdaptiveQuiz/Generate] Questions data loaded:', {
+      chaptersCount: questionData.chapters.length,
+      totalQuestions: questionData.chapters.reduce((sum, ch) => sum + (ch.contests || []).reduce((s, c) => s + (c.questions_multiple_choice || []).length + (c.questions_true_false || []).length + (c.questions_short_answer || []).length, 0), 0)
+    });
 
     let quiz = [];
     let recommendation = null;
@@ -705,10 +711,25 @@ router.post('/quiz', async (req, res) => {
     // Generate quiz based on type
     if (quizType === 'personalized') {
       // Standard personalized quiz based on profile
+      // Flatten all questions from chapters
+      const allQuestions = [];
+      for (const chapter of (questionData.chapters || [])) {
+        for (const contest of (chapter.contests || [])) {
+          allQuestions.push(...(contest.questions_multiple_choice || []));
+          allQuestions.push(...(contest.questions_true_false || []));
+          allQuestions.push(...(contest.questions_short_answer || []));
+        }
+      }
+      
+      // Use AdaptiveQuestionSelector with correct parameters
+      const profileForSelector = userProfile ? {
+        scores: userProfile.cognitive_levels || {}
+      } : { scores: {} };
+      
       quiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
-        questionData.chapters,
-        userProfile?.weak_areas || [],
-        userProfile?.cognitive_levels || {}
+        profileForSelector,
+        allQuestions,
+        20
       );
       recommendation = {
         type: 'personalized',
@@ -775,10 +796,23 @@ router.post('/quiz', async (req, res) => {
       };
     } else {
       // Default to personalized
+      const allQuestions = [];
+      for (const chapter of (questionData.chapters || [])) {
+        for (const contest of (chapter.contests || [])) {
+          allQuestions.push(...(contest.questions_multiple_choice || []));
+          allQuestions.push(...(contest.questions_true_false || []));
+          allQuestions.push(...(contest.questions_short_answer || []));
+        }
+      }
+      
+      const profileForSelector = userProfile ? {
+        scores: userProfile.cognitive_levels || {}
+      } : { scores: {} };
+      
       quiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
-        questionData.chapters,
-        userProfile?.weak_areas || [],
-        userProfile?.cognitive_levels || {}
+        profileForSelector,
+        allQuestions,
+        20
       );
       recommendation = {
         type: 'personalized',
@@ -787,6 +821,11 @@ router.post('/quiz', async (req, res) => {
     }
 
     // Remove answer keys before sending to frontend
+    console.log('[AdaptiveQuiz/Generate] Raw quiz generated:', {
+      quizLength: quiz.length,
+      firstQuestion: quiz.length > 0 ? { id: quiz[0].id, topic: quiz[0].topic } : 'N/A'
+    });
+
     const quizForClient = quiz.map(q => {
       const questionData = {
         id: q.id,
@@ -820,6 +859,11 @@ router.post('/quiz', async (req, res) => {
       count: quizForClient.length,
       type: quizType,
       recommendation: recommendation?.message
+    });
+
+    console.log('[AdaptiveQuiz/Generate] Sending response:', {
+      quizForClientLength: quizForClient.length,
+      firstQuestion: quizForClient.length > 0 ? { id: quizForClient[0].id, type: quizForClient[0].type } : 'N/A'
     });
 
     res.json({
@@ -1377,6 +1421,53 @@ router.post('/analyze', async (req, res) => {
     // Save to Supabase if available
     if (supabase && learningProfile) {
       try {
+        // Calculate topic-level performance
+        const topicPerformance = {};
+        const topicsAttempted = [];
+        
+        // Group answers by topic
+        for (let i = 0; i < questions.length; i++) {
+          const question = questions[i];
+          const topic = question.topic || 'General';
+          const isCorrect = isAnswerCorrect(question, answerArray[i]);
+          
+          if (!topicPerformance[topic]) {
+            topicPerformance[topic] = {
+              skill_level: 0,
+              accuracy: 0,
+              questions_total: 0,
+              questions_correct: 0,
+              last_updated: new Date().toISOString()
+            };
+            topicsAttempted.push(topic);
+          }
+          
+          topicPerformance[topic].questions_total += 1;
+          if (isCorrect) topicPerformance[topic].questions_correct += 1;
+        }
+        
+        // Calculate skill level per topic (1-4 Bloom's levels)
+        for (const topic in topicPerformance) {
+          const data = topicPerformance[topic];
+          data.accuracy = Math.round((data.questions_correct / data.questions_total) * 100);
+          
+          // Map accuracy to skill level
+          if (data.accuracy >= 80) {
+            data.skill_level = 4; // Analyze
+          } else if (data.accuracy >= 60) {
+            data.skill_level = 3; // Apply
+          } else if (data.accuracy >= 40) {
+            data.skill_level = 2; // Understand
+          } else {
+            data.skill_level = 1; // Remember
+          }
+        }
+        
+        console.log('[Analyze] Topic performance calculated:', {
+          topicsCount: Object.keys(topicPerformance).length,
+          topics: Object.keys(topicPerformance).slice(0, 3)
+        });
+        
         // Prepare data for Supabase (convert complex objects to proper formats)
         const supabaseData = {
           user_id: numericUserId,
@@ -1398,6 +1489,9 @@ router.post('/analyze', async (req, res) => {
           learning_path: learningProfile.learningPath || null, // JSONB - can be null
           quizzes_taken: quizzesTaken,
           roadmap_status: shouldGenerateRoadmap ? 'generated' : 'pending',
+          topic_performance: topicPerformance, // NEW: Track per-topic skill levels
+          topics_attempted: topicsAttempted, // NEW: Track topics tested
+          first_quiz_completed: currentProfile ? currentProfile.first_quiz_completed : true, // NEW: Track first quiz
           last_updated: new Date().toISOString()
         };
 
