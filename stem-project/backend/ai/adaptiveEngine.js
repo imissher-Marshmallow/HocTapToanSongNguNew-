@@ -185,6 +185,61 @@ class AssessmentEngine {
  */
 class AdaptiveQuestionSelector {
   /**
+   * Generate 5-topic quiz with 4 questions per topic
+   * @param {Array} allQuestions - All available questions
+   * @returns {Array} 20 questions balanced across 5 different topics
+   */
+  static generateTopicBalancedQuiz(allQuestions) {
+    // Extract unique topics
+    const topicMap = {};
+    
+    allQuestions.forEach(q => {
+      const topic = q.topic || 'General';
+      if (!topicMap[topic]) {
+        topicMap[topic] = [];
+      }
+      topicMap[topic].push(q);
+    });
+
+    // Get all unique topics and select top 5 with most questions
+    const topics = Object.entries(topicMap)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 5)
+      .map(([topic]) => topic);
+
+    console.log('[AdaptiveEngine] Selected 5 topics for balanced quiz:', topics);
+
+    if (topics.length < 5) {
+      console.warn('[AdaptiveEngine] Warning: Only', topics.length, 'topics available, expected 5');
+    }
+
+    // Select 4 questions per topic
+    const selectedQuestions = [];
+    topics.forEach(topic => {
+      const topicQuestions = topicMap[topic];
+      
+      // Select 4 random questions from this topic
+      const shuffled = topicQuestions.sort(() => Math.random() - 0.5);
+      selectedQuestions.push(...shuffled.slice(0, 4));
+    });
+
+    // If less than 20 questions selected (due to insufficient topics),  fill with remaining questions
+    if (selectedQuestions.length < 20) {
+      const allTopicQuestions = selectedQuestions.map(q => q.id);
+      const remaining = allQuestions
+        .filter(q => !allTopicQuestions.includes(q.id))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 20 - selectedQuestions.length);
+      selectedQuestions.push(...remaining);
+    }
+
+    // Shuffle and return exactly 20 questions
+    return selectedQuestions
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 20);
+  }
+
+  /**
    * Generate personalized quiz based on student profile
    * @param {Object} profile - Student's learning profile with scores
    * @param {Array} allQuestions - All available questions

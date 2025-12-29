@@ -74,35 +74,54 @@ Hãy viết 2-3 câu phản hồi tích cực và khuyến khích, đúng 50 t�
 
 /**
  * Fallback summary generation (Vietnamese)
+ * Now generates 3 comprehensive sentences: weak areas, planning, motivation
  */
 const generateFallbackSummary = (quizData) => {
   const { overallScore, correctAnswers, totalQuestions, topicFeedback = {} } = quizData;
   
-  const feedbackTemplates = {
-    excellent: [
-      'Tuyệt vời! Bạn đã thành thạo nội dung này. Hãy tiếp tục duy trì thành tích cao.',
-      'Xuất sắc! Kết quả của bạn cho thấy sự hiểu biết sâu sắc. Tiếp tục thử thách bản thân.'
-    ],
-    good: [
-      'Rất tốt! Bạn đang tiến bộ tốt. Tập trung thêm vào các lĩnh vực yếu hơn.',
-      'Tốt! Tuy còn có chỗ để cải thiện, nhưng bạn đã hiểu rõ hầu hết kiến thức.'
-    ],
-    needsWork: [
-      'Bạn đang bắt đầu. Hãy ôn tập kỹ hơn và luyện tập thêm.',
-      'Cần cải thiện thêm. Bạn sẽ tiến bộ nếu luyện tập thường xuyên.'
-    ]
-  };
+  // Extract weak topics (< 70%)
+  const weakTopics = Object.entries(topicFeedback || {})
+    .filter(([_, data]) => data.percentage < 70)
+    .map(([t, data]) => `${t} (${data.percentage}%)`)
+    .slice(0, 3);
 
-  let category, feedback;
-  if (overallScore >= 80) {
-    category = 'excellent';
-  } else if (overallScore >= 60) {
-    category = 'good';
+  // Extract strong topics (≥ 80%)
+  const strongTopics = Object.entries(topicFeedback || {})
+    .filter(([_, data]) => data.percentage >= 80)
+    .map(([t]) => t)
+    .slice(0, 2);
+
+  // Build 3-sentence feedback
+  let sentence1 = ''; // About weak areas
+  let sentence2 = ''; // About learning plan
+  let sentence3 = ''; // Motivation
+
+  // Sentence 1: Identify weak areas
+  if (weakTopics.length > 0) {
+    sentence1 = `Bạn cần cải thiện ở các chủ đề: ${weakTopics.join(', ')}. Đây là những lĩnh vực mà bạn chưa nắm vững đủ.`;
   } else {
-    category = 'needsWork';
+    sentence1 = `Tuyệt vời! Bạn đã thành thạo tất cả các chủ đề trong bài kiểm tra này.`;
   }
-  
-  feedback = feedbackTemplates[category][Math.floor(Math.random() * 2)];
+
+  // Sentence 2: Learning plan/strategy
+  if (overallScore < 60) {
+    sentence2 = `Hãy bắt đầu bằng cách ôn tập lại những khái niệm cơ bản, sau đó làm bài tập từ dễ đến khó để xây dựng nền tảng vững chắc.`;
+  } else if (overallScore < 80) {
+    sentence2 = `Kế hoạch học tập của bạn nên tập trung vào các bài tập nâng cao để giải quyết các lỗi sơ suất và đạt mức hiểu biết sâu hơn.`;
+  } else {
+    sentence2 = `Duy trì mức hiểu hiện tại với luyện tập thường xuyên và thử thách bản thân với các bài toán nâng cao.`;
+  }
+
+  // Sentence 3: Motivation
+  if (overallScore >= 80) {
+    sentence3 = `Xuất sắc! Bạn đang tiến bộ rất tốt. Hãy tiếp tục nỗ lực và bạn sẽ đạt được mục tiêu.`;
+  } else if (overallScore >= 60) {
+    sentence3 = `Bạn đang trên con đường đúng. Với luyện tập thêm một chút, bạn sẽ cải thiện đáng kể.`;
+  } else {
+    sentence3 = `Hãy kiên nhẫn với bản thân - mọi người đều bắt đầu từ con số 0. Cứ tiếp tục luyện tập, bạn sẽ tiến bộ nhanh chóng.`;
+  }
+
+  const feedback = `${sentence1} ${sentence2} ${sentence3}`;
 
   return {
     aiCoachFeedback: feedback,

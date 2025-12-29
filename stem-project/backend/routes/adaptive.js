@@ -726,19 +726,13 @@ router.post('/quiz', async (req, res) => {
         }
       }
       
-      // Use AdaptiveQuestionSelector with correct parameters
-      const profileForSelector = userProfile ? {
-        scores: userProfile.cognitive_levels || {}
-      } : { scores: {} };
+      // Use 5-topic balanced quiz (4 questions per topic)
+      // This ensures students test across 5 different topics
+      quiz = AdaptiveQuestionSelector.generateTopicBalancedQuiz(allQuestions);
       
-      quiz = AdaptiveQuestionSelector.generatePersonalizedQuiz(
-        profileForSelector,
-        allQuestions,
-        20
-      );
       recommendation = {
         type: 'personalized',
-        message: 'Bài kiểm tra được tạo dựa trên hiệu suất của bạn',
+        message: 'Bài kiểm tra được tạo dựa trên 5 chủ đề khác nhau',
         focusAreas: userProfile?.weak_areas || []
       };
     } else if (quizType === 'hard' || quizType === 'hardMode') {
@@ -1307,20 +1301,25 @@ router.post('/analyze', async (req, res) => {
       : LearningProfileManager.createProfile(userId, assessment)
 
     // ============================================
-    // CONDITIONAL ROADMAP (Unlock after 2+ quizzes with good scores)
+    // ROADMAP GENERATION - After completing all 5 topics
     // ============================================
     
     let learningRoadmap = null;
     let shouldGenerateRoadmap = false;
     const quizzesTaken = (currentProfile?.quizzes_taken || 0) + 1;
+    const currentTopicsAttempted = currentProfile?.topics_attempted || [];
+    const allTopicsAttempted = new Set([...currentTopicsAttempted, ...topicsAttempted]);
     
-    if (quizzesTaken >= 2 && scoreOutOf10 >= 6.0) {
+    // Check if student has attempted at least 5 different topics
+    const topicCount = allTopicsAttempted.size;
+    
+    if (topicCount >= 5) {
       shouldGenerateRoadmap = true;
-      console.log('[Analyze] ✅ Roadmap unlock: Quiz', quizzesTaken, 'Score', scoreOutOf10);
+      console.log('[Analyze] ✅ Roadmap generated: Student completed', topicCount, 'topics');
       learningRoadmap = await generateLearningRoadmap(learningProfile, topicFeedback);
       learningProfile.learningPath = learningRoadmap;
     } else {
-      console.log('[Analyze] ⏳ Roadmap locked: Need quizzes:', quizzesTaken, '<2 or score:', scoreOutOf10, '<6.0');
+      console.log('[Analyze] ⏳ Roadmap pending: Student completed', topicCount, '/5 topics. Next: Complete more topic quizzes.');
       learningProfile.learningPath = null;
     }
     
@@ -1630,17 +1629,15 @@ router.post('/analyze', async (req, res) => {
         .filter(([_, data]) => data.performance === 'STRONG')
         .map(([topic]) => topic),
       
-      // weakAreas with feedback for result page display
+      // weakAreas - return only topic names as strings (not objects) to avoid React error #31
       weakAreas: Object.entries(topicFeedback || {})
         .filter(([_, data]) => data.performance === 'WEAK')
-        .map(([topic, data]) => ({
-          topic,
-          score: data.score || 0,
-          percentage: data.percentage || 0,
-          severity: data.percentage >= 70 ? 'low' : (data.percentage >= 50 ? 'medium' : 'high'),
-          feedback: data.feedback || `${topic}: ${data.percentage}% chính xác`,
-          summary: data.feedback || `${topic}: ${data.percentage}% chính xác`
-        })),
+        .map(([topic]) => topic), // Return only the topic name string
+      
+      // strongAreas - return only topic names as strings
+      strongAreas: Object.entries(topicFeedback || {})
+        .filter(([_, data]) => data.performance === 'STRONG')
+        .map(([topic]) => topic), // Return only the topic name string
       
       // AI Coach Feedback (Vietnamese) - from OpenAI or fallback
       aiCoachFeedback: aiSummaryResult.aiCoachFeedback,
