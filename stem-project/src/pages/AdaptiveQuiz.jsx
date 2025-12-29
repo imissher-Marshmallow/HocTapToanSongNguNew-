@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -39,6 +39,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const { language } = useLanguage();
   const finalUserId = userId || authUser?.id;
   const location = useLocation();
+  const navigate = useNavigate();
   
   const [quiz, setQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -259,6 +260,26 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       sessionStorage.setItem('profileRefreshNeeded', 'true');
       
       setResults(analysisResults);
+
+      // Check if user scored >= 8.5 to show hard mode popup
+      if (analysisResults.overallScore >= 8.5) {
+        console.log('[AdaptiveQuiz] 🎯 Score >= 8.5, preparing hard mode popup');
+        // Create a quiz object for the hard mode popup
+        const adaptiveQuiz = {
+          id: 'adaptive',
+          title: language === 'vi' ? 'Bài Kiểm Tra Thích Hợp' : 'Adaptive Quiz',
+          chapterId: 0, // Use 0 as marker for adaptive quiz
+          type: 'adaptive'
+        };
+        // Navigate to QuizList with hard mode popup flag
+        navigate('/quiz-list', {
+          state: {
+            showHardModePopup: true,
+            quiz: adaptiveQuiz,
+            fromAdaptiveQuiz: true
+          }
+        });
+      }
 
       if (onComplete) {
         onComplete(analysisResults);

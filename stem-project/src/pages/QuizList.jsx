@@ -303,9 +303,14 @@ export default function QuizList() {
           language={language}
           onYes={() => {
             setShowHardModePopup(false);
-            // Navigate to hard mode for this topic
-            const quizPath = `${hardModeQuiz.chapterId}-${[4, 5][Math.floor(Math.random() * 2)]}`;
-            navigate(`/quiz/${quizPath}`);
+            if (hardModeQuiz.type === 'adaptive') {
+              // For adaptive quiz, go to adaptive quiz select page for hard mode
+              navigate('/adaptive-quiz-select', { state: { hardMode: true } });
+            } else if (hardModeQuiz.chapterId) {
+              // For regular quizzes, navigate to hard mode quiz
+              const quizPath = `${hardModeQuiz.chapterId}-${[4, 5][Math.floor(Math.random() * 2)]}`;
+              navigate(`/quiz/${quizPath}`);
+            }
           }}
           onNo={() => setShowHardModePopup(false)}
         />
