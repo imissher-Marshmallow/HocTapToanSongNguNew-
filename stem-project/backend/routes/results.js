@@ -435,6 +435,37 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
             console.log('[Results] Saved to Supabase quiz_results for user ' + numericUserId);
             console.log('[Results] Topics saved: ' + Object.keys(topicPerf).join(', '));
             
+            // Update user_learning_profiles with weak and strong areas
+            try {
+              const weakAreas = [];
+              const strongAreas = [];
+              
+              Object.entries(topicPerf).forEach(([topic, perf]) => {
+                if (perf.score < 60) {
+                  weakAreas.push({ topic, percentage: perf.score || 0 });
+                } else if (perf.score >= 80) {
+                  strongAreas.push({ topic, percentage: perf.score || 0 });
+                }
+              });
+              
+              const { error: profileError } = await supabase
+                .from('user_learning_profiles')
+                .update({
+                  weak_areas: weakAreas,
+                  strong_areas: strongAreas,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', numericUserId);
+              
+              if (profileError) {
+                console.warn('[Results] user_learning_profiles update failed:', profileError.message);
+              } else {
+                console.log('[Results] Updated user_learning_profiles with ' + weakAreas.length + ' weak areas and ' + strongAreas.length + ' strong areas');
+              }
+            } catch (profileErr) {
+              console.warn('[Results] user_learning_profiles update exception:', profileErr && profileErr.message ? profileErr.message : profileErr);
+            }
+            
             // Update user profile with new skills
             try {
               const userSkills = {};

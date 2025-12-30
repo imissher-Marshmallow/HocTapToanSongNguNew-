@@ -58,7 +58,10 @@ export default function AICoach({ feedback = [], result = null }) {
       'công thức', 'phương pháp', 'dạng bài', 'ví dụ',
       'bài tập', 'kiểm tra', 'exam', 'quiz',
       'định nghĩa', 'khái niệm', 'lý thuyết',
-      'sai', 'lỗi', 'cải thiện', 'mục tiêu', 'tại sao', 'why', 'how'
+      'sai', 'lỗi', 'cải thiện', 'mục tiêu', 'tại sao', 'why', 'how',
+      'học', 'ôn', 'luyện', 'tốt', 'giỏi', 'yếu', 'khó', 'dễ',
+      'điểm', 'kết quả', 'score', 'improvement',
+      'nên', 'tiếp', 'nắm', 'thêm', 'bao lâu', 'nào', 'nhỉ'
     ];
 
     const hasLearningContext = learningKeywords.some(keyword => lowerText.includes(keyword));
@@ -66,7 +69,7 @@ export default function AICoach({ feedback = [], result = null }) {
     if (!hasLearningContext) {
       return { 
         valid: false, 
-        message: 'Vui lòng hỏi những câu hỏi liên quan đến học tập, bài kiểm tra hoặc cách cải thiện.' 
+        message: 'Vui lòng hỏi những câu hỏi liên quan đến học tập hoặc cách cải thiện bài kiểm tra.' 
       };
     }
 
@@ -101,35 +104,34 @@ export default function AICoach({ feedback = [], result = null }) {
     }
 
     const lowerQ = userQuestion.toLowerCase();
-    const insights = aiSuggestions.insights;
+    const score = aiSuggestions.performance?.overallScore || 0;
+    const weaknesses = aiSuggestions.weaknesses?.patterns?.conceptualGaps || [];
 
-    // Match user question with relevant insights
     let contextualResp = '';
 
     if (lowerQ.includes('yếu') || lowerQ.includes('sai') || lowerQ.includes('lỗi')) {
-      const weaknesses = aiSuggestions.weaknesses.patterns.conceptualGaps;
       if (weaknesses.length > 0) {
-        contextualResp = `Điểm yếu chính của bạn:\n${weaknesses
-          .map(w => `• ${w.concept} (${w.severity})`)
-          .join('\n')}\n\nHãy tập trung vào những khái niệm này trước tiên.`;
+        contextualResp = `📌 Điểm yếu chính của bạn:\n${weaknesses
+          .slice(0, 3)
+          .map(w => `• ${w.concept || 'Phần chưa nắm'}`)
+          .join('\n')}\n\nHãy tập trung vào những khái niệm này trước tiên. Luyện tập thêm bài tập liên quan.`;
+      } else {
+        contextualResp = `✅ Bạn không có điểm yếu nổi bật! Tiếp tục ôn luyện để giữ kết quả.`;
       }
-    } else if (lowerQ.includes('tốt') || lowerQ.includes('mạnh')) {
-      if (aiSuggestions.performance.overallScore >= 80) {
-        contextualResp = `🌟 Bạn đã có thành tích tốt! Hãy tiếp tục hoàn thiện những khía cạnh còn yếu.`;
+    } else if (lowerQ.includes('tốt') || lowerQ.includes('mạnh') || lowerQ.includes('giỏi')) {
+      if (score >= 80) {
+        contextualResp = `🌟 Rất tốt! Bạn đã đạt ${score.toFixed(1)}/100.\n\nTiếp tục phát huy và không ngần ngại luyện tập thêm các bài tập khó hơn!`;
+      } else {
+        contextualResp = `👍 Bạn đã có tiến bộ! Điểm hiện tại: ${score.toFixed(1)}/100.\n\nTập trung vào các điểm yếu để nâng cao kết quả.`;
       }
-    } else if (lowerQ.includes('lộ trình') || lowerQ.includes('cải thiện')) {
-      const learningPath = LearningPathGenerator.generatePersonalizedPath(aiSuggestions);
-      contextualResp = `📚 Lộ trình học tập được đề xuất:\n${learningPath.milestones
-        .map(m => `• ${m.title} (${m.duration})`)
-        .join('\n')}`;
-    } else if (lowerQ.includes('tốc độ') || lowerQ.includes('thời gian')) {
-      contextualResp = `⏱️ Phân tích quản lý thời gian:\nĐể cải thiện tốc độ làm bài, hãy luyện tập thêm các dạng bài tương tự.`;
+    } else if (lowerQ.includes('lộ trình') || lowerQ.includes('cải thiện') || lowerQ.includes('nên') || lowerQ.includes('tiếp')) {
+      contextualResp = `📚 Lộ trình học tập gợi ý:\n1️⃣ Ôn lại những phần cơ bản\n2️⃣ Làm thêm bài tập thực hành\n3️⃣ Kiểm tra lại những phần sai\n4️⃣ Tập trung vào những dạng bài khó hơn\n5️⃣ Kiểm tra lại toàn bộ để đánh giá tiến bộ`;
+    } else if (lowerQ.includes('tốc độ') || lowerQ.includes('thời gian') || lowerQ.includes('bao lâu')) {
+      contextualResp = `⏱️ Để cải thiện tốc độ làm bài:\n• Luyện tập thêm các dạng bài tương tự\n• Ghi nhớ công thức và phương pháp\n• Bắt đầu với bài dễ, rồi chuyển lên khó\n• Thực hành liên tục để tăng tốc độ`;
+    } else if (lowerQ.includes('học') || lowerQ.includes('cách')) {
+      contextualResp = `🎯 Cách học hiệu quả:\n• Đọc kỹ định nghĩa và khái niệm\n• Làm bài tập từng dạng\n• Kiểm tra lại những phần sai\n• Ôn tập thường xuyên\n• Không ngại hỏi khi gặp khó khăn`;
     } else {
-      // Default intelligent response based on performance
-      const mainInsight = insights[0];
-      if (mainInsight) {
-        contextualResp = `${mainInsight.message}\n\nÞ ưu tiên: ${mainInsight.priority}`;
-      }
+      contextualResp = `📈 Điểm của bạn: ${score.toFixed(1)}/100\n\nBạn có thể hỏi tôi về:\n• Điểm yếu của mình\n• Cách cải thiện\n• Lộ trình học tập\n• Gợi ý để học tốt hơn`;
     }
 
     return contextualResp || 'Hãy cụ thể hóa câu hỏi của bạn để tôi có thể giúp tốt hơn.';
@@ -148,13 +150,14 @@ export default function AICoach({ feedback = [], result = null }) {
     setIsLoading(true);
 
     try {
-      // Send to backend for OpenAI-powered response with result context
+      console.log('[AICoach] Asking question:', prompt);
       const apiBase = process.env.REACT_APP_API_BASE || 
                      (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
                        ? 'http://localhost:5000' 
                        : '');
       const apiUrl = apiBase ? `${apiBase}/api/ai/coach` : '/api/ai/coach';
       
+      console.log('[AICoach] API endpoint:', apiUrl);
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -162,22 +165,28 @@ export default function AICoach({ feedback = [], result = null }) {
         },
         body: JSON.stringify({
           question: prompt,
-          quizResult: result || {}, // Send the quiz result for context
-          analysisData: aiSuggestions || {} // Include analysis for better context
+          quizResult: result || {},
+          analysisData: aiSuggestions || {}
         })
       });
 
+      console.log('[AICoach] API response status:', response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get AI response');
+        console.log('[AICoach] Using fallback response due to API error');
+        const fallbackResponse = generateContextualResponse(prompt);
+        setResponse(fallbackResponse);
+        setPrompt('');
+        setIsLoading(false);
+        return;
       }
 
       const data = await response.json();
-      setResponse(data.answer || data.response || 'Không thể xử lý câu hỏi của bạn. Vui lòng thử lại.');
+      console.log('[AICoach] API response:', data);
+      setResponse(data.answer || data.response || 'Không thể xử lý câu hỏi. Sử dụng phân tích cục bộ.');
       setPrompt('');
     } catch (err) {
-      console.error('AI Coach error:', err);
-      // Fallback to local response generation
+      console.log('[AICoach] Fetch failed, using fallback:', err.message);
       const fallbackResponse = generateContextualResponse(prompt);
       setResponse(fallbackResponse);
       setPrompt('');
