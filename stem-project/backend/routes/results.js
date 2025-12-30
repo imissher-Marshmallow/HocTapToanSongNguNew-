@@ -11,9 +11,17 @@ const router = express.Router();
 let supabase = null;
 try {
   const { createClient } = require('@supabase/supabase-js');
-  supabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
-    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
-    : null;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('[Results] ✓ Supabase client initialized successfully');
+  } else {
+    console.warn('[Results] ⚠ Supabase credentials missing - SUPABASE_URL or SUPABASE_ANON_KEY not set');
+    console.warn('[Results]   SUPABASE_URL:', supabaseUrl ? '✓ set' : '✗ not set');
+    console.warn('[Results]   SUPABASE_ANON_KEY:', supabaseKey ? '✓ set' : '✗ not set');
+  }
 } catch (err) {
   console.warn('[Results] @supabase/supabase-js not available - Supabase save disabled:', err.message);
 }
@@ -206,7 +214,11 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     }
 
     // Extract actual score from AI analyzer (coerce to number)
-    const actualScore = Number(aiResult.score) || 0;
+    // If score is decimal (0-1 range), convert to 0-10 scale
+    let scoreFromAI = Number(aiResult.score) || 0;
+    const actualScore = scoreFromAI > 1 ? Math.round(scoreFromAI) : Math.round(scoreFromAI * 10);
+    
+    console.log('[Results] Score conversion: aiResult.score=' + scoreFromAI + ' -> actualScore=' + actualScore);
     // Extract weakness topic names (handle both object and string formats)
     const weakAreas = (aiResult.weakAreas || []).map(w => {
       return (typeof w === 'object' && w !== null && w.topic) ? w.topic : (typeof w === 'string' ? w : String(w));
@@ -399,6 +411,9 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
             });
           }
           
+          // Check Supabase connectivity before attempting save
+          console.log('[Results] Attempting Supabase save for user ' + numericUserId);
+          
           // Save quiz result to Supabase for unified data system
           const { error } = await supabase.from('quiz_results').insert([{
             user_id: numericUserId,
@@ -414,10 +429,11 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
           }]);
           
           if (error) {
-            console.warn('[Results] Supabase save (non-blocking):', error.message);
+            console.warn('[Results] Supabase quiz_results save failed (non-blocking):', error.message);
+            console.warn('[Results] Error details:', JSON.stringify(error));
           } else {
-            console.log('[Results] Saved to Supabase quiz_results for user', numericUserId);
-            console.log('[Results] Topics saved:', Object.keys(topicPerf).join(', '));
+            console.log('[Results] Saved to Supabase quiz_results for user ' + numericUserId);
+            console.log('[Results] Topics saved: ' + Object.keys(topicPerf).join(', '));
             
             // Update user profile with new skills
             try {
@@ -445,16 +461,22 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
               if (updateError) {
                 console.warn('[Results] Profile update failed:', updateError.message);
               } else {
-                console.log('[Results] Updated user profile with skills for', numericUserId);
+                console.log('[Results] Updated user profile with skills for ' + numericUserId);
               }
             } catch (updateErr) {
-              console.warn('[Results] Profile update exception:', updateErr.message);
+              console.warn('[Results] Profile update exception:', updateErr && updateErr.message ? updateErr.message : updateErr);
             }
           }
         } catch (err) {
-          console.warn('[Results] Supabase save exception (non-blocking):', err.message);
+          console.warn('[Results] Supabase save exception (non-blocking) - Error type: ' + (err && err.constructor && err.constructor.name ? err.constructor.name : 'Unknown'));
+          console.warn('[Results] Error message:', err && err.message ? err.message : String(err));
+          if (err && err.stack) {
+            console.warn('[Results] Stack trace:', err.stack.split('\n').slice(0, 3).join(' | '));
+          }
         }
       })();
+    } else {
+      console.log('[Results] Supabase not available or invalid userId - skipping Supabase save');
     }
 
     res.json(fullResult);
@@ -520,6 +542,41 @@ router.get('/', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error fetching results:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// GET /api/results/debug/supabase - Check Supabase connectivity
+router.get('/debug/supabase', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    const status = {
+      supabaseConfigured: !!(supabaseUrl && supabaseKey),
+      supabaseUrlSet: !!supabaseUrl,
+      supabaseKeySet: !!supabaseKey,
+      clientInitialized: !!supabase,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Try a simple health check if supabase is configured
+    if (supabase) {
+      try {
+        const { data, error } = await Promise.race([
+          supabase.from('quiz_results').select('*').limit(1),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase health check timeout')), 5000))
+        ]);
+        status.healthCheck = error ? 'Failed: ' + error.message : 'Success';
+      } catch (checkErr) {
+        status.healthCheck = 'Failed: ' + checkErr.message;
+      }
+    } else {
+      status.healthCheck = 'Skipped - Supabase not initialized';
+    }
+    
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: 'Supabase check failed', message: error.message });
   }
 });
 

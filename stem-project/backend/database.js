@@ -207,10 +207,13 @@ if (USE_POSTGRES) {
       // Update result fields (score, weak_areas, feedback, recommendations)
       updateResult: async (resultId, { score, weakAreas, feedback, recommendations }) => {
         try {
+          // Ensure score is an integer
+          const intScore = typeof score === 'number' ? Math.round(score) : (parseInt(score, 10) || 0);
+          
           await pool.query(
             'UPDATE results SET score = $1, weak_areas = $2, feedback = $3, recommendations = $4 WHERE id = $5',
             [
-              score,
+              intScore,
               JSON.stringify(weakAreas || []),
               JSON.stringify(feedback || {}),
               JSON.stringify(recommendations || []),

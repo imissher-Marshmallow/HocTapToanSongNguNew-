@@ -147,13 +147,43 @@ export default function AICoach({ feedback = [], result = null }) {
 
     setIsLoading(true);
 
-    // Generate contextual response using AI analysis
-    setTimeout(() => {
-      const aiResponse = generateContextualResponse(prompt);
-      setResponse(aiResponse);
-      setIsLoading(false);
+    try {
+      // Send to backend for OpenAI-powered response with result context
+      const apiBase = process.env.REACT_APP_API_BASE || 
+                     (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+                       ? 'http://localhost:5000' 
+                       : '');
+      const apiUrl = apiBase ? `${apiBase}/api/ai/coach` : '/api/ai/coach';
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          question: prompt,
+          quizResult: result || {}, // Send the quiz result for context
+          analysisData: aiSuggestions || {} // Include analysis for better context
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
+
+      const data = await response.json();
+      setResponse(data.answer || data.response || 'Không thể xử lý câu hỏi của bạn. Vui lòng thử lại.');
       setPrompt('');
-    }, 1000);
+    } catch (err) {
+      console.error('AI Coach error:', err);
+      // Fallback to local response generation
+      const fallbackResponse = generateContextualResponse(prompt);
+      setResponse(fallbackResponse);
+      setPrompt('');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -205,8 +235,8 @@ export default function AICoach({ feedback = [], result = null }) {
         </button>
 
         {response && (
-          <div className="response mt-4 p-4 bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-lg border border-purple-200">
-            <h3 className="font-semibold mb-2 text-purple-900">💬 Phân tích từ AI:</h3>
+          <div className="response mt-4 p-4 bg-gradient-to-br from-cyan-50 via-blue-50 to-cyan-50 rounded-lg border border-cyan-200">
+            <h3 className="font-semibold mb-2 text-cyan-900">💬 Phân tích từ AI:</h3>
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">{response}</p>
           </div>
         )}

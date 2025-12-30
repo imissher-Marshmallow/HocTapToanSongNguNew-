@@ -34,13 +34,13 @@
 
 .score-display-card {
 	text-align: center;
-	background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
+	background: linear-gradient(135deg, #ecf7ff 0%, #f0f9ff 100%);
 	padding: 3rem 2rem;
 	border-radius: 16px;
-	border: 2px solid #ddd6fe;
+	border: 2px solid #a5f3fc;
 	max-width: 350px;
 	width: 100%;
-	box-shadow: 0 8px 24px rgba(99, 102, 241, 0.12);
+	box-shadow: 0 8px 24px rgba(6, 182, 212, 0.15);
 }
 
 .score-label {
@@ -62,12 +62,12 @@
 	width: 180px;
 	height: 180px;
 	border-radius: 50%;
-	background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+	background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	box-shadow: 0 15px 40px rgba(99, 102, 241, 0.4), 0 0 0 10px rgba(99, 102, 241, 0.15);
+	box-shadow: 0 15px 40px rgba(6, 182, 212, 0.45), 0 0 0 10px rgba(6, 182, 212, 0.2);
 	position: relative;
 	overflow: hidden;
 }
@@ -107,7 +107,7 @@
 }
 
 .score-feedback {
-	color: #6366f1;
+	color: #0891b2;
 	font-size: 1.1rem;
 	font-weight: 600;
 	margin: 1.5rem 0 0 0;

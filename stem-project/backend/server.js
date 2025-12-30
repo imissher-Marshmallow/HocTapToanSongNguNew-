@@ -8,6 +8,7 @@ const historyRoutes = require('./routes/history');
 const mlAnalyticsRoutes = require('./routes/ml-analytics');
 const adaptiveRoutes = require('./routes/adaptive');
 const aiInsightRoutes = require('./routes/aiInsight');
+const aiCoachRoutes = require('./routes/ai-coach');
 const { db } = require('./database');
 
 const app = express();
@@ -107,6 +108,10 @@ app.use('/api/backend/api/ml', mlAnalyticsRoutes);
 app.use('/api/ai', aiInsightRoutes);    // AI Insight routes
 app.use('/backend/api/ai', aiInsightRoutes);
 app.use('/api/backend/ai', aiInsightRoutes);
+
+app.use('/api/ai', aiCoachRoutes);      // AI Coach routes (interactive)
+app.use('/backend/api/ai', aiCoachRoutes);
+app.use('/api/backend/ai', aiCoachRoutes);
 
 // Adaptive learning routes - multiple path variants
 app.use('/adaptive', adaptiveRoutes);
