@@ -380,9 +380,9 @@ function QuizPage() {
         );
       }
 
-      // Pass result object directly in location.state for ResultPage
+      // Pass full result object with answers and questions for AICoach analysis
       setToastMessage('Submitted successfully');
-      navigate('/result', { state: result });
+      navigate('/result', { state: { ...result, answers: finalAnswers, questions: questions } });
       return;
     } catch (err) {
       console.error('Error submitting quiz:', err);
