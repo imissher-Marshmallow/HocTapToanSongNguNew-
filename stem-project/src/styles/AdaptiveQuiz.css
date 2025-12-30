@@ -523,21 +523,58 @@
 }
 
 .score-circle {
-  width: 200px;
-  height: 200px;
+  width: 240px;
+  height: 240px;
   border-radius: 50%;
-  background: #667eea;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.5rem;
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 15px 40px rgba(99, 102, 241, 0.4), 0 0 0 8px rgba(99, 102, 241, 0.1);
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.score-circle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), transparent);
+  pointer-events: none;
 }
 
 .score-value {
   font-size: 3.5rem;
   font-weight: 700;
   color: white;
+}
+
+.score-number-large {
+  font-size: 4.5rem;
+  font-weight: 900;
+  color: white;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.score-divider-large {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 2rem;
+  font-weight: 300;
+  position: relative;
+  z-index: 1;
+}
+
+.score-total-large {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 2.2rem;
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
 }
 
 .time-info {

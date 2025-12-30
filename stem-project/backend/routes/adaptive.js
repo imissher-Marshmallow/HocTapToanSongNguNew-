@@ -726,9 +726,13 @@ router.post('/quiz', async (req, res) => {
         }
       }
       
+      // Get topics already attempted by user
+      const topicsAttempted = userProfile?.topics_attempted || [];
+      
       // Use 5-topic balanced quiz (4 questions per topic)
       // This ensures students test across 5 different topics
-      quiz = AdaptiveQuestionSelector.generateTopicBalancedQuiz(allQuestions);
+      // Pass topicsAttempted to avoid repetition
+      quiz = AdaptiveQuestionSelector.generateTopicBalancedQuiz(allQuestions, topicsAttempted);
       
       recommendation = {
         type: 'personalized',

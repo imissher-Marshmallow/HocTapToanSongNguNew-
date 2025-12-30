@@ -186,10 +186,12 @@ class AssessmentEngine {
 class AdaptiveQuestionSelector {
   /**
    * Generate 5-topic quiz with 4 questions per topic
+   * Filters out already-attempted topics to provide diversity
    * @param {Array} allQuestions - All available questions
+   * @param {Array} topicsAttempted - Topics already tested by user (optional)
    * @returns {Array} 20 questions balanced across 5 different topics
    */
-  static generateTopicBalancedQuiz(allQuestions) {
+  static generateTopicBalancedQuiz(allQuestions, topicsAttempted = []) {
     // Extract unique topics
     const topicMap = {};
     
@@ -201,11 +203,31 @@ class AdaptiveQuestionSelector {
       topicMap[topic].push(q);
     });
 
-    // Get all unique topics and select top 5 with most questions
-    const topics = Object.entries(topicMap)
+    // Get all unique topics, sort by frequency
+    let availableTopics = Object.entries(topicMap)
       .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, 5)
       .map(([topic]) => topic);
+
+    // Filter out already-attempted topics first
+    if (topicsAttempted && topicsAttempted.length > 0) {
+      const attemptedSet = new Set(topicsAttempted.map(t => t.toLowerCase().trim()));
+      const newTopics = availableTopics.filter(t => !attemptedSet.has(t.toLowerCase().trim()));
+      
+      console.log('[AdaptiveEngine] Topics attempted:', topicsAttempted.length);
+      console.log('[AdaptiveEngine] New topics available:', newTopics.length);
+      
+      // If we have enough new topics, use only them
+      // Otherwise, mix new and repeated topics
+      if (newTopics.length >= 5) {
+        availableTopics = newTopics;
+      } else if (newTopics.length > 0) {
+        // Prioritize new topics first, then add some attempted topics
+        availableTopics = [...newTopics, ...availableTopics.filter(t => !newTopics.includes(t))];
+      }
+    }
+
+    // Select top 5 topics
+    const topics = availableTopics.slice(0, 5);
 
     console.log('[AdaptiveEngine] Selected 5 topics for balanced quiz:', topics);
 
@@ -218,16 +240,18 @@ class AdaptiveQuestionSelector {
     topics.forEach(topic => {
       const topicQuestions = topicMap[topic];
       
-      // Select 4 random questions from this topic
-      const shuffled = topicQuestions.sort(() => Math.random() - 0.5);
-      selectedQuestions.push(...shuffled.slice(0, 4));
+      if (topicQuestions && topicQuestions.length > 0) {
+        // Select 4 random questions from this topic
+        const shuffled = topicQuestions.sort(() => Math.random() - 0.5);
+        selectedQuestions.push(...shuffled.slice(0, 4));
+      }
     });
 
-    // If less than 20 questions selected (due to insufficient topics),  fill with remaining questions
+    // If less than 20 questions selected (due to insufficient topics), fill with remaining questions
     if (selectedQuestions.length < 20) {
-      const allTopicQuestions = selectedQuestions.map(q => q.id);
+      const selectedIds = selectedQuestions.map(q => q.id);
       const remaining = allQuestions
-        .filter(q => !allTopicQuestions.includes(q.id))
+        .filter(q => !selectedIds.includes(q.id))
         .sort(() => Math.random() - 0.5)
         .slice(0, 20 - selectedQuestions.length);
       selectedQuestions.push(...remaining);

@@ -630,9 +630,11 @@ function QuizResults({ results, timeSpent, quizQuestions = [], quizAnswers = {} 
           animate={{ opacity: 1, scale: 1 }}
         >
           <div className="score-circle">
-            <div className="score-value">
-              {Math.round(results.overallScore)}%
+            <div className="score-number-large">
+              {Math.round(results.overallScore)}
             </div>
+            <div className="score-divider-large">/</div>
+            <div className="score-total-large">10</div>
           </div>
           <p className="time-info">
             Completed in: {formatTime(timeSpent)}
