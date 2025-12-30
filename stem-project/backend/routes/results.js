@@ -80,6 +80,18 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
       questionsLength: questions?.length
     });
 
+    // Log first question to verify topic field exists
+    if (questions && questions.length > 0) {
+      console.log('[Results] First question structure:', {
+        id: questions[0].id,
+        topic: questions[0].topic,
+        difficulty: questions[0].difficulty,
+        hasQuestion: !!questions[0].question,
+        hasOptions: !!questions[0].options
+      });
+      console.log('[Results] Sample topics from all questions:', questions.slice(0, 5).map(q => q.topic));
+    }
+
     // Use guest user (id=1) for anonymous submissions, or parse numeric user_id for authenticated users
     let numericUserId;
     if (finalUserId && finalUserId !== 'anonymous' && !isNaN(Number(finalUserId))) {
@@ -225,14 +237,64 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     });
     const summary = aiResult.summary || {};
     
+    // Calculate Bloom's taxonomy levels (cognitive complexity)
+    // Level 1 (NB/Knowledge): difficulty=1, Level 2 (TH/Comprehension): difficulty=2
+    // Level 3 (VDT/Application): difficulty=3, Level 4 (VDC/Analysis): difficulty=4
+    const bloomLevels = { level1: 0, level2: 0, level3: 0, level4: 0 };
+    const bloomCounts = { level1: 0, level2: 0, level3: 0, level4: 0 };
+    
+    if (Array.isArray(answers) && Array.isArray(questions)) {
+      answers.forEach((answer, index) => {
+        const question = questions[index];
+        if (!question) return;
+        
+        const difficulty = parseInt(question.difficulty) || 1;
+        const levelKey = `level${difficulty}`;
+        
+        // Count this difficulty level
+        if (bloomCounts[levelKey] !== undefined) {
+          bloomCounts[levelKey]++;
+        }
+        
+        // Add to score if correct
+        // Handle both formats: answer as number or answer as object with .answer property
+        let selectedIndex;
+        if (typeof answer === 'number') {
+          selectedIndex = answer;
+        } else if (answer && typeof answer === 'object') {
+          selectedIndex = answer.answer || answer.selectedIndex;
+        }
+        
+        const correctIndex = question.correctAnswer || question.answerIndex || question.answer;
+        if (selectedIndex === correctIndex && bloomLevels[levelKey] !== undefined) {
+          bloomLevels[levelKey]++;
+        }
+      });
+    }
+    
+    // Convert counts to percentages for each level
+    const bloomPercentages = { level1: 0, level2: 0, level3: 0, level4: 0 };
+    Object.keys(bloomCounts).forEach(level => {
+      if (bloomCounts[level] > 0) {
+        bloomPercentages[level] = Math.round((bloomLevels[level] / bloomCounts[level]) * 100);
+      }
+    });
+    
+    console.log('[Results] Bloom levels calculated:', { bloomLevels, bloomCounts, bloomPercentages });
+
     // Calculate correct answers count
     let correctCount = 0;
     if (Array.isArray(answers) && Array.isArray(questions)) {
       correctCount = answers.filter((answer, index) => {
         const question = questions[index];
         if (!question) return false;
-        // Handle different answer formats
-        const selectedIndex = typeof answer === 'number' ? answer : (answer && answer.selectedIndex);
+        // Handle different answer formats - support both number and object with .answer property
+        let selectedIndex;
+        if (typeof answer === 'number') {
+          selectedIndex = answer;
+        } else if (answer && typeof answer === 'object') {
+          selectedIndex = answer.answer || answer.selectedIndex;
+        }
         const correctIndex = question.correctAnswer || question.answerIndex || question.answer;
         return selectedIndex === correctIndex;
       }).length;
@@ -386,14 +448,31 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
           if (Object.keys(topicPerf).length === 0) {
             // Group answers by topic from question data
             const topicStats = {};
-            answers.forEach(answer => {
-              const question = questions?.find(q => q.id === answer.questionId);
+            answers.forEach((answer, answerIndex) => {
+              // Find question either by ID or by index
+              let question;
+              if (answer.questionId) {
+                question = questions?.find(q => q.id === answer.questionId);
+              } else {
+                question = questions?.[answerIndex];
+              }
+              
               if (question && question.topic) {
                 if (!topicStats[question.topic]) {
                   topicStats[question.topic] = { correct: 0, total: 0 };
                 }
                 topicStats[question.topic].total += 1;
-                if (question.options.indexOf(answer.selectedOption) === question.answerIndex) {
+                
+                // Get the selected answer - handle both formats
+                let selectedAnswer;
+                if (typeof answer === 'number') {
+                  selectedAnswer = answer;
+                } else if (answer && typeof answer === 'object') {
+                  selectedAnswer = answer.answer || answer.selectedIndex;
+                }
+                
+                const correctIndex = question.correctAnswer || question.answerIndex || question.answer;
+                if (selectedAnswer === correctIndex) {
                   topicStats[question.topic].correct += 1;
                 }
               }
@@ -435,7 +514,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
             console.log('[Results] Saved to Supabase quiz_results for user ' + numericUserId);
             console.log('[Results] Topics saved: ' + Object.keys(topicPerf).join(', '));
             
-            // Update user_learning_profiles with weak and strong areas
+            // Update user_learning_profiles with weak and strong areas AND cognitive levels
             try {
               const weakAreas = [];
               const strongAreas = [];
@@ -453,6 +532,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                 .update({
                   weak_areas: weakAreas,
                   strong_areas: strongAreas,
+                  cognitive_levels: bloomPercentages,
                   updated_at: new Date().toISOString()
                 })
                 .eq('user_id', numericUserId);
@@ -460,7 +540,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
               if (profileError) {
                 console.warn('[Results] user_learning_profiles update failed:', profileError.message);
               } else {
-                console.log('[Results] Updated user_learning_profiles with ' + weakAreas.length + ' weak areas and ' + strongAreas.length + ' strong areas');
+                console.log('[Results] Updated user_learning_profiles with ' + weakAreas.length + ' weak areas, ' + strongAreas.length + ' strong areas, and Bloom levels:', bloomPercentages);
               }
             } catch (profileErr) {
               console.warn('[Results] user_learning_profiles update exception:', profileErr && profileErr.message ? profileErr.message : profileErr);

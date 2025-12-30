@@ -6,20 +6,44 @@
 
 const express = require('express');
 const router = express.Router();
-const OpenAI = require('openai');
+
+// Properly handle OpenAI import (works with both module formats)
+let OpenAI;
+try {
+  const openaiModule = require('openai');
+  OpenAI = openaiModule.default || openaiModule;
+  if (typeof OpenAI !== 'function' && openaiModule.OpenAI) {
+    OpenAI = openaiModule.OpenAI;
+  }
+  console.log('[AICoach] ✓ OpenAI module loaded successfully');
+} catch (err) {
+  console.error('[AICoach] ✗ Failed to load OpenAI module:', err.message);
+  OpenAI = null;
+}
+
 require('dotenv').config();
 
 // Initialize OpenAI client
 let openai = null;
-try {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEYS?.split(',')[0];
-  if (apiKey && apiKey.trim()) {
-    openai = new OpenAI({ apiKey });
-  } else {
-    console.warn('[AICoach] OpenAI API key not configured');
+if (OpenAI) {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY || (process.env.OPENAI_API_KEYS ? process.env.OPENAI_API_KEYS.split(',')[0] : null);
+    console.log('[AICoach] Attempting to initialize OpenAI with key:', apiKey ? `${apiKey.substring(0, 20)}...` : 'NO_KEY');
+    if (apiKey && apiKey.trim()) {
+      openai = new OpenAI({ 
+        apiKey: apiKey.trim(),
+        timeout: 30000
+      });
+      console.log('[AICoach] ✓ OpenAI client initialized successfully');
+    } else {
+      console.warn('[AICoach] ⚠ OpenAI API key not configured - check OPENAI_API_KEY environment variable');
+    }
+  } catch (err) {
+    console.error('[AICoach] ✗ Failed to initialize OpenAI client:', err.message);
+    console.error('[AICoach] Stack trace:', err.stack);
   }
-} catch (err) {
-  console.warn('[AICoach] Failed to initialize OpenAI:', err.message);
+} else {
+  console.warn('[AICoach] ⚠ OpenAI module not loaded - fallback responses will be used');
 }
 
 /**
@@ -39,11 +63,12 @@ router.post('/coach', async (req, res) => {
     }
 
     if (!openai) {
-      console.warn('[AICoach] OpenAI not available, using fallback');
+      console.warn('[AICoach] OpenAI not available (client is null), using fallback');
       const fallbackAnswer = generateFallbackResponse(question, quizResult, analysisData);
       return res.status(200).json({
         answer: fallbackAnswer,
-        source: 'fallback'
+        source: 'fallback',
+        reason: 'OpenAI client not initialized'
       });
     }
 
@@ -68,6 +93,7 @@ Câu hỏi của học sinh: "${question}"
 
 Vui lòng trả lời bằng tiếng Việt, cụ thể và hữu ích.`;
 
+    console.log('[AICoach] Calling OpenAI API...');
     // Call OpenAI
     const response = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -81,12 +107,18 @@ Vui lòng trả lời bằng tiếng Việt, cụ thể và hữu ích.`;
 
     const answer = response.choices[0]?.message?.content || 'Không thể xử lý câu hỏi của bạn.';
 
+    console.log('[AICoach] ✓ OpenAI response successful');
     return res.status(200).json({
       answer,
       source: 'openai'
     });
   } catch (err) {
-    console.error('[AICoach] Error:', err);
+    console.error('[AICoach] ✗ OpenAI API error:', err.message);
+    console.error('[AICoach] Error details:', {
+      code: err.code,
+      status: err.status,
+      type: err.type
+    });
 
     // Fallback response
     const fallback = generateFallbackResponse(
@@ -98,7 +130,8 @@ Vui lòng trả lời bằng tiếng Việt, cụ thể và hữu ích.`;
     return res.status(200).json({
       answer: fallback,
       source: 'fallback',
-      note: 'OpenAI không khả dụng, sử dụng phản hồi dự phòng'
+      note: 'OpenAI không khả dụng, sử dụng phản hồi dự phòng',
+      error: err.message
     });
   }
 });
@@ -183,36 +216,41 @@ function generateFallbackResponse(question, quizResult, analysisData) {
   // Weak areas
   const weakAreas = quizResult.weakAreas || [];
   const weakTopics = Array.isArray(weakAreas) 
-    ? weakAreas.map(w => typeof w === 'string' ? w : w.topic).join(', ')
+    ? weakAreas.map(w => typeof w === 'string' ? w : w.topic).filter(t => t).join(', ')
     : '';
 
   // Generate response based on question
   if (lowerQ.includes('yếu') || lowerQ.includes('sai') || lowerQ.includes('lỗi')) {
     if (weakTopics) {
-      return `📌 Điểm yếu chính của bạn:\n• ${weakTopics}\n\n💡 Gợi ý: Hãy ôn lại những khái niệm cơ bản trong các chủ đề này và làm thêm bài tập thực hành.`;
+      return `📌 Điểm yếu chính của bạn:\n• ${weakTopics}\n\n💡 Gợi ý để cải thiện:\n1. Ôn lại những khái niệm cơ bản của các chủ đề này\n2. Làm thêm bài tập thực hành từng dạng\n3. So sánh câu trả lời của bạn với đáp án để hiểu lỗi\n4. Yêu cầu giáo viên giải thích những phần khó\n5. Luyện tập thường xuyên để nắm vững kiến thức`;
     }
-    return '✅ Bạn không có điểm yếu nào đáng kể! Tiếp tục phát huy.';
+    return '✅ Bạn không có điểm yếu nào đáng kể! Tiếp tục phát huy và nâng cao trình độ hơn nữa.';
   }
 
-  if (lowerQ.includes('tốt') || lowerQ.includes('mạnh') || lowerQ.includes('giỏi')) {
+  if (lowerQ.includes('tốt') || lowerQ.includes('mạnh') || lowerQ.includes('giỏi') || lowerQ.includes('xuất sắc')) {
     if (score >= 8) {
-      return `🌟 Rất tốt! Bạn đã đạt ${score}/10. Hãy tiếp tục giữ vững và cải thiện những khía cạnh còn lại.`;
+      return `🌟 Rất tốt! Bạn đã đạt ${score}/10. Kết quả này chứng tỏ bạn nắm vững kiến thức. Hãy:\n• Tiếp tục ôn luyện để giữ vững kết quả\n• Thử thách bản thân với các bài tập nâng cao\n• Giúp các bạn khác học hỏi để sâu sắc hóa kiến thức`;
     } else if (score >= 6) {
-      return `👍 Bạn đã có tiến bộ với điểm ${score}/10. Còn một chút nữa là sẽ đạt mục tiêu. Hãy tiếp tục cố gắng!`;
+      return `👍 Bạn đã có tiến bộ với điểm ${score}/10! Đó là một dấu hiệu tốt. Để tiến bộ hơn:\n• Tập trung vào các chủ đề yếu\n• Làm bài tập đa dạng\n• Không từ bỏ, cứ tiếp tục cố gắng`;
     }
-    return `💪 Không sao, bạn mới bắt đầu với điểm ${score}/10. Mỗi bài tập đều giúp bạn tiến bộ!`;
+    return `💪 Bạn mới bắt đầu với điểm ${score}/10. Mỗi bài tập đều giúp bạn tiến bộ. Hãy:\n• Bắt đầu từ những bài cơ bản\n• Làm bài tập thường xuyên\n• Yêu cầu sự hỗ trợ khi cần thiết`;
   }
 
-  if (lowerQ.includes('làm') || lowerQ.includes('cải thiện') || lowerQ.includes('học')) {
-    return `📚 Để cải thiện kết quả:\n1. Ôn lại lý thuyết cơ bản\n2. Làm thêm bài tập tương tự\n3. Xem lại những câu sai\n4. Hỏi thầy cô hoặc bạn bè\n\nHãy dành ít nhất 30 phút mỗi ngày ôn luyện để thấy hiệu quả!`;
+  if (lowerQ.includes('làm sao') || lowerQ.includes('cách') || lowerQ.includes('cải thiện') || lowerQ.includes('học')) {
+    return `📚 Để cải thiện kết quả của bạn:\n\n🎯 Chiến lược học tập:\n1. Ôn lại lý thuyết cơ bản mỗi ngày\n2. Làm bài tập thực hành từ dễ đến khó\n3. Xem lại những câu sai để hiểu sai lầm\n4. Luyện tập các dạng bài tương tự\n5. Kiểm tra lại bằng đề thi mô phỏng\n\n⏱️ Lập kế hoạch:\n• Dành 30-60 phút mỗi ngày ôn luyện\n• Chia thành các phần nhỏ (20 phút ôn lý thuyết + 40 phút bài tập)\n• Kiểm tra tiến độ mỗi tuần\n\nBạn sẽ thấy hiệu quả nếu kiên trì!`;
   }
 
-  if (lowerQ.includes('kế hoạch') || lowerQ.includes('lộ trình')) {
-    return `📅 Kế hoạch học tập:\nNgày 1-2: Ôn lại lý thuyết cơ bản (${weakTopics || 'các chủ đề yếu'})\nNgày 3-4: Làm bài tập thực hành\nNgày 5: Kiểm tra lại bằng bài tập tương tự\n\nHãy theo kế hoạch này và kiểm tra tiến độ!`;
+  if (lowerQ.includes('kế hoạch') || lowerQ.includes('lộ trình') || lowerQ.includes('nên') || lowerQ.includes('tiếp')) {
+    const topics = weakTopics || 'các chủ đề yếu';
+    return `📅 Lộ trình học tập gợi ý (4 tuần):\n\n**Tuần 1:** Ôn lại lý thuyết cơ bản (${topics})\n• Đọc lại sách giáo khoa\n• Ghi chú những định nghĩa và công thức\n• Xem video giải thích nếu có\n\n**Tuần 2:** Làm bài tập thực hành\n• Bắt đầu với bài tập dễ\n• Tăng độ khó dần dần\n• Ghi chú những phần khó\n\n**Tuần 3:** Kiểm tra và cải thiện\n• Làm bài kiểm tra thử\n• Phân tích những câu sai\n• Ôn lại những phần còn yếu\n\n**Tuần 4:** Ôn tập tổng hợp\n• Làm đề thi mô phỏng\n• Đảm bảo nắm vững tất cả kiến thức\n• Tự tin cho bài kiểm tra tiếp theo\n\nHãy theo kế hoạch này một cách nghiêm túc để đạt kết quả tốt nhất!`;
   }
 
-  // Default response
-  return `Hi! 👋 Tôi là AI Coach, trợ lý học tập của bạn. Dựa trên kết quả bài kiểm tra (${score}/10), tôi có thể giúp bạn:\n• Phân tích điểm yếu\n• Đề xuất cách cải thiện\n• Tạo kế hoạch học tập\n\nHãy hỏi một câu hỏi cụ thể để tôi có thể giúp tốt hơn!`;
+  if (lowerQ.includes('mục tiêu') || lowerQ.includes('mong muốn')) {
+    return `🎯 Thiết lập mục tiêu học tập:\n\n1. **Mục tiêu ngắn hạn** (1-2 tuần):\n   • Nâng điểm từ ${score}/10 lên ${Math.min(score + 1, 10)}/10\n   • Hiểu rõ những khái niệm cơ bản\n\n2. **Mục tiêu trung hạn** (1 tháng):\n   • Đạt điểm 8/10 hoặc cao hơn\n   • Nắm chắc tất cả chủ đề\n\n3. **Mục tiêu dài hạn** (1 học kì):\n   • Duy trì điểm cao\n   • Nắm vững nền tảng cho năm học tiếp theo\n\nMỗi mục tiêu cần có kế hoạch cụ thể và theo dõi thường xuyên!`;
+  }
+
+  // Default response - comprehensive fallback
+  return `👋 Xin chào! Tôi là AI Coach - trợ lý học tập của bạn.\n\n📊 Thông tin từ bài kiểm tra:\n• Điểm hiện tại: ${score}/10\n${weakTopics ? `• Điểm yếu: ${weakTopics}` : ''}\n\n❓ Bạn có thể hỏi tôi về:\n• Điểm yếu và cách cải thiện\n• Lộ trình học tập phù hợp\n• Kế hoạch ôn luyện chi tiết\n• Các mẹo và chiến lược học tập\n• Mục tiêu và động lực học tập\n\n💡 Hãy hỏi một câu hỏi cụ thể để tôi có thể giúp bạn tốt nhất! Ví dụ: "Làm sao để cải thiện?", "Tôi yếu chỗ nào?", "Nên học thế nào?"`;
 }
 
 module.exports = router;

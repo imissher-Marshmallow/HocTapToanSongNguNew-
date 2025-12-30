@@ -269,6 +269,43 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         console.log('[AdaptiveQuiz] ✅ Using real OpenAI-generated feedback');
       }
       
+      // NOW SAVE TO /api/results TO UPDATE SUPABASE WITH BLOOM LEVELS AND WEAK/STRONG AREAS
+      // This ensures all data is synced including cognitive_levels
+      try {
+        console.log('[AdaptiveQuiz] Saving complete results to Supabase via /api/results...');
+        
+        const savePayload = {
+          userId: finalUserId,
+          quizId: 'personalized-adaptive',
+          quizName: 'Adaptive Quiz',
+          answers: formattedAnswers,
+          questions: quiz.questions,
+          score: Math.round(analysisResults.overallScore),  // Convert to 0-10 scale
+          percentage: Math.round(analysisResults.overallScore * 10),  // Convert to 0-100 scale
+          ai_analysis: analysisResults,
+          timeTaken: elapsedTime,
+          isAutoSubmitted: false
+        };
+        
+        const saveRes = await fetch(`${apiBase}/api/results`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(savePayload)
+        });
+        
+        if (saveRes.ok) {
+          const savedResult = await saveRes.ok ? saveRes.json() : null;
+          console.log('[AdaptiveQuiz] ✅ Successfully saved to Supabase with Bloom levels and weak/strong areas');
+          console.log('[AdaptiveQuiz] Saved result:', savedResult);
+        } else {
+          console.warn('[AdaptiveQuiz] ⚠️ Failed to save to /api/results (non-blocking):', saveRes.status);
+        }
+      } catch (saveErr) {
+        console.warn('[AdaptiveQuiz] ⚠️ Error saving to /api/results (non-blocking):', saveErr.message);
+      }
+      
       // Store results in session storage so other pages can access updated data
       sessionStorage.setItem('lastQuizResults', JSON.stringify(analysisResults));
       sessionStorage.setItem('profileRefreshNeeded', 'true');
