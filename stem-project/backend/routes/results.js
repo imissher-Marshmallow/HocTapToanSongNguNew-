@@ -87,9 +87,56 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
         topic: questions[0].topic,
         difficulty: questions[0].difficulty,
         hasQuestion: !!questions[0].question,
-        hasOptions: !!questions[0].options
+        hasOptions: !!questions[0].options,
+        hasAnswerIndex: questions[0].answerIndex !== undefined,
+        hasCorrectAnswer: questions[0].correctAnswer !== undefined
       });
       console.log('[Results] Sample topics from all questions:', questions.slice(0, 5).map(q => q.topic));
+    }
+
+    // Enrich questions with answer indices from master question database
+    // Always try to enrich - answers won't match without these indices
+    // This allows the backend to match submitted answers against correct answers
+    if (questions && questions.length > 0) {
+      const firstQ = questions[0];
+      const needsEnrichment = !firstQ.answerIndex || firstQ.answerIndex === null || firstQ.answerIndex === undefined;
+      
+      if (needsEnrichment) {
+        console.log('[Results] Questions missing answerIndex - enriching from master data...');
+        try {
+          const { getAllQuestions } = require('../ai/loadQuestions');
+          const allQuestionsData = getAllQuestions();
+          const questionMap = {};
+          allQuestionsData.forEach(q => {
+            questionMap[q.id] = q;
+          });
+          
+          console.log('[Results] Master questions loaded:', allQuestionsData.length, 'total questions');
+          console.log('[Results] Looking up questions by ID:', questions.slice(0, 3).map(q => q.id).join(', '));
+          
+          // Enrich each question with answer indices from master data
+          let enrichedCount = 0;
+          questions.forEach((q, idx) => {
+            const masterQuestion = questionMap[q.id];
+            if (masterQuestion) {
+              q.answerIndex = masterQuestion.answerIndex;
+              q.correctAnswer = masterQuestion.answerIndex;
+              enrichedCount++;
+              if (idx < 3) {
+                console.log(`[Results] Q${idx}: id=${q.id} -> answerIndex=${q.answerIndex}`);
+              }
+            } else {
+              console.warn(`[Results] Q${idx}: id=${q.id} not found in master questions!`);
+            }
+          });
+          console.log(`[Results] ✓ Enriched ${enrichedCount}/${questions.length} questions with answer indices`);
+        } catch (enrichErr) {
+          console.error('[Results] ✗ Failed to enrich questions:', enrichErr);
+          // Continue anyway - answers may still be analyzable
+        }
+      } else {
+        console.log('[Results] Questions already have answerIndex - skipping enrichment');
+      }
     }
 
     // Use guest user (id=1) for anonymous submissions, or parse numeric user_id for authenticated users
@@ -227,7 +274,8 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
 
     // Extract actual score from AI analyzer (coerce to number)
     // If score is decimal (0-1 range), convert to 0-10 scale
-    let scoreFromAI = Number(aiResult.score) || 0;
+    // Support both 'score' and 'overallScore' property names
+    let scoreFromAI = Number(aiResult.score || aiResult.overallScore || 0);
     const actualScore = scoreFromAI > 1 ? Math.round(scoreFromAI) : Math.round(scoreFromAI * 10);
     
     console.log('[Results] Score conversion: aiResult.score=' + scoreFromAI + ' -> actualScore=' + actualScore);
@@ -527,23 +575,65 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                 }
               });
               
-              const { error: profileError } = await supabase
+              // Calculate proficiency_status from Bloom levels
+              const proficiencyStatus = {
+                level1: bloomPercentages.level1 > 0 ? getProficiencyLevel(bloomPercentages.level1) : 'NOT_STARTED',
+                level2: bloomPercentages.level2 > 0 ? getProficiencyLevel(bloomPercentages.level2) : 'NOT_STARTED',
+                level3: bloomPercentages.level3 > 0 ? getProficiencyLevel(bloomPercentages.level3) : 'NOT_STARTED',
+                level4: bloomPercentages.level4 > 0 ? getProficiencyLevel(bloomPercentages.level4) : 'NOT_STARTED'
+              };
+              
+              // First try to fetch the profile to see if it exists
+              const { data: existingProfile } = await supabase
                 .from('user_learning_profiles')
-                .update({
+                .select('user_id')
+                .eq('user_id', numericUserId)
+                .single();
+              
+              if (existingProfile) {
+                // Profile exists - update it
+                const updateObj = {
                   weak_areas: weakAreas,
                   strong_areas: strongAreas,
                   cognitive_levels: bloomPercentages,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('user_id', numericUserId);
-              
-              if (profileError) {
-                console.warn('[Results] user_learning_profiles update failed:', profileError.message);
+                  proficiency_status: proficiencyStatus
+                };
+                
+                const { error: profileError } = await supabase
+                  .from('user_learning_profiles')
+                  .update(updateObj)
+                  .eq('user_id', numericUserId);
+                
+                if (profileError) {
+                  console.warn('[Results] user_learning_profiles update failed:', profileError.message);
+                } else {
+                  console.log('[Results] ✅ Updated user_learning_profiles with ' + weakAreas.length + ' weak areas, ' + strongAreas.length + ' strong areas, Bloom levels:', bloomPercentages, 'and proficiency:', proficiencyStatus);
+                }
               } else {
-                console.log('[Results] Updated user_learning_profiles with ' + weakAreas.length + ' weak areas, ' + strongAreas.length + ' strong areas, and Bloom levels:', bloomPercentages);
+                // Profile doesn't exist - create it
+                const insertObj = {
+                  user_id: numericUserId,
+                  weak_areas: weakAreas,
+                  strong_areas: strongAreas,
+                  cognitive_levels: bloomPercentages,
+                  proficiency_status: proficiencyStatus,
+                  recommendations: [],
+                  learning_path: null,
+                  quizzes_taken: 1
+                };
+                
+                const { error: insertError } = await supabase
+                  .from('user_learning_profiles')
+                  .insert([insertObj]);
+                
+                if (insertError) {
+                  console.warn('[Results] user_learning_profiles insert failed:', insertError.message);
+                } else {
+                  console.log('[Results] ✅ Created new user_learning_profiles with ' + weakAreas.length + ' weak areas, ' + strongAreas.length + ' strong areas, Bloom levels:', bloomPercentages, 'and proficiency:', proficiencyStatus);
+                }
               }
             } catch (profileErr) {
-              console.warn('[Results] user_learning_profiles update exception:', profileErr && profileErr.message ? profileErr.message : profileErr);
+              console.error('[Results] ❌ user_learning_profiles operation failed:', profileErr && profileErr.message ? profileErr.message : profileErr);
             }
             
             // Update user profile with new skills
@@ -690,5 +780,16 @@ router.get('/debug/supabase', async (req, res) => {
     res.status(500).json({ error: 'Supabase check failed', message: error.message });
   }
 });
+
+/**
+ * Helper: Convert Bloom percentage to proficiency level
+ */
+function getProficiencyLevel(percentage) {
+  if (percentage >= 80) return 'PROFICIENT';
+  if (percentage >= 60) return 'DEVELOPING';
+  if (percentage >= 40) return 'BEGINNING';
+  if (percentage > 0) return 'STARTING';
+  return 'NOT_STARTED';
+}
 
 module.exports = router;

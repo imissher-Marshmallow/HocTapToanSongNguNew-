@@ -188,6 +188,7 @@ router.get('/profile/:userId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID format' });
     }
     
+    console.log('[Profile] Fetching profile for user', numericUserId);
     const { data, error } = await supabase
       .from('user_learning_profiles')
       .select(`
@@ -198,13 +199,23 @@ router.get('/profile/:userId', async (req, res) => {
       .eq('user_id', numericUserId)
       .single()
 
+    console.log('[Profile] Raw fetch result:', { 
+      hasData: !!data, 
+      dataUserId: data?.user_id,
+      hasCognitiveLevels: !!data?.cognitive_levels,
+      error: error?.message,
+      errorCode: error?.code
+    });
+
     if (error && error.code !== 'PGRST116') {
-      console.error('Supabase error:', error)
-      return res.status(500).json({ error: 'Database error' })
+      console.error('[Profile] Supabase error:', error)
+      console.error('[Profile] Error details:', { code: error.code, message: error.message });
+      return res.status(500).json({ error: 'Database error', details: error.message })
     }
 
-    // If no profile exists, create default one
+    // If no profile exists, return default one
     if (!data) {
+      console.log('[Profile] No profile found for user', numericUserId, '- returning default');
       const defaultProfile = {
         userId,
         scores: {
@@ -230,12 +241,13 @@ router.get('/profile/:userId', async (req, res) => {
     }
 
     // Transform Supabase data to response format
+    console.log('[Profile] Returning fetched profile with cognitive_levels:', data.cognitive_levels);
     const profile = {
       userId,
       scores: data.cognitive_levels || {},
       proficiency: data.proficiency_status || {},
-      weakAreas: data.weak_areas || [],
-      strongAreas: data.strong_areas || [],
+      weakAreas: parseAreaArray(data.weak_areas),
+      strongAreas: parseAreaArray(data.strong_areas),
       recommendations: data.recommendations || [],
       learningPath: data.learning_path,
       quizzesTaken: data.quizzes_taken || 0,
@@ -243,12 +255,38 @@ router.get('/profile/:userId', async (req, res) => {
       createdAt: data.created_at
     }
 
+    console.log('[Profile] Returning profile:', { 
+      userId: profile.userId,
+      scores: profile.scores,
+      proficiency: profile.proficiency,
+      weakAreasCount: profile.weakAreas.length,
+      strongAreasCount: profile.strongAreas.length
+    });
     res.json(profile)
   } catch (error) {
     console.error('Error fetching profile:', error)
     res.status(500).json({ error: 'Internal server error', details: error.message })
   }
 })
+
+/**
+ * Helper: Parse area array - handles both string and object formats
+ */
+function parseAreaArray(areas) {
+  if (!areas || !Array.isArray(areas)) return [];
+  
+  return areas.map(area => {
+    if (typeof area === 'string') {
+      try {
+        return JSON.parse(area);
+      } catch (e) {
+        console.warn('[Profile] Failed to parse area:', area);
+        return area;
+      }
+    }
+    return area;
+  });
+}
 
 /**
  * GET /api/adaptive/weak-and-strong/:userId

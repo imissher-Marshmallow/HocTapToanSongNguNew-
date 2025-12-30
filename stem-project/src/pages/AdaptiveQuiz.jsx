@@ -299,6 +299,28 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
           const savedResult = await saveRes.ok ? saveRes.json() : null;
           console.log('[AdaptiveQuiz] ✅ Successfully saved to Supabase with Bloom levels and weak/strong areas');
           console.log('[AdaptiveQuiz] Saved result:', savedResult);
+          
+          // Now fetch the updated profile to get latest Bloom levels
+          console.log('[AdaptiveQuiz] Fetching updated profile with new Bloom levels...');
+          try {
+            const profileRes = await fetch(`${apiBase}/api/adaptive/profile/${finalUserId}`);
+            if (profileRes.ok) {
+              const updatedProfile = await profileRes.json();
+              console.log('[AdaptiveQuiz] ✅ Fetched updated profile:', {
+                scores: updatedProfile.scores,
+                proficiency: updatedProfile.proficiency,
+                weakAreas: updatedProfile.weakAreas?.length,
+                strongAreas: updatedProfile.strongAreas?.length
+              });
+              
+              // Store updated profile in session storage so LearningProfile can use it
+              sessionStorage.setItem('updatedProfile', JSON.stringify(updatedProfile));
+            } else {
+              console.warn('[AdaptiveQuiz] ⚠️ Failed to fetch updated profile:', profileRes.status);
+            }
+          } catch (profileErr) {
+            console.warn('[AdaptiveQuiz] ⚠️ Error fetching updated profile:', profileErr.message);
+          }
         } else {
           console.warn('[AdaptiveQuiz] ⚠️ Failed to save to /api/results (non-blocking):', saveRes.status);
         }
