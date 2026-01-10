@@ -481,6 +481,17 @@ async function analyzeQuiz(payload) {
   // Calculate 10-point score from weighted points
   const score = maxPossiblePoints > 0 ? Math.round((totalPoints / maxPossiblePoints) * 10 * 100) / 100 : 0;
   
+  // FIX: Add detailed logging for score calculation
+  console.log('[Analyzer] ✅ SCORE CALCULATION DEBUG:');
+  console.log('[Analyzer]   - Total answers submitted:', answers.length);
+  console.log('[Analyzer]   - Questions loaded:', questions.length);
+  console.log('[Analyzer]   - Correct answers:', correct);
+  console.log('[Analyzer]   - Total points earned:', totalPoints);
+  console.log('[Analyzer]   - Max possible points:', maxPossiblePoints);
+  console.log('[Analyzer]   - Calculation: (' + totalPoints + ' / ' + maxPossiblePoints + ') * 10 =', score);
+  console.log('[Analyzer]   - Final score (out of 10):', score);
+  console.log('[Analyzer]   - Percentage:', Math.round((score / 10) * 100) + '%');
+  
   // Detect anti-cheat flags: auto-submit with incomplete answers suggests cheating
   // If user only answered few questions and got high score, it's suspicious
   let isFlaggedForCheating = false;

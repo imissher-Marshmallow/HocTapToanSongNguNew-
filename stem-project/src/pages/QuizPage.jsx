@@ -163,6 +163,24 @@ function QuizPage() {
   const answersRef = React.useRef(answers);
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
+  // FIX: Add navigation warning to prevent losing quiz progress
+  useEffect(() => {
+    if (!started || isSubmitting) return;
+
+    // Warn before closing/navigating away
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = 'Bạn có chắc chắn muốn rời khỏi? Bạn sẽ mất tiến độ của bài kiểm tra.';
+      return 'You will lose your quiz progress if you leave now.';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [started, isSubmitting]);
+
   // Start handler requests fullscreen on user gesture then starts the quiz
   const handleStart = async () => {
     try {
@@ -269,7 +287,22 @@ function QuizPage() {
       ...answerData
     };
     
-    const updatedAnswers = [...answers, newAnswer];
+    // FIX: Check if this question was already answered before
+    // If it was, REPLACE the old answer instead of appending a new one
+    let updatedAnswers;
+    const existingAnswerIndex = answers.findIndex(a => a.questionId === q.id);
+    
+    if (existingAnswerIndex >= 0) {
+      // Replace existing answer for this question
+      updatedAnswers = [...answers];
+      updatedAnswers[existingAnswerIndex] = newAnswer;
+      console.log(`[QuizPage] Re-answered question ${q.id} at index ${existingAnswerIndex}`);
+    } else {
+      // New answer - append to the list
+      updatedAnswers = [...answers, newAnswer];
+      console.log(`[QuizPage] New answer for question ${q.id}. Total answered: ${updatedAnswers.length}/${questions.length}`);
+    }
+    
     setAnswers(updatedAnswers);
     
     // Adapt questions if answer was wrong (for multiple choice)
@@ -285,7 +318,9 @@ function QuizPage() {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setQuestionStartTime(Date.now());
     } else {
-      submitQuiz(updatedAnswers);
+      // FIX: On last question, don't auto-submit - wait for user to click submit
+      console.log('[QuizPage] Last question answered - waiting for user to click submit button');
+      setShowSubmitDialog(true);
     }
   };
 

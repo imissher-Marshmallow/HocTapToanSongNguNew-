@@ -278,7 +278,20 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
     let scoreFromAI = Number(aiResult.score || aiResult.overallScore || 0);
     const actualScore = scoreFromAI > 1 ? Math.round(scoreFromAI) : Math.round(scoreFromAI * 10);
     
-    console.log('[Results] Score conversion: aiResult.score=' + scoreFromAI + ' -> actualScore=' + actualScore);
+    // FIX: Add detailed logging for score handling
+    console.log('[Results] ✅ SCORE HANDLING DEBUG:');
+    console.log('[Results]   - aiResult.score:', aiResult.score);
+    console.log('[Results]   - aiResult.scoreOutOf10:', aiResult.scoreOutOf10);
+    console.log('[Results]   - aiResult.overallScore:', aiResult.overallScore);
+    console.log('[Results]   - scoreFromAI (parsed):', scoreFromAI);
+    console.log('[Results]   - actualScore (converted):', actualScore);
+    console.log('[Results]   - scoreFromAI > 1?', scoreFromAI > 1);
+    
+    // Calculate percentage properly
+    const percentage = totalQuestions > 0 ? Math.round((actualScore / 10) * 100) : 0;
+    console.log('[Results]   - totalQuestions:', totalQuestions);
+    console.log('[Results]   - percentage:', percentage + '%');
+    
     // Extract weakness topic names (handle both object and string formats)
     const weakAreas = (aiResult.weakAreas || []).map(w => {
       return (typeof w === 'object' && w !== null && w.topic) ? w.topic : (typeof w === 'string' ? w : String(w));
