@@ -407,8 +407,17 @@ async function analyzeQuiz(payload) {
 
   // 📊 Balanced 10-point scoring system
   // True/False: 0.25 pts each, Multiple Choice/Short Answer: 1.0 pt each
+  
+  // FIX: Calculate maxPossiblePoints from ALL questions, not just answered questions
+  let maxPossiblePointsFromAllQuestions = 0;
+  for (const q of questions) {
+    const questionType = q.type || 'multiple_choice';
+    const pointValue = (questionType === 'true_false') ? 0.25 : 1.0;
+    maxPossiblePointsFromAllQuestions += pointValue;
+  }
+  
   let totalPoints = 0;
-  let maxPossiblePoints = 0;
+  let maxPossiblePoints = maxPossiblePointsFromAllQuestions;
 
   for (const ans of answers) {
     const q = questions.find(x => x.id === ans.questionId);
@@ -451,7 +460,6 @@ async function analyzeQuiz(payload) {
     // Calculate weighted points for this question
     const questionType = ans.questionType || q.type;
     const pointValue = (questionType === 'true_false' || q.type === 'true_false') ? 0.25 : 1.0;
-    maxPossiblePoints += pointValue;
     if (isCorrect) totalPoints += pointValue;
 
     topicStats[q.topic] = topicStats[q.topic] || { wrong: 0, total: 0, correct: 0 };
@@ -482,15 +490,16 @@ async function analyzeQuiz(payload) {
   const score = maxPossiblePoints > 0 ? Math.round((totalPoints / maxPossiblePoints) * 10 * 100) / 100 : 0;
   
   // FIX: Add detailed logging for score calculation
-  console.log('[Analyzer] ✅ SCORE CALCULATION DEBUG:');
+  console.log('[Analyzer] ✅ SCORE CALCULATION FIX APPLIED:');
+  console.log('[Analyzer]   - Total questions in quiz:', questions.length);
   console.log('[Analyzer]   - Total answers submitted:', answers.length);
-  console.log('[Analyzer]   - Questions loaded:', questions.length);
   console.log('[Analyzer]   - Correct answers:', correct);
-  console.log('[Analyzer]   - Total points earned:', totalPoints);
-  console.log('[Analyzer]   - Max possible points:', maxPossiblePoints);
+  console.log('[Analyzer]   - Max possible points (from ALL questions):', maxPossiblePoints);
+  console.log('[Analyzer]   - Total points earned (only answered correct):', totalPoints);
   console.log('[Analyzer]   - Calculation: (' + totalPoints + ' / ' + maxPossiblePoints + ') * 10 =', score);
   console.log('[Analyzer]   - Final score (out of 10):', score);
-  console.log('[Analyzer]   - Percentage:', Math.round((score / 10) * 100) + '%');
+  console.log('[Analyzer]   - Percentage: ' + Math.round((correct / questions.length) * 100) + '%');
+  console.log('[Analyzer]   - Example: 1 correct out of 20 questions = (1/20)*10 = 0.5/10 = 5%');
   
   // Detect anti-cheat flags: auto-submit with incomplete answers suggests cheating
   // If user only answered few questions and got high score, it's suspicious

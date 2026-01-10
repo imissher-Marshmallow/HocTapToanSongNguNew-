@@ -280,6 +280,15 @@ function QuizPage() {
     const q = questions[currentQuestionIndex];
     const questionType = getQuestionType(q);
     
+    // DEBUG: Log answer before updating state
+    console.log('[QuizPage] ✅ ANSWER HANDLER DEBUG:');
+    console.log('[QuizPage]   - Current question index:', currentQuestionIndex);
+    console.log('[QuizPage]   - Question ID:', q.id);
+    console.log('[QuizPage]   - Current answers array BEFORE:', answers.length, 'answers');
+    answers.forEach((a, idx) => {
+      console.log('[QuizPage]     Answer ' + idx + ':', a.questionId);
+    });
+    
     const newAnswer = {
       questionId: q.id,
       questionType,
@@ -296,12 +305,17 @@ function QuizPage() {
       // Replace existing answer for this question
       updatedAnswers = [...answers];
       updatedAnswers[existingAnswerIndex] = newAnswer;
-      console.log(`[QuizPage] Re-answered question ${q.id} at index ${existingAnswerIndex}`);
+      console.log('[QuizPage]   - RE-ANSWERED: Replacing answer at index', existingAnswerIndex);
     } else {
       // New answer - append to the list
       updatedAnswers = [...answers, newAnswer];
-      console.log(`[QuizPage] New answer for question ${q.id}. Total answered: ${updatedAnswers.length}/${questions.length}`);
+      console.log('[QuizPage]   - NEW ANSWER: Adding new answer (was not previously answered)');
     }
+    
+    console.log('[QuizPage]   - Updated answers array AFTER:', updatedAnswers.length, 'answers');
+    updatedAnswers.forEach((a, idx) => {
+      console.log('[QuizPage]     Answer ' + idx + ':', a.questionId);
+    });
     
     setAnswers(updatedAnswers);
     
@@ -319,7 +333,10 @@ function QuizPage() {
       setQuestionStartTime(Date.now());
     } else {
       // FIX: On last question, don't auto-submit - wait for user to click submit
-      console.log('[QuizPage] Last question answered - waiting for user to click submit button');
+      console.log('[QuizPage] ✅ LAST QUESTION ANSWERED');
+      console.log('[QuizPage]   - Total answers before submit:', updatedAnswers.length);
+      console.log('[QuizPage]   - Total questions:', questions.length);
+      console.log('[QuizPage]   - Waiting for user to click submit button');
       setShowSubmitDialog(true);
     }
   };
@@ -339,6 +356,16 @@ function QuizPage() {
     setIsSubmitting(true);
     const userId = getUserId();
     const isAutoSubmitted = autoSubmittedRef.current;
+    
+    // DEBUG: Log submission details
+    console.log('[QuizPage] ✅ SUBMIT HANDLER DEBUG:');
+    console.log('[QuizPage]   - Final answers count:', finalAnswers.length);
+    console.log('[QuizPage]   - Total questions:', questions.length);
+    console.log('[QuizPage]   - Is auto submitted:', isAutoSubmitted);
+    finalAnswers.forEach((ans, idx) => {
+      console.log('[QuizPage]     Answer ' + idx + ':', ans.questionId, '- Type:', ans.questionType);
+    });
+    
     const payload = {
       userId,
       quizId: selectedContestKey || id || 'random',
