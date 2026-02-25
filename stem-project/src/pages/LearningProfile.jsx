@@ -182,6 +182,7 @@ export default function LearningProfile({ userId }) {
       
       // Generate AI insight from dashboard profile - now with real OpenAI call
       const aiInsight = await generateAIInsight(profile, finalUserId);
+      console.log('[LearningProfile] Generated AI Insight with bloom_levels:', aiInsight.bloom_levels);
       setInsight(aiInsight);
     } catch (err) {
       setError(err.message);
@@ -718,7 +719,8 @@ async function generateAIInsight(profile, userId) {
         actionDescription: data.actionDescription,
         activeWeek: data.activeWeek || 2,
         roadmap: data.roadmap || getDefaultRoadmap(),
-        topicPerformance: profile.topic_performance || {}
+        topicPerformance: profile.topic_performance || {},
+        bloom_levels: profile.bloom_levels || profile.scores || {}  // ✅ ADD Bloom levels
       };
     } else {
       // Fallback if AI response is incomplete
@@ -783,7 +785,8 @@ function getDefaultAIInsight(profile) {
     actionDescription,
     activeWeek,
     roadmap: getDefaultRoadmap(),
-    topicPerformance: profile.topic_performance || {}
+    topicPerformance: profile.topic_performance || {},
+    bloom_levels: profile.bloom_levels || profile.scores || {}  // ✅ ADD Bloom levels
   };
 }
 
