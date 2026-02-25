@@ -142,17 +142,43 @@ export default function LearningProfile({ userId }) {
   const fetchAIInsight = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/adaptive/dashboard/${finalUserId}`);
       
-      if (!response.ok) throw new Error('Failed to fetch');
+      // First try to fetch from adaptive dashboard
+      let profile = {};
+      try {
+        const response = await fetch(`/api/adaptive/dashboard/${finalUserId}`);
+        if (response.ok) {
+          const data = await response.json();
+          profile = data.profile || data;
+        }
+      } catch (dashErr) {
+        console.log('[LearningProfile] Dashboard fetch failed, will use Supabase fallback:', dashErr);
+      }
       
-      const data = await response.json();
-      const profile = data.profile || data;
+      // IMPORTANT: Also fetch latest Bloom levels directly from Supabase via new endpoint
+      // This ensures we get the most recent cognitive_levels updated by quiz submissions
+      try {
+        const bloomResponse = await fetch(`/api/adaptive/profile/${finalUserId}`);
+        if (bloomResponse.ok) {
+          const bloomData = await bloomResponse.json();
+          console.log('[LearningProfile] Fetched Bloom levels from Supabase:', bloomData);
+          
+          // Merge Bloom data into profile
+          if (bloomData.scores) {
+            profile.bloom_levels = bloomData.scores;
+            profile.proficiency_status = bloomData.proficiency;
+          }
+        }
+      } catch (bloomErr) {
+        console.log('[LearningProfile] Bloom level fetch failed:', bloomErr);
+      }
       
       // Extract roadmap status and quiz data
       setRoadmapStatus(profile.roadmapStatus || profile.roadmap_status);
       setQuizzesTaken(profile.quizzesTaken || profile.quizzes_taken || 0);
       setLastScore(profile.lastScore || profile.last_score || 0);
+      
+      console.log('[LearningProfile] Final profile with Bloom levels:', profile);
       
       // Generate AI insight from dashboard profile - now with real OpenAI call
       const aiInsight = await generateAIInsight(profile, finalUserId);
@@ -198,18 +224,16 @@ export default function LearningProfile({ userId }) {
     }
   };
 
-  // Calculate score for each Bloom's level based on topic performance
-  const calculateLevelScore = (topicPerf, level) => {
-    if (!topicPerf || Object.keys(topicPerf).length === 0) return 0;
+  // Calculate score for each Bloom's level from Supabase cognitive_levels
+  const calculateLevelScore = (bloomLevels, level) => {
+    // bloomLevels is like: {level1: 3, level2: 3, level3: 3, level4: 3}
+    if (!bloomLevels) return 0;
     
-    const topicScores = Object.values(topicPerf)
-      .filter(topic => topic.skill_level === level)
-      .map(topic => topic.accuracy_percentage || 0);
+    const key = `level${level}`;
+    const score = bloomLevels[key];
     
-    if (topicScores.length === 0) return 0;
-    
-    const average = topicScores.reduce((a, b) => a + b, 0) / topicScores.length;
-    return Math.min(Math.round(average), 100);
+    if (score === undefined || score === null) return 0;
+    return Math.min(Math.max(score, 0), 100); // Ensure 0-100 range
   };
 
   // Get proficiency badge text based on score
@@ -238,7 +262,8 @@ export default function LearningProfile({ userId }) {
     );
   }
 
-  // Extract topic performance data from insight
+  // Extract Bloom levels and topic performance from insight
+  const bloomLevels = insight?.bloom_levels || insight?.cognitive_levels || { level1: 0, level2: 0, level3: 0, level4: 0 };
   const topicPerformance = insight?.topicPerformance || {};
 
   return (
@@ -393,13 +418,13 @@ export default function LearningProfile({ userId }) {
               <div className="score-bar">
                 <div 
                   className="score-fill"
-                  style={{ width: `${calculateLevelScore(topicPerformance, 1)}%` }}
+                  style={{ width: `${calculateLevelScore(bloomLevels, 1)}%` }}
                 ></div>
               </div>
-              <span className="score-text">{calculateLevelScore(topicPerformance, 1)}/100</span>
+              <span className="score-text">{calculateLevelScore(bloomLevels, 1)}/100</span>
             </div>
             <span className="status-badge">
-              {getProficiencyBadge(calculateLevelScore(topicPerformance, 1))}
+              {getProficiencyBadge(calculateLevelScore(bloomLevels, 1))}
             </span>
           </motion.div>
 
@@ -426,13 +451,13 @@ export default function LearningProfile({ userId }) {
               <div className="score-bar">
                 <div 
                   className="score-fill"
-                  style={{ width: `${calculateLevelScore(topicPerformance, 2)}%` }}
+                  style={{ width: `${calculateLevelScore(bloomLevels, 2)}%` }}
                 ></div>
               </div>
-              <span className="score-text">{calculateLevelScore(topicPerformance, 2)}/100</span>
+              <span className="score-text">{calculateLevelScore(bloomLevels, 2)}/100</span>
             </div>
             <span className="status-badge">
-              {getProficiencyBadge(calculateLevelScore(topicPerformance, 2))}
+              {getProficiencyBadge(calculateLevelScore(bloomLevels, 2))}
             </span>
           </motion.div>
 
@@ -459,13 +484,13 @@ export default function LearningProfile({ userId }) {
               <div className="score-bar">
                 <div 
                   className="score-fill"
-                  style={{ width: `${calculateLevelScore(topicPerformance, 3)}%` }}
+                  style={{ width: `${calculateLevelScore(bloomLevels, 3)}%` }}
                 ></div>
               </div>
-              <span className="score-text">{calculateLevelScore(topicPerformance, 3)}/100</span>
+              <span className="score-text">{calculateLevelScore(bloomLevels, 3)}/100</span>
             </div>
             <span className="status-badge">
-              {getProficiencyBadge(calculateLevelScore(topicPerformance, 3))}
+              {getProficiencyBadge(calculateLevelScore(bloomLevels, 3))}
             </span>
           </motion.div>
 
@@ -492,13 +517,13 @@ export default function LearningProfile({ userId }) {
               <div className="score-bar">
                 <div 
                   className="score-fill"
-                  style={{ width: `${calculateLevelScore(topicPerformance, 4)}%` }}
+                  style={{ width: `${calculateLevelScore(bloomLevels, 4)}%` }}
                 ></div>
               </div>
-              <span className="score-text">{calculateLevelScore(topicPerformance, 4)}/100</span>
+              <span className="score-text">{calculateLevelScore(bloomLevels, 4)}/100</span>
             </div>
             <span className="status-badge">
-              {getProficiencyBadge(calculateLevelScore(topicPerformance, 4))}
+              {getProficiencyBadge(calculateLevelScore(bloomLevels, 4))}
             </span>
           </motion.div>
         </div>
