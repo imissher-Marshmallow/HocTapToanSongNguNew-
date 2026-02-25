@@ -588,27 +588,81 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                 }
               });
               
-              // Calculate proficiency_status from Bloom levels
+              // FIX: Calculate Bloom increment based on performance (cumulative progression)
+              // Instead of percentages, use incremental points
+              function getBloomIncrement(percentage) {
+                if (percentage >= 80) return 10;  // Excellent: +10 points
+                if (percentage >= 60) return 6;   // Good: +6 points
+                if (percentage >= 40) return 2;   // Average: +2 points
+                if (percentage >= 20) return 1;   // Bad: +1 point (still progress)
+                return 3;                         // Very bad: +3 points (+1 +2, still progressing)
+              }
+              
+              // Fetch existing Bloom levels from database
+              const { data: existingProfile } = await supabase
+                .from('user_learning_profiles')
+                .select('cognitive_levels')
+                .eq('user_id', numericUserId)
+                .single();
+              
+              // Get current Bloom levels (or start at 0)
+              const currentBloomLevels = existingProfile?.cognitive_levels || {
+                level1: 0,
+                level2: 0,
+                level3: 0,
+                level4: 0
+              };
+              
+              // Calculate new increments for each level based on this quiz's performance
+              const bloomIncrements = { level1: 0, level2: 0, level3: 0, level4: 0 };
+              Object.keys(bloomIncrements).forEach(level => {
+                const percentage = bloomPercentages[level] || 0;
+                bloomIncrements[level] = getBloomIncrement(percentage);
+              });
+              
+              // Calculate NEW Bloom levels by adding increments to current values
+              const newBloomLevels = {
+                level1: Math.max(0, (currentBloomLevels.level1 || 0) + bloomIncrements.level1),
+                level2: Math.max(0, (currentBloomLevels.level2 || 0) + bloomIncrements.level2),
+                level3: Math.max(0, (currentBloomLevels.level3 || 0) + bloomIncrements.level3),
+                level4: Math.max(0, (currentBloomLevels.level4 || 0) + bloomIncrements.level4)
+              };
+              
+              console.log('[Results] ✅ BLOOM PROGRESSION UPDATE:');
+              console.log('[Results]   - Previous levels:', currentBloomLevels);
+              console.log('[Results]   - Quiz percentages:', bloomPercentages);
+              console.log('[Results]   - Increments:', bloomIncrements);
+              console.log('[Results]   - New levels:', newBloomLevels);
+              
+              // Calculate proficiency_status from NEW Bloom levels (0-based scores, not percentages)
+              function getLevelProficiency(bloomScore) {
+                if (bloomScore <= 0) return 'NOT_STARTED';
+                if (bloomScore < 20) return 'STARTING';
+                if (bloomScore < 40) return 'BEGINNING';
+                if (bloomScore < 60) return 'DEVELOPING';
+                return 'PROFICIENT';
+              }
+              
               const proficiencyStatus = {
-                level1: bloomPercentages.level1 > 0 ? getProficiencyLevel(bloomPercentages.level1) : 'NOT_STARTED',
-                level2: bloomPercentages.level2 > 0 ? getProficiencyLevel(bloomPercentages.level2) : 'NOT_STARTED',
-                level3: bloomPercentages.level3 > 0 ? getProficiencyLevel(bloomPercentages.level3) : 'NOT_STARTED',
-                level4: bloomPercentages.level4 > 0 ? getProficiencyLevel(bloomPercentages.level4) : 'NOT_STARTED'
+                level1: getLevelProficiency(newBloomLevels.level1),
+                level2: getLevelProficiency(newBloomLevels.level2),
+                level3: getLevelProficiency(newBloomLevels.level3),
+                level4: getLevelProficiency(newBloomLevels.level4)
               };
               
               // First try to fetch the profile to see if it exists
-              const { data: existingProfile } = await supabase
+              const { data: existingProfileForUpdate } = await supabase
                 .from('user_learning_profiles')
                 .select('user_id')
                 .eq('user_id', numericUserId)
                 .single();
               
-              if (existingProfile) {
-                // Profile exists - update it
+              if (existingProfileForUpdate) {
+                // Profile exists - update it with NEW cumulative Bloom levels
                 const updateObj = {
                   weak_areas: weakAreas,
                   strong_areas: strongAreas,
-                  cognitive_levels: bloomPercentages,
+                  cognitive_levels: newBloomLevels,
                   proficiency_status: proficiencyStatus
                 };
                 
@@ -620,15 +674,15 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                 if (profileError) {
                   console.warn('[Results] user_learning_profiles update failed:', profileError.message);
                 } else {
-                  console.log('[Results] ✅ Updated user_learning_profiles with ' + weakAreas.length + ' weak areas, ' + strongAreas.length + ' strong areas, Bloom levels:', bloomPercentages, 'and proficiency:', proficiencyStatus);
+                  console.log('[Results] ✅ Updated Bloom levels: from', currentBloomLevels, 'to', newBloomLevels);
                 }
               } else {
-                // Profile doesn't exist - create it
+                // Profile doesn't exist - create it with initial Bloom levels
                 const insertObj = {
                   user_id: numericUserId,
                   weak_areas: weakAreas,
                   strong_areas: strongAreas,
-                  cognitive_levels: bloomPercentages,
+                  cognitive_levels: newBloomLevels,
                   proficiency_status: proficiencyStatus,
                   recommendations: [],
                   learning_path: null,
@@ -642,7 +696,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                 if (insertError) {
                   console.warn('[Results] user_learning_profiles insert failed:', insertError.message);
                 } else {
-                  console.log('[Results] ✅ Created new user_learning_profiles with ' + weakAreas.length + ' weak areas, ' + strongAreas.length + ' strong areas, Bloom levels:', bloomPercentages, 'and proficiency:', proficiencyStatus);
+                  console.log('[Results] ✅ Created new Bloom levels:', newBloomLevels);
                 }
               }
             } catch (profileErr) {
