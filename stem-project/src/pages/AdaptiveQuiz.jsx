@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Clock, BarChart3, Home } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import TopicSelector from './TopicSelector';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import '../styles/AdaptiveQuiz.css';
@@ -49,6 +50,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const [results, setResults] = useState(null);
   const [timeStarted, setTimeStarted] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [showTopicSelector, setShowTopicSelector] = useState(false);
 
   useEffect(() => {
     // Check if quiz data was passed via navigation state
@@ -90,8 +92,10 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         setLoading(false);
       }
     } else if (finalUserId) {
-      console.log('[AdaptiveQuiz] No location state, loading personalized quiz');
-      loadPersonalizedQuiz();
+      // No location state - show TopicSelector for user to pick a topic
+      console.log('[AdaptiveQuiz] No location state, showing TopicSelector');
+      setShowTopicSelector(true);
+      setLoading(false);
     }
   }, [finalUserId, location.state]);
 
@@ -370,6 +374,11 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
+
+  // 🎯 Show TopicSelector if user hasn't picked a topic yet
+  if (showTopicSelector) {
+    return <TopicSelector />;
+  }
 
   if (loading) {
     return (
