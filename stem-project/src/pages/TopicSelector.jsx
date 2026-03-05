@@ -78,9 +78,8 @@ export default function TopicSelector() {
         },
         body: JSON.stringify({
           userId,
-          topic: topic.name,
-          difficulty: diffData.difficulty,
-          questionCount: 10
+          topicName: topic.name,
+          numQuestions: 10
         })
       });
 
@@ -110,17 +109,18 @@ export default function TopicSelector() {
 
   // Get status badge
   const getStatusBadge = (topic) => {
-    if (!topic.lastScore) {
-      return { label: '📝 Mới', icon: '✨', color: 'new' };
+    const userProgress = topic.userProgress;
+    if (!userProgress || !userProgress.lastScore) {
+      return { label: ' Mới', icon: '', color: 'new' };
     }
     
-    const score = topic.lastScore;
+    const score = userProgress.lastScore;
     if (score >= 80) {
-      return { label: '✅ Thành thạo', icon: '🎓', color: 'mastered' };
+      return { label: ' Thành thạo', icon: '', color: 'mastered' };
     } else if (score >= 60) {
-      return { label: '📚 Đang học', icon: '📖', color: 'developing' };
+      return { label: ' Đang học', icon: '', color: 'developing' };
     } else {
-      return { label: '💪 Cần luyện', icon: '⚡', color: 'weak' };
+      return { label: ' Cần luyện', icon: '', color: 'weak' };
     }
   };
 
@@ -145,7 +145,7 @@ export default function TopicSelector() {
         transition={{ duration: 0.5 }}
       >
         <div className="header-content">
-          <h1>{language === 'vi' ? '🎯 Chọn Chủ Đề' : '🎯 Choose a Topic'}</h1>
+          <h1>{language === 'vi' ? ' Chọn Chủ Đề' : ' Choose a Topic'}</h1>
           <p>
             {language === 'vi'
               ? 'Hệ thống sẽ tự động lựa chọn mức độ phù hợp dựa trên hiệu suất của bạn'
@@ -164,7 +164,7 @@ export default function TopicSelector() {
           <div className="recommendation-content">
             <Zap size={20} />
             <div>
-              <h3>⭐ System Recommendation</h3>
+              <h3> System Recommendation</h3>
               <p>{recommendation.reason}</p>
               <p className="difficulty">
                 {language === 'vi' ? 'Mức độ:' : 'Difficulty:'}{' '}
@@ -208,25 +208,25 @@ export default function TopicSelector() {
               <div className="card-content">
                 <h3>{topic.name}</h3>
                 <div className="topic-stats">
-                  {topic.attempts > 0 && (
+                  {topic.userProgress && topic.userProgress.attempts > 0 && (
                     <>
                       <div className="stat">
                         <span className="label">{language === 'vi' ? 'Lần cố' : 'Attempts'}:</span>
-                        <span className="value">{topic.attempts}</span>
+                        <span className="value">{topic.userProgress.attempts}</span>
                       </div>
                       <div className="stat">
                         <span className="label">{language === 'vi' ? 'Điểm' : 'Score'}:</span>
-                        <span className={`value score-${topic.lastScore >= 80 ? 'high' : topic.lastScore >= 60 ? 'mid' : 'low'}`}>
-                          {topic.lastScore}%
+                        <span className={`value score-${topic.userProgress.lastScore >= 80 ? 'high' : topic.userProgress.lastScore >= 60 ? 'mid' : 'low'}`}>
+                          {topic.userProgress.lastScore}%
                         </span>
                       </div>
                       <div className="stat">
                         <span className="label">{language === 'vi' ? 'Trung bình' : 'Avg'}:</span>
-                        <span className="value">{topic.avgScore}%</span>
+                        <span className="value">{topic.userProgress.averageScore}%</span>
                       </div>
                     </>
                   )}
-                  {topic.attempts === 0 && (
+                  {!topic.userProgress && (
                     <div className="no-attempts">
                       <TrendingUp size={16} />
                       <span>{language === 'vi' ? 'Chưa thử' : 'Not attempted'}</span>
