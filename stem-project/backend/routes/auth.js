@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { dbHelpers } = require('../database');
+const { initializeUserMLPerformance } = require('../services/mlPerformanceService');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'b1634a3c6a68375399142567f365adbfb80d6de37113b75b624e36852b1b279a';
@@ -44,6 +45,12 @@ router.post('/signup', async (req, res) => {
 
     // Create user in database
     const user = await dbHelpers.createUser(email, username, hashedPassword);
+
+    // Initialize ML Performance record for new user
+    const mlInitResult = await initializeUserMLPerformance(user.id);
+    if (mlInitResult) {
+      console.log('✅ ML Performance record created for user:', user.id);
+    }
 
     // Auto-create learning profile in Supabase for AI analysis
     try {

@@ -263,4 +263,230 @@ function generateDefaultRoadmap() {
   ];
 }
 
+/**
+ * ========================================
+ * POST /api/ai/analyze-quiz
+ * Trigger AI analysis of quiz performance
+ * ========================================
+ * 
+ * Input:
+ * {
+ *   "userId": 1,
+ *   "quizId": "quiz-Đại số-123",
+ *   "topic": "Đa thức nhiều biến",
+ *   "performanceRecord": { score, percentage, cognitive_breakdown, ... }
+ * }
+ * 
+ * Output:
+ * {
+ *   "summary": "String",
+ *   "recommendedTopics": ["topic1", "topic2"],
+ *   "difficultyAdjustment": "maintain|upgrade|downgrade",
+ *   "learningPlan": "String with action items"
+ * }
+ */
+router.post('/analyze-quiz', async (req, res) => {
+  try {
+    const { userId, quizId, topic, performanceRecord } = req.body;
+
+    // Validate inputs
+    if (!userId || !quizId || !performanceRecord) {
+      return res.status(400).json({ error: 'Missing required fields: userId, quizId, performanceRecord' });
+    }
+
+    const { supabase } = require('../database');
+    const score = performanceRecord.percentage || 0;
+    const cognitive = performanceRecord.cognitive_breakdown || {};
+    const topicMastery = performanceRecord.topic_mastery || {};
+    const weakTopics = performanceRecord.weak_topics || [];
+    const strongTopics = performanceRecord.strong_topics || [];
+
+    console.log(`[AI/analyze-quiz] User ${userId} completed quiz ${quizId} with score ${score}%`);
+
+    // ========== AI ANALYSIS LOGIC ==========
+
+    // 1. Generate Summary
+    let summary = '';
+    if (score >= 85) {
+      summary = `Xuất sắc (${score}%)! Bạn đã thành thạo các khái niệm chính trong ${topic}.`;
+    } else if (score >= 75) {
+      summary = `Tốt (${score}%)! Bạn hiểu ${topic} khá tốt, nhưng vẫn có thể hiểu sâu hơn.`;
+    } else if (score >= 60) {
+      summary = `Khá (${score}%). Bạn đã nắm bắt được các kiến thức cơ bản của ${topic}, nhưng cần luyện tập thêm.`;
+    } else {
+      summary = `Bạn ghi được ${score}% trong ${topic}. Hãy tập trung vào việc hiểu các khái niệm cơ bản trước tiên.`;
+    }
+
+    // 2. Identify Weak Areas
+    let weakAreas = [];
+    let strongAreas = [];
+
+    if (cognitive && Object.keys(cognitive).length > 0) {
+      Object.entries(cognitive).forEach(([level, data]) => {
+        if (data.correct && data.total) {
+          const percentage = (data.correct / data.total) * 100;
+          if (percentage < 60) {
+            weakAreas.push(`Mức ${level} (${percentage.toFixed(0)}%)`);
+          } else if (percentage >= 80) {
+            strongAreas.push(`Mức ${level} (${percentage.toFixed(0)}%)`);
+          }
+        }
+      });
+    }
+
+    // 3. Recommend Next Topics
+    let recommendedTopics = [];
+    let recommendation = '';
+
+    if (weakTopics && weakTopics.length > 0) {
+      // Recommend weakest topic for practice
+      const weakest = weakTopics[0];
+      recommendedTopics.push(weakest.topic);
+      recommendation = `Khu vực yếu nhất của bạn là ${weakest.topic} (${weakest.score}%). Tôi khuyên bạn nên luyện tập chủ đề này tiếp theo.`;
+    } else if (strongTopics && strongTopics.length > 0) {
+      // If strong everywhere, recommend advancing
+      recommendedTopics.push('Thách thức nâng cao');
+      recommendation = 'Bạn mạnh mẽ trên khắp các chủ đề. Hãy thử các bài toán thực hành nâng cao.';
+    } else {
+      recommendation = 'Tiếp tục với chủ đề tiếp theo trong chuỗi.';
+    }
+
+    // 4. Difficulty Adjustment
+    let difficultyAdjustment = 'maintain';
+    if (score >= 85) {
+      difficultyAdjustment = 'upgrade';
+    } else if (score < 60) {
+      difficultyAdjustment = 'downgrade';
+    }
+
+    // 5. Generate Learning Plan
+    let learningPlan = '';
+    if (score < 60) {
+      learningPlan = `1. Ôn tập các nền tảng của ${topic}\n2. Tập trung vào mức 1 & 2 kiến thức\n3. Luyện tập các bài toán dễ trước khi thử những bài khó hơn\n4. Làm bài kiểm tra này lại để kiểm tra hiểu biết`;
+    } else if (score < 75) {
+      learningPlan = `1. Ôn tập các khái niệm yếu được xác định ở trên\n2. Luyện tập các bài toán mức 3 & 4\n3. Cố gắng làm bài kiểm tra này lại để đạt 75%+\n4. Sau đó chuyển sang chủ đề tiếp theo`;
+    } else {
+      learningPlan = `1. Củng cố các khu vực mạnh với các bài toán thách thức\n2. Ôn tập bất kỳ khái niệm mức yếu\n3. Chuyển sang chủ đề tiếp theo khi sẵn sàng\n4. Ôn tập chủ đề này minigame`;
+    }
+
+    // ========== SAVE TO DATABASE ==========
+
+    try {
+      const { data: insight, error: dbError } = await supabase
+        .from('ai_learning_insights')
+        .upsert({
+          user_id: userId,
+          quiz_id: quizId,
+          topic: topic,
+          ai_summary: summary,
+          recommended_topics: recommendedTopics,
+          difficulty_adjustment: difficultyAdjustment,
+          learning_plan: learningPlan,
+          strong_areas: strongAreas,
+          weak_areas: weakAreas,
+          confidence_score: (score / 100).toFixed(2)
+        }, {
+          onConflict: 'user_id,quiz_id'
+        });
+
+      if (dbError) {
+        console.error('[AI/analyze-quiz] Database error saving insights:', dbError);
+        // Don't fail the request, return analysis even if DB save fails
+      } else {
+        console.log(`[AI/analyze-quiz] Insights saved for user ${userId}`);
+      }
+    } catch (dbError) {
+      console.error('[AI/analyze-quiz] Database error:', dbError);
+      // Continue anyway - return the analysis
+    }
+
+    // ========== RETURN RESPONSE ==========
+
+    res.json({
+      userId,
+      quizId,
+      topic,
+      summary: summary,
+      strongAreas: strongAreas,
+      weakAreas: weakAreas,
+      recommendation: recommendation,
+      recommendedTopics: recommendedTopics,
+      difficulty_adjustment: difficultyAdjustment,
+      learning_plan: learningPlan,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('[AI/analyze-quiz] Error analyzing quiz:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/ai/insights/:userId/:quizId
+ * Retrieve saved AI insights for a specific quiz
+ */
+router.get('/insights/:userId/:quizId', async (req, res) => {
+  try {
+    const { userId, quizId } = req.params;
+    const parsedUserId = parseInt(userId);
+
+    if (isNaN(parsedUserId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const { supabase } = require('../database');
+
+    const { data, error } = await supabase
+      .from('ai_learning_insights')
+      .select('*')
+      .eq('user_id', parsedUserId)
+      .eq('quiz_id', quizId)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Insights not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('[AI/insights] Error fetching insights:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/ai/insights/:userId?limit=5
+ * Get recent AI insights for user (last N quizzes)
+ */
+router.get('/insights/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 5 } = req.query;
+    const parsedUserId = parseInt(userId);
+
+    if (isNaN(parsedUserId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const { supabase } = require('../database');
+
+    const { data, error } = await supabase
+      .from('ai_learning_insights')
+      .select('*')
+      .eq('user_id', parsedUserId)
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+
+    if (error || !data) {
+      return res.json({ insights: [] });
+    }
+
+    res.json({ insights: data });
+  } catch (error) {
+    console.error('[AI/insights] Error fetching recent insights:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

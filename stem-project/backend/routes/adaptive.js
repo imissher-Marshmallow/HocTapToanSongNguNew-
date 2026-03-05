@@ -14,6 +14,18 @@ const { generateAISummary, generateDetailedTopicFeedback, generateLearningRoadma
 const { saveQuizResult, getQuizRecommendation } = require('../services/quizResultsService')
 const { supabase, supabaseError } = require('../database')
 const { loadQuestionsData, getAllQuestions } = require('../ai/loadQuestions')
+const {
+  getRecommendedTopic,
+  trackQuestionsAnswered,
+  filterUnseenQuestions,
+  getProgressCurve,
+  updateMasteryStatus,
+  scheduleNextReview,
+  getTopicsDueForReview,
+  categorizeSpeed,
+  calibrateDifficulty,
+  updateUserEloRating
+} = require('../services/advancedAdaptiveService')
 
 const router = express.Router()
 
@@ -40,17 +52,17 @@ function generateTopicFeedback(topicAnalysis, cognitiveScores) {
     // Generate Vietnamese emoji feedback
     let emojiFeedback = '';
     if (percentage >= 90) {
-      emojiFeedback = `🌟 Xuất sắc ở ${topicName}! Đúng ${correct}/${total} câu. Tiếp tục phát huy!`;
+      emojiFeedback = ` Xuất sắc ở ${topicName}! Đúng ${correct}/${total} câu. Tiếp tục phát huy!`;
     } else if (percentage >= 80) {
-      emojiFeedback = `✅ Rất tốt ở ${topicName}! Đúng ${correct}/${total} câu. Thêm một chút luyện tập nữa!`;
+      emojiFeedback = ` Rất tốt ở ${topicName}! Đúng ${correct}/${total} câu. Thêm một chút luyện tập nữa!`;
     } else if (percentage >= 70) {
-      emojiFeedback = `👍 Khá tốt ${topicName} (${correct}/${total}). Luyện tập thêm để hoàn thiện.`;
+      emojiFeedback = ` Khá tốt ${topicName} (${correct}/${total}). Luyện tập thêm để hoàn thiện.`;
     } else if (percentage >= 60) {
-      emojiFeedback = `📚 ${topicName}: Hiểu được ${correct}/${total}. Ôn tập thêm để vững kiến thức.`;
+      emojiFeedback = ` ${topicName}: Hiểu được ${correct}/${total}. Ôn tập thêm để vững kiến thức.`;
     } else if (percentage >= 40) {
-      emojiFeedback = `⚠️ ${topicName}: Đúng ${correct}/${total}. Ôn tập lại từ cơ bản, làm thêm bài tập.`;
+      emojiFeedback = ` ${topicName}: Đúng ${correct}/${total}. Ôn tập lại từ cơ bản, làm thêm bài tập.`;
     } else {
-      emojiFeedback = `❌ ${topicName}: Chỉ đúng ${correct}/${total}. Bắt đầu ôn từ những bài cơ bản.`;
+      emojiFeedback = ` ${topicName}: Chỉ đúng ${correct}/${total}. Bắt đầu ôn từ những bài cơ bản.`;
     }
     
     // Generate detailed improvement suggestions
@@ -2116,5 +2128,407 @@ router.get('/recommended-contest/:userId/:chapterId', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 })
+
+/**
+ * ========== ADVANCED ADAPTIVE LEARNING ENDPOINTS ==========
+ */
+
+/**
+ * ⭐ GET /api/adaptive/recommend/:userId
+ * Smart topic recommendation based on weak areas and learning patterns
+ * 
+ * Returns:
+ * {
+ *   "topic": "Phương trình",
+ *   "reason": "Weakest topic",
+ *   "difficulty": "easy"
+ * }
+ */
+router.get('/recommend/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const recommendation = await getRecommendedTopic(userId);
+    
+    if (!recommendation) {
+      // No history - return starter topic
+      return res.json({
+        topic: null,
+        reason: 'No learning history yet. Start with any topic!',
+        difficulty: 'easy',
+        estimatedQuestions: 10,
+        priority: 'low'
+      });
+    }
+
+    res.json({
+      topic: recommendation.recommendedTopic,
+      reason: recommendation.reason,
+      difficulty: recommendation.difficulty,
+      priority: recommendation.priority
+    });
+  } catch (error) {
+    console.error('Error getting recommendation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * 📊 GET /api/adaptive/progress-curve/:userId?topic=Đại số
+ * Historical progress data for charting (learning curve)
+ */
+router.get('/progress-curve/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { topic } = req.query;
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const progressCurve = await getProgressCurve(userId, topic);
+
+    res.json({
+      userId,
+      topic: topic || 'all',
+      progressData: progressCurve,
+      totalQuizzes: progressCurve.length,
+      averageScore: progressCurve.length > 0 ?
+        Math.round(progressCurve.reduce((sum, p) => sum + p.score, 0) / progressCurve.length) :
+        0
+    });
+  } catch (error) {
+    console.error('Error fetching progress curve:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * 🎯 GET /api/adaptive/mastery/:userId
+ * Topic mastery status across all topics
+ */
+router.get('/mastery/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const { supabase } = require('../database');
+    
+    const { data, error } = await supabase
+      .from('topic_mastery')
+      .select('*')
+      .eq('user_id', userId)
+      .order('average_score', { ascending: false });
+
+    if (error || !data) {
+      return res.json({ masteryList: [] });
+    }
+
+    res.json({
+      userId,
+      masteryList: data.map(m => ({
+        topic: m.topic,
+        status: m.mastery_status,
+        averageScore: m.average_score,
+        attempts: m.attempts_total,
+        masteredDate: m.mastery_date
+      })),
+      masteredCount: data.filter(m => m.mastery_status === 'mastered').length,
+      developingCount: data.filter(m => m.mastery_status === 'developing').length
+    });
+  } catch (error) {
+    console.error('Error fetching mastery:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * 🔄 GET /api/adaptive/spaced-repetition/:userId
+ * Topics due for review (spaced repetition)
+ */
+router.get('/spaced-repetition/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const dueTopics = await getTopicsDueForReview(userId);
+
+    res.json({
+      userId,
+      dueForReview: dueTopics,
+      urgentCount: dueTopics.filter(t => t.review_priority === 1).length,
+      totalDue: dueTopics.length
+    });
+  } catch (error) {
+    console.error('Error fetching spaced repetition:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * 📈 GET /api/adaptive/elo-rating/:userId
+ * ELO rating and rating history for user
+ */
+router.get('/elo-rating/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const { supabase } = require('../database');
+    
+    const { data, error } = await supabase
+      .from('user_elo_ratings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) {
+      return res.json({
+        userId,
+        overallRating: 1200,
+        topicRatings: {},
+        ratingHistory: []
+      });
+    }
+
+    res.json({
+      userId,
+      overallRating: data.overall_rating,
+      topicRatings: data.topic_ratings,
+      ratingHistory: data.rating_history,
+      ratingTrend: data.rating_history && data.rating_history.length > 1 ?
+        data.rating_history[data.rating_history.length - 1].rating - data.rating_history[0].rating :
+        0
+    });
+  } catch (error) {
+    console.error('Error fetching ELO rating:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * ========== NEW TOPIC-BASED ADAPTIVE QUIZ ENDPOINTS ==========
+ * User picks a TOPIC only (no difficulty buttons)
+ * System intelligently selects difficulty based on user's past performance
+ */
+
+/**
+ * GET /api/adaptive/topics
+ * Returns all available topics with user's progress
+ * 
+ * @param {string} userId - User ID (optional, for personalized progress)
+ * @returns {Array} Topics with metadata and user progress
+ */
+router.get('/topics', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const questions = await loadQuestionsData();
+    
+    if (!questions || !questions.chapters) {
+      return res.json([]);
+    }
+
+    // Extract unique chapters/topics
+    const topics = questions.chapters.map(chapter => ({
+      chapterId: chapter.chapterId,
+      name: chapter.chapterName,
+      isAvailable: chapter.isAvailable,
+      mode: chapter.mode || 'normal',
+      totalQuestions: chapter.contests ? 
+        chapter.contests.reduce((sum, c) => sum + (c.questions_multiple_choice?.length || 0), 0) : 0,
+      userProgress: null // Will be populated if userId provided
+    }));
+
+    // If userId provided, fetch user's progress for each topic
+    if (userId && !isNaN(userId)) {
+      const numericUserId = parseInt(userId);
+      
+      try {
+        const { data: mlRecords } = await supabase
+          .from('ml_performance_records')
+          .select('topic, percentage, created_at')
+          .eq('user_id', numericUserId)
+          .order('created_at', { ascending: false });
+
+        if (mlRecords && mlRecords.length > 0) {
+          topics.forEach(topic => {
+            const topicAttempts = mlRecords.filter(r => r.topic === topic.name);
+            if (topicAttempts.length > 0) {
+              const lastAttempt = topicAttempts[0];
+              const avgScore = topicAttempts.reduce((sum, r) => sum + r.percentage, 0) / topicAttempts.length;
+              
+              topic.userProgress = {
+                attempts: topicAttempts.length,
+                lastScore: lastAttempt.percentage,
+                averageScore: Math.round(avgScore),
+                lastAttemptedAt: lastAttempt.created_at,
+                status: avgScore >= 80 ? 'mastered' : avgScore >= 60 ? 'developing' : 'needs_practice'
+              };
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Could not fetch user progress:', err.message);
+      }
+    }
+
+    res.json(topics);
+  } catch (error) {
+    console.error('Error fetching topics:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/adaptive/quiz/smart-difficulty/:userId/:topicName
+ * Analyzes user's past performance on a topic and determines optimal difficulty
+ * 
+ * - Never attempted: Easy (exam_id 1-3)
+ * - Attempted, score < 60%: Easy (exam_id 1-3)
+ * - Attempted, score 60-75%: Normal (exam_id 2-3)
+ * - Attempted, score >= 75%: Hard (exam_id 4-5)
+ */
+router.get('/quiz/smart-difficulty/:userId/:topicName', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const topicName = decodeURIComponent(req.params.topicName);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    // Fetch user's past attempts on this topic
+    const { data: attempts, error } = await supabase
+      .from('ml_performance_records')
+      .select('percentage, created_at')
+      .eq('user_id', userId)
+      .eq('topic', topicName)
+      .order('created_at', { ascending: false });
+
+    let difficulty = 'easy';
+    let examIds = [1, 2, 3]; // Default: easy
+    let reasoning = `First attempt on ${topicName}. Starting with easy questions.`;
+
+    if (!error && attempts && attempts.length > 0) {
+      const lastScore = attempts[0].percentage;
+      const avgScore = attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length;
+
+      if (avgScore >= 75) {
+        difficulty = 'hard';
+        examIds = [4, 5];
+        reasoning = `Excellent progress (avg ${Math.round(avgScore)}%). Ready for challenging questions.`;
+      } else if (avgScore >= 60) {
+        difficulty = 'normal';
+        examIds = [2, 3];
+        reasoning = `Good progress (avg ${Math.round(avgScore)}%). Moving to harder questions.`;
+      } else {
+        difficulty = 'easy';
+        examIds = [1, 2, 3];
+        reasoning = `Score ${Math.round(lastScore)}%. Let's practice the basics more.`;
+      }
+    }
+
+    res.json({
+      userId,
+      topicName,
+      difficulty,
+      examIds,
+      reasoning,
+      previousAttempts: attempts?.length || 0
+    });
+  } catch (error) {
+    console.error('Error calculating smart difficulty:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/adaptive/quiz/by-topic
+ * Generate a quiz for a specific topic with smart difficulty
+ * 
+ * Body: { userId, topicName, examIds? (optional), numQuestions? }
+ * @returns {Object} Quiz with questions
+ */
+router.post('/quiz/by-topic', async (req, res) => {
+  try {
+    const { userId, topicName, examIds, numQuestions = 10 } = req.body;
+
+    if (!userId || !topicName) {
+      return res.status(400).json({ error: 'Missing userId or topicName' });
+    }
+
+    const questions = await loadQuestionsData();
+    if (!questions || !questions.chapters) {
+      return res.status(500).json({ error: 'Questions data not available' });
+    }
+
+    // Filter questions by topic and exam_id
+    let filteredQuestions = [];
+
+    questions.chapters.forEach(chapter => {
+      if (chapter.chapterName === topicName && chapter.contests) {
+        chapter.contests.forEach(contest => {
+          // If examIds specified, only use those difficulty levels
+          const shouldInclude = !examIds || examIds.includes(contest.exam_id);
+          
+          if (shouldInclude && contest.questions_multiple_choice) {
+            filteredQuestions.push(...contest.questions_multiple_choice.map(q => ({
+              ...q,
+              exam_id: contest.exam_id,
+              chapterId: chapter.chapterId,
+              chapterName: chapter.chapterName
+            })));
+          }
+        });
+      }
+    });
+
+    if (filteredQuestions.length === 0) {
+      return res.status(404).json({ error: `No questions found for topic: ${topicName}` });
+    }
+
+    // Shuffle and select num_questions
+    const shuffled = filteredQuestions.sort(() => Math.random() - 0.5);
+    const selectedQuestions = shuffled.slice(0, Math.min(numQuestions, filteredQuestions.length));
+
+    // Calculate exam_id distribution
+    const examIdDistribution = {};
+    selectedQuestions.forEach(q => {
+      examIdDistribution[q.exam_id] = (examIdDistribution[q.exam_id] || 0) + 1;
+    });
+
+    res.json({
+      quizId: `quiz-${topicName}-${Date.now()}`,
+      topicName,
+      totalQuestions: selectedQuestions.length,
+      examIdDistribution,
+      questions: selectedQuestions.map(q => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+        topic: q.topic,
+        difficulty: q.difficulty,
+        exam_id: q.exam_id
+        // Don't send answerIndex (hidden until submission)
+      }))
+    });
+  } catch (error) {
+    console.error('Error generating topic-based quiz:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 module.exports = router
