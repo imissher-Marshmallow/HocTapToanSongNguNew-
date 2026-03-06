@@ -34,6 +34,8 @@ export function AuthProvider({ children }) {
           email: decoded.email || 'unknown',
           username: 'Loading...'
         });
+        // Save userId to localStorage for AIChat fallback
+        localStorage.setItem('userId', decoded.userId);
       }
       verifyToken();
     }
@@ -108,6 +110,8 @@ export function AuthProvider({ children }) {
         username: username
       };
       setUser(userData);
+      // Save userId to localStorage for AIChat and other components
+      localStorage.setItem('userId', userData.id);
       return data;
     } catch (err) {
       setError(err.message);
@@ -146,6 +150,8 @@ export function AuthProvider({ children }) {
         username: 'User'
       };
       setUser(userData);
+      // Save userId to localStorage for AIChat and other components
+      localStorage.setItem('userId', userData.id);
       return data;
     } catch (err) {
       setError(err.message);
@@ -158,6 +164,8 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setToken(null);
     setUser(null);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('userId');
     localStorage.removeItem('auth_token');
   };
 
