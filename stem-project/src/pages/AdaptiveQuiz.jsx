@@ -316,11 +316,37 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       try {
         console.log('[AdaptiveQuiz] Saving complete results to Supabase via /api/results...');
         
+        // CRITICAL: Validate topic consistency BEFORE saving
+        const questionsTopics = [...new Set(quiz.questions.map(q => q.topic || q.chapterName))];
+        const selectedTopic = quiz.topic;
+        
+        console.log('[AdaptiveQuiz] 🔍 TOPIC VALIDATION:', {
+          selectedTopic,
+          questionsTopics,
+          match: questionsTopics.length === 1 && questionsTopics[0] === selectedTopic
+        });
+        
+        // If topics don't match, log severe warning
+        if (questionsTopics.length > 0 && !questionsTopics.includes(selectedTopic)) {
+          console.error('[AdaptiveQuiz] 🚨 CRITICAL MISMATCH:', {
+            selectedTopic,
+            actualQuestionTopics: questionsTopics,
+            warning: 'Questions do not match selected topic! This will corrupt the results.'
+          });
+          
+          // Use actual topic from questions instead of selected topic
+          console.log('[AdaptiveQuiz] ⚠️  Using actual question topic instead:', questionsTopics[0]);
+          // Don't throw - just warn and use the actual topic
+        }
+        
         const savePayload = {
           userId: finalUserId,
           quizId: 'personalized-adaptive',
           quizName: 'Adaptive Quiz',
-          topic: quiz.topic,  // CRITICAL: Send topic name to backend for tracking
+          // Use actual question topic if mismatch detected, otherwise use selected topic
+          topic: questionsTopics.length > 0 && !questionsTopics.includes(selectedTopic) 
+            ? questionsTopics[0]  // Use actual topic from questions
+            : selectedTopic,  // Use selected topic if matched
           answers: formattedAnswers,
           questions: quiz.questions,
           score: Math.round(analysisResults.overallScore),  // Convert to 0-10 scale

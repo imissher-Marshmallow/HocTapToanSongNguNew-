@@ -2553,10 +2553,26 @@ router.post('/quiz/by-topic', async (req, res) => {
 
     // Verify chapter names in filtered questions
     const chaptersInFiltered = [...new Set(filteredQuestions.map(q => q.chapterName))];
+    const topicsInFiltered = [...new Set(filteredQuestions.map(q => q.topic))];
+    
+    console.log('[Adaptive] 🔎 FINAL VALIDATION:', {
+      requested: topicName,
+      chaptersFound: chaptersInFiltered,
+      topicsFound: topicsInFiltered,
+      questionCount: filteredQuestions.length
+    });
+    
     if (chaptersInFiltered.length !== 1 || chaptersInFiltered[0] !== topicName) {
-      console.error('[Adaptive] ⚠️  CRITICAL: Filtered questions have wrong chapters!', {
+      console.error('[Adaptive] 🚨 CRITICAL: Filtered questions have WRONG chapters!', {
         requested: topicName,
-        inFiltered: chaptersInFiltered
+        inFiltered: chaptersInFiltered,
+        topicsInFiltered: topicsInFiltered
+      });
+      return res.status(500).json({
+        error: 'Topic mismatch detected in question filtering',
+        requested: topicName,
+        actual: chaptersInFiltered,
+        hint: 'Check if topic names in questions data match TopicSelector names'
       });
     }
 

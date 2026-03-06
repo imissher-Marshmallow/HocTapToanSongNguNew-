@@ -29,7 +29,13 @@ async function initializeUserMLPerformance(userId) {
       quiz_id: 'initial',
       score: 0,
       percentage: 0,
-      quiz_type: 'initial',
+      // NOTE: Supabase schema cache may be stale
+      // If you get "Could not find 'quiz_type' column" error:
+      // 1. Restart your Supabase project (Settings > Restart)
+      // OR
+      // 2. Run migration 003 again in SQL Editor
+      // Then uncomment this line:
+      // quiz_type: 'initial',
       cognitive_breakdown: {
         level1: { correct: 0, total: 0, points: 0 },
         level2: { correct: 0, total: 0, points: 0 },
