@@ -285,21 +285,27 @@ Guidelines:
     console.log('[Chatbot] ✅ Response generated successfully');
 
     // Save conversation to database (optional - for future analysis)
-    if (learningProfile) {
-      await supabase
-        .from('chat_conversations')
-        .insert([{
-          user_id: numericUserId,
-          user_message: message,
-          assistant_message: assistantMessage,
-          student_context_used: {
-            weak_areas: learningProfile.weak_areas || [],
-            strong_areas: learningProfile.strong_areas || [],
-            cognitive_levels: learningProfile.cognitive_levels || {}
-          },
-          created_at: new Date().toISOString()
-        }])
-        .catch(err => console.warn('[Chatbot] Could not save conversation:', err.message));
+    if (learningProfile && supabase) {
+      try {
+        const { error } = await supabase
+          .from('chat_conversations')
+          .insert([{
+            user_id: numericUserId,
+            user_message: message,
+            assistant_message: assistantMessage,
+            student_context_used: {
+              weak_areas: learningProfile.weak_areas || [],
+              strong_areas: learningProfile.strong_areas || [],
+              cognitive_levels: learningProfile.cognitive_levels || {}
+            }
+          }]);
+        
+        if (error) {
+          console.warn('[Chatbot] ⚠️ Could not save conversation:', error.message);
+        }
+      } catch (err) {
+        console.warn('[Chatbot] ⚠️ Exception saving conversation:', err.message);
+      }
     }
 
     res.json({
