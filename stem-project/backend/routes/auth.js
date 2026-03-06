@@ -61,8 +61,8 @@ router.post('/signup', async (req, res) => {
       if (supabaseUrl && supabaseKey) {
         const supabase = createClient(supabaseUrl, supabaseKey);
         
-        // Insert new user profile with default values
-        const { data, error } = await supabase
+        // 1. Insert new user learning profile with default values
+        const { data: profileData, error: profileError } = await supabase
           .from('user_learning_profiles')
           .insert([{
             user_id: user.id,
@@ -75,23 +75,67 @@ router.post('/signup', async (req, res) => {
             },
             weak_areas: [],
             strong_areas: [],
+            topics_attempted: [],
             recommendations: [],
             quizzes_taken: 0
           }])
           .select();
         
-        if (error) {
-          console.warn('⚠️ Warning: Could not create learning profile:', error.message);
-          // Don't fail signup if profile creation fails
+        if (profileError) {
+          console.warn('⚠️ Warning: Could not create learning profile:', profileError.message);
         } else {
           console.log('✅ Learning profile created for user:', user.id);
         }
+
+        // 2. Initialize empty ai_feedback record (will be populated after first quiz)
+        const { data: feedbackData, error: feedbackError } = await supabase
+          .from('ai_feedback')
+          .insert([{
+            user_id: user.id,
+            quiz_id: 'initial',
+            topic: 'Getting Started',
+            summary: 'Welcome! Complete your first quiz to receive personalized AI coaching.',
+            recommended_level: 'normal',
+            suggested_topics: [],
+            study_plan: [],
+            explainability: { reasons: [] }
+          }])
+          .select();
+
+        if (feedbackError) {
+          console.warn('⚠️ Warning: Could not initialize ai_feedback:', feedbackError.message);
+        } else {
+          console.log('✅ AI Feedback initialized for user:', user.id);
+        }
+
+        // 3. Initialize ai_learning_insights
+        const { data: insightsData, error: insightsError } = await supabase
+          .from('ai_learning_insights')
+          .insert([{
+            user_id: user.id,
+            quiz_id: 'initial',
+            topic: 'Getting Started',
+            ai_summary: 'New student profile created. Start learning!',
+            recommended_topics: [],
+            difficulty_adjustment: 'normal',
+            learning_plan: '',
+            strong_areas: [],
+            weak_areas: [],
+            confidence_score: 0.0
+          }])
+          .select();
+
+        if (insightsError) {
+          console.warn('⚠️ Warning: Could not initialize ai_learning_insights:', insightsError.message);
+        } else {
+          console.log('✅ AI Learning Insights initialized for user:', user.id);
+        }
       } else {
-        console.warn('⚠️ Supabase credentials not configured for profile auto-creation');
+        console.warn('⚠️ Supabase credentials not configured for table auto-creation');
       }
     } catch (profileError) {
-      console.warn('⚠️ Error creating learning profile:', profileError.message);
-      // Don't fail signup if profile creation fails
+      console.warn('⚠️ Error auto-initializing student tables:', profileError.message);
+      // Don't fail signup if table initialization fails
     }
 
     // Generate token

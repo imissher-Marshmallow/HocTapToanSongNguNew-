@@ -4,6 +4,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider } from './contexts/AuthContext';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
+import AIChat from './components/AIChat';
 import LandingPage from './pages/LandingPage';
 import QuizList from './pages/QuizList';
 import QuizPage from './pages/QuizPage';
@@ -101,6 +102,7 @@ function App() {
               </Routes>
             </main>
             <Footer />
+            <AIChat />
           </div>
         </Router>
       </AuthProvider>

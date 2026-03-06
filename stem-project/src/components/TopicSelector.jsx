@@ -167,6 +167,15 @@ const TopicSelector = () => {
               
               {topic.userProgress ? (
                 <div className="progress-info">
+                  <div className="attempt-status">
+                    {topic.userProgress.attempts === 1 && (
+                      <span className="status-badge attempted">✅ Attempted Once</span>
+                    )}
+                    {topic.userProgress.attempts > 1 && (
+                      <span className="status-badge attempted-multiple">✅ Attempted {topic.userProgress.attempts}x</span>
+                    )}
+                  </div>
+
                   <div 
                     className="status-badge"
                     style={{ backgroundColor: getStatusColor(topic.userProgress.status) }}
@@ -175,7 +184,7 @@ const TopicSelector = () => {
                   </div>
                   
                   <div className="progress-stats">
-                    <p>📊 Average Score: <strong>{topic.userProgress.averageScore}%</strong></p>
+                    <p>📊 Avg Score: <strong>{topic.userProgress.averageScore}%</strong></p>
                     <p>🎯 Last Score: <strong>{topic.userProgress.lastScore}%</strong></p>
                     <p>🔄 Attempts: <strong>{topic.userProgress.attempts}</strong></p>
                   </div>
