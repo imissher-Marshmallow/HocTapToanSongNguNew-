@@ -2462,6 +2462,8 @@ router.get('/quiz/smart-difficulty/:userId/:topicName', async (req, res) => {
  * 
  * Body: { userId, topicName, examIds? (optional), numQuestions? }
  * @returns {Object} Quiz with questions
+ * 
+ * ENHANCED: With comprehensive topic validation & logging
  */
 router.post('/quiz/by-topic', async (req, res) => {
   try {
@@ -2471,34 +2473,91 @@ router.post('/quiz/by-topic', async (req, res) => {
       return res.status(400).json({ error: 'Missing userId or topicName' });
     }
 
+    console.log('[Adaptive] 📋 Starting quiz generation for topic:', {
+      userId,
+      requestedTopic: topicName,
+      examIds,
+      numQuestions
+    });
+
     const questions = await loadQuestionsData();
     if (!questions || !questions.chapters) {
       return res.status(500).json({ error: 'Questions data not available' });
     }
 
+    // DEBUG: Log all available chapters
+    const availableChapters = questions.chapters.map(c => c.chapterName);
+    console.log('[Adaptive] 📚 Available chapters in questions data:', availableChapters);
+    
+    // Verify requested topic exists
+    const matchingChapter = questions.chapters.find(c => c.chapterName === topicName);
+    if (!matchingChapter) {
+      console.error('[Adaptive] ❌ Topic NOT FOUND! Requested:', topicName, 'Available:', availableChapters);
+      return res.status(404).json({ 
+        error: `Topic "${topicName}" not found. Available topics: ${availableChapters.join(', ')}`,
+        availableTopics: availableChapters
+      });
+    }
+
+    console.log('[Adaptive] ✅ Found matching chapter:', {
+      chapterId: matchingChapter.chapterId,
+      chapterName: matchingChapter.chapterName,
+      numContests: matchingChapter.contests?.length || 0
+    });
+
     // Filter questions by topic and exam_id
     let filteredQuestions = [];
 
     questions.chapters.forEach(chapter => {
+      // Strict matching: only process the exact chapter requested
       if (chapter.chapterName === topicName && chapter.contests) {
+        console.log('[Adaptive] 🔍 Processing chapter:', chapter.chapterName);
+        
         chapter.contests.forEach(contest => {
           // If examIds specified, only use those difficulty levels
           const shouldInclude = !examIds || examIds.includes(contest.exam_id);
           
+          console.log('[Adaptive]   Contest exam_id:', contest.exam_id, '- Include?', shouldInclude);
+          
           if (shouldInclude && contest.questions_multiple_choice) {
+            const questionsInContest = contest.questions_multiple_choice.length;
+            console.log('[Adaptive]     Adding', questionsInContest, 'questions from exam_id', contest.exam_id);
+            
             filteredQuestions.push(...contest.questions_multiple_choice.map(q => ({
               ...q,
               exam_id: contest.exam_id,
               chapterId: chapter.chapterId,
-              chapterName: chapter.chapterName
+              chapterName: chapter.chapterName  // Ensure chapter name is preserved
             })));
           }
         });
       }
     });
 
+    console.log('[Adaptive] 📊 Filtering results:', {
+      totalFiltered: filteredQuestions.length,
+      topicsInFiltered: [...new Set(filteredQuestions.map(q => q.topic))]
+    });
+
     if (filteredQuestions.length === 0) {
-      return res.status(404).json({ error: `No questions found for topic: ${topicName}` });
+      console.error('[Adaptive] ❌ No questions found after filtering!');
+      return res.status(404).json({ 
+        error: `No questions found for topic: ${topicName}`,
+        debugging: {
+          requestedTopic: topicName,
+          chapterFound: !!matchingChapter,
+          contests: matchingChapter?.contests?.length || 0
+        }
+      });
+    }
+
+    // Verify chapter names in filtered questions
+    const chaptersInFiltered = [...new Set(filteredQuestions.map(q => q.chapterName))];
+    if (chaptersInFiltered.length !== 1 || chaptersInFiltered[0] !== topicName) {
+      console.error('[Adaptive] ⚠️  CRITICAL: Filtered questions have wrong chapters!', {
+        requested: topicName,
+        inFiltered: chaptersInFiltered
+      });
     }
 
     // Shuffle and select num_questions
@@ -2507,8 +2566,17 @@ router.post('/quiz/by-topic', async (req, res) => {
 
     // Calculate exam_id distribution
     const examIdDistribution = {};
+    const topicDistribution = {};
     selectedQuestions.forEach(q => {
       examIdDistribution[q.exam_id] = (examIdDistribution[q.exam_id] || 0) + 1;
+      const topicName = q.topic || 'Unknown';
+      topicDistribution[topicName] = (topicDistribution[topicName] || 0) + 1;
+    });
+
+    console.log('[Adaptive] ✅ Quiz generated successfully:', {
+      totalSelected: selectedQuestions.length,
+      examDistribution: examIdDistribution,
+      topicsDistribution: topicDistribution
     });
 
     res.json({
@@ -2516,19 +2584,127 @@ router.post('/quiz/by-topic', async (req, res) => {
       topicName,
       totalQuestions: selectedQuestions.length,
       examIdDistribution,
+      topicDistribution,  // NEW: Help debug topic issues
       questions: selectedQuestions.map(q => {
         // Return complete question data EXCEPT answer keys
         const { answerIndex, ...questionData } = q;
         return {
           ...questionData,
           cognitiveLevel: q.difficulty || q.bloomLevel || 1,  // Map difficulty to cognitiveLevel
-          type: 'multiple-choice'  // These are from questions_multiple_choice
+          type: 'multiple-choice',  // These are from questions_multiple_choice
+          chapterName: q.chapterName  // Preserve for client-side validation
         };
       })
     });
   } catch (error) {
-    console.error('Error generating topic-based quiz:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[Adaptive] ❌ Error generating topic-based quiz:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+/**
+ * GET /api/adaptive/ai-feedback/:userId/:quizId?
+ * Fetch AI feedback and learning insights for a quiz
+ * 
+ * This is where students see their personalized coaching:
+ * - Summary of their learning (human-friendly AI interpretation)
+ * - Recommended difficulty level for next quiz
+ * - Topics to focus on
+ * - Day-by-day study plan
+ * - Explanation of this recommendation
+ */
+router.get('/ai-feedback/:userId/:quizId?', async (req, res) => {
+  try {
+    const numericUserId = parseInt(req.params.userId, 10);
+    const { quizId } = req.params;
+
+    if (isNaN(numericUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
+    let query = supabase
+      .from('ai_feedback')
+      .select('*')
+      .eq('user_id', numericUserId)
+      .order('created_at', { ascending: false });
+
+    // If quizId provided, filter by specific quiz; otherwise get latest
+    if (quizId) {
+      query = query.eq('quiz_id', quizId);
+    }
+
+    const { data: feedbackRecords, error } = await query;
+
+    if (error) {
+      console.warn('[AIFeedback] Fetch error:', error.message);
+      return res.json({
+        userId: numericUserId,
+        feedback: null,
+        insights: null,
+        message: 'No AI feedback available yet. Complete a quiz to receive personalized coaching.'
+      });
+    }
+
+    if (!feedbackRecords || feedbackRecords.length === 0) {
+      return res.json({
+        userId: numericUserId,
+        feedback: null,
+        insights: null,
+        message: 'No AI feedback available yet. Complete a quiz to receive personalized coaching.'
+      });
+    }
+
+    // Get the most recent feedback
+    const latestFeedback = feedbackRecords[0];
+
+    // Also fetch learning insights
+    let insightsQuery = supabase
+      .from('ai_learning_insights')
+      .select('*')
+      .eq('user_id', numericUserId)
+      .order('created_at', { ascending: false });
+
+    if (quizId) {
+      insightsQuery = insightsQuery.eq('quiz_id', quizId);
+    }
+
+    const { data: insights } = await insightsQuery.limit(1);
+
+    res.json({
+      userId: numericUserId,
+      feedback: {
+        id: latestFeedback.id,
+        quizId: latestFeedback.quiz_id,
+        topic: latestFeedback.topic,
+        summary: latestFeedback.summary,
+        recommendedLevel: latestFeedback.recommended_level,
+        suggestedTopics: latestFeedback.suggested_topics || [],
+        studyPlan: latestFeedback.study_plan || [],
+        explainability: latestFeedback.explainability || {},
+        createdAt: latestFeedback.created_at
+      },
+      insights: insights && insights.length > 0 ? {
+        id: insights[0].id,
+        quizId: insights[0].quiz_id,
+        topic: insights[0].topic,
+        aiSummary: insights[0].ai_summary,
+        recommendedTopics: insights[0].recommended_topics || [],
+        difficultyAdjustment: insights[0].difficulty_adjustment,
+        learningPlan: insights[0].learning_plan,
+        strongAreas: insights[0].strong_areas || [],
+        weakAreas: insights[0].weak_areas || [],
+        confidenceScore: insights[0].confidence_score,
+        createdAt: insights[0].created_at
+      } : null,
+      message: 'AI coaching loaded successfully'
+    });
+  } catch (error) {
+    console.error('[AIFeedback] Error fetching AI feedback:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

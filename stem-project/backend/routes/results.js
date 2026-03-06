@@ -68,7 +68,7 @@ const rateLimitSubmission = (req, res, next) => {
 // POST /api/results - Store exam result and trigger AI analysis
 router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
   try {
-    const { userId, quizId, quizName, answers, questions, ai_analysis, timeTaken, submissionId } = req.body;
+    const { userId, quizId, quizName, answers, questions, ai_analysis, timeTaken, submissionId, topic } = req.body;
     const finalUserId = userId || req.userId || 'anonymous';
 
     console.log('[Results] POST /api/results received:', {
@@ -617,6 +617,60 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
             console.log('[Results] Saved to Supabase quiz_results for user ' + numericUserId);
             console.log('[Results] Topics saved: ' + Object.keys(topicPerf).join(', '));
             
+            // 🎯 SAVE TO ML_PERFORMANCE_RECORDS FOR TRACKING ATTEMPT HISTORY
+            try {
+              // Use the explicitly passed topic, or extract first topic from topicPerf
+              const recordedTopic = topic || Object.keys(topicPerf)[0] || 'general';
+              const topicScore = topicPerf[recordedTopic]?.score || actualScore;
+              
+              // Build cognitive breakdown for storage
+              const mlCognitiveBreakdown = {};
+              Object.entries(cognitiveBreakdown).forEach(([key, value]) => {
+                mlCognitiveBreakdown[key] = {
+                  correct: value.correct || 0,
+                  total: value.total || 0,
+                  points: Math.round((value.score || 0) / 10)  // Convert percentage to points
+                };
+              });
+              
+              const { error: mlError } = await supabase
+                .from('ml_performance_records')
+                .insert([{
+                  user_id: numericUserId,
+                  quiz_id: quizId || 'adaptive',
+                  result_id: null,  // Will be linked later if needed
+                  topic: recordedTopic,
+                  difficulty_level: 1,  // Default, can be updated per topic
+                  score: Math.round(actualScore),
+                  percentage: parseFloat((actualScore * 10).toFixed(2)),  // Store as 0-100
+                  max_score: totalQuestions,
+                  cognitive_breakdown: mlCognitiveBreakdown,
+                  topic_mastery: topicPerf,
+                  weak_topics: Object.entries(topicPerf)
+                    .filter(([_, perf]) => (perf.score || 0) < 60)
+                    .map(([topic, _]) => topic),
+                  strong_topics: Object.entries(topicPerf)
+                    .filter(([_, perf]) => (perf.score || 0) >= 80)
+                    .map(([topic, _]) => topic),
+                  answers: answers.reduce((acc, a) => {
+                    acc[a.questionId] = a.answer;
+                    return acc;
+                  }, {}),
+                  quiz_type: quizId?.includes('personalized') || quizId === 'adaptive' ? 'adaptive' : 'contest',
+                  completion_rate: (answeredCount / totalQuestions) * 100,
+                  created_at: new Date().toISOString(),
+                  completed_at: new Date().toISOString()
+                }]);
+              
+              if (mlError) {
+                console.warn('[Results] ⚠️ ml_performance_records save failed (non-blocking):', mlError.message);
+              } else {
+                console.log('[Results] ✅ Saved to ml_performance_records for user ' + numericUserId + ' - topic: ' + recordedTopic);
+              }
+            } catch (mlException) {
+              console.warn('[Results] ml_performance_records exception:', mlException.message);
+            }
+            
             // Update user_learning_profiles with weak and strong areas AND cognitive levels
             try {
               const weakAreas = [];
@@ -692,20 +746,27 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                 level4: getLevelProficiency(newBloomLevels.level4)
               };
               
-              // First try to fetch the profile to see if it exists
+              // First try to fetch the profile to see if it exists AND get current topics_attempted
               const { data: existingProfileForUpdate } = await supabase
                 .from('user_learning_profiles')
-                .select('user_id')
+                .select('user_id, topics_attempted')
                 .eq('user_id', numericUserId)
                 .single();
               
               if (existingProfileForUpdate) {
-                // Profile exists - update it with NEW cumulative Bloom levels
+                // Profile exists - update it with NEW cumulative Bloom levels AND track attempted topics
+                const existingTopicsAttempted = existingProfileForUpdate.topics_attempted || [];
+                const recordedTopic = topic || Object.keys(topicPerf)[0] || 'general';
+                
+                // Add topic to attempted list if not already there
+                const updatedTopicsAttempted = Array.from(new Set([...existingTopicsAttempted, recordedTopic]));
+                
                 const updateObj = {
                   weak_areas: weakAreas,
                   strong_areas: strongAreas,
                   cognitive_levels: newBloomLevels,
-                  proficiency_status: proficiencyStatus
+                  proficiency_status: proficiencyStatus,
+                  topics_attempted: updatedTopicsAttempted  // CRITICAL: Track which topics user has attempted
                 };
                 
                 const { error: profileError } = await supabase
@@ -717,15 +778,19 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                   console.warn('[Results] user_learning_profiles update failed:', profileError.message);
                 } else {
                   console.log('[Results] ✅ Updated Bloom levels: from', currentBloomLevels, 'to', newBloomLevels);
+                  console.log('[Results] ✅ Topics attempted updated:', updatedTopicsAttempted);
                 }
               } else {
                 // Profile doesn't exist - create it with initial Bloom levels
+                const recordedTopic = topic || Object.keys(topicPerf)[0] || 'general';
+                
                 const insertObj = {
                   user_id: numericUserId,
                   weak_areas: weakAreas,
                   strong_areas: strongAreas,
                   cognitive_levels: newBloomLevels,
                   proficiency_status: proficiencyStatus,
+                  topics_attempted: [recordedTopic],  // CRITICAL: Track this as first attempted topic
                   recommendations: [],
                   learning_path: null,
                   quizzes_taken: 1
@@ -739,10 +804,158 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                   console.warn('[Results] user_learning_profiles insert failed:', insertError.message);
                 } else {
                   console.log('[Results] ✅ Created new Bloom levels:', newBloomLevels);
+                  console.log('[Results] ✅ Topics attempted initialized:', [recordedTopic]);
                 }
               }
             } catch (profileErr) {
               console.error('[Results] ❌ user_learning_profiles operation failed:', profileErr && profileErr.message ? profileErr.message : profileErr);
+            }
+            
+            // 💬 SAVE AI FEEDBACK AND LEARNING INSIGHTS PER TOPIC (AI Interpretation of Data)
+            try {
+              const recordedTopic = topic || Object.keys(topicPerf)[0] || 'general';
+              
+              // Extract feedback from ai_analysis if available
+              if (aiResult && typeof aiResult === 'object') {
+                // 🧠 AI INTERPRETATION LOGIC
+                // ai_feedback = AI reads raw ml_performance_records data and creates human-friendly insights
+                
+                // Get weak and strong areas from this quiz
+                const weakAreas = Object.entries(topicPerf)
+                  .filter(([_, perf]) => (perf.score || 0) < 60)
+                  .map(([t, _]) => t);
+                const strongAreas = Object.entries(topicPerf)
+                  .filter(([_, perf]) => (perf.score || 0) >= 80)
+                  .map(([t, _]) => t);
+                
+                // Determine recommended difficulty from performance
+                let recommendedLevel = 'normal';
+                if (actualScore >= 8) {
+                  recommendedLevel = 'hard';  // Good performance -> upgrade difficulty
+                } else if (actualScore >= 6) {
+                  recommendedLevel = 'normal';  // Average -> maintain
+                } else if (actualScore >= 4) {
+                  recommendedLevel = 'easy';  // Below average -> downgrade
+                } else {
+                  recommendedLevel = 'easy';  // Poor performance -> definitely downgrade
+                }
+                
+                // Build AI interpretation summary (human-friendly explanation)
+                let aiInterpretation = '';
+                if (strongAreas.length > 0 && weakAreas.length === 0) {
+                  aiInterpretation = `Excellent progress in ${recordedTopic}! You demonstrated strong understanding across all areas. Ready to tackle more challenging problems.`;
+                } else if (strongAreas.length > 0 && weakAreas.length > 0) {
+                  aiInterpretation = `Good understanding of ${recordedTopic}, but needs focus on: ${weakAreas.join(', ')}. Practice these specific concepts before advancing.`;
+                } else if (weakAreas.length > 0) {
+                  aiInterpretation = `Building foundations in ${recordedTopic}. Focus on mastering: ${weakAreas.join(', ')}. Review fundamentals and practice at easier difficulty.`;
+                } else {
+                  aiInterpretation = `You've completed the ${recordedTopic} quiz. Continue practicing to strengthen your skills.`;
+                }
+                
+                // Determine primary learning need from weakest area
+                const primaryWeakArea = weakAreas.length > 0 ? weakAreas[0] : strongAreas[0] || recordedTopic;
+                
+                // Build suggested_topics based on weak areas (topics to focus on next)
+                const suggestedTopics = weakAreas.length > 0 ? weakAreas : (strongAreas.length > 0 ? strongAreas : [recordedTopic]);
+                
+                // Build day-by-day study plan based on AI analysis
+                const studyPlan = [];
+                if (weakAreas.length > 0) {
+                  studyPlan.push({
+                    day: 1,
+                    task: `Review fundamentals of ${weakAreas[0]}`
+                  });
+                  studyPlan.push({
+                    day: 2,
+                    task: `Practice 5 medium-level problems on ${weakAreas[0]}`
+                  });
+                  if (weakAreas.length > 1) {
+                    studyPlan.push({
+                      day: 3,
+                      task: `Review ${weakAreas[1]}`
+                    });
+                  }
+                  studyPlan.push({
+                    day: studyPlan.length + 1,
+                    task: `Retake ${recordedTopic} quiz at ${recommendedLevel} difficulty`
+                  });
+                } else {
+                  studyPlan.push({
+                    day: 1,
+                    task: `Challenge yourself with harder problems in ${recordedTopic}`
+                  });
+                  studyPlan.push({
+                    day: 2,
+                    task: `Explore related topics building on your ${strongAreas[0] || recordedTopic} knowledge`
+                  });
+                }
+                
+                // Build explainability (why this recommendation was made)
+                const explainabilityReasons = [];
+                Object.entries(bloomPercentages).forEach(([level, percentage]) => {
+                  if (percentage < 50) {
+                    explainabilityReasons.push(`Low accuracy (${percentage}%) in cognitive level ${level.replace('level', '')}`);
+                  } else if (percentage >= 80) {
+                    explainabilityReasons.push(`Strong performance (${percentage}%) in cognitive level ${level.replace('level', '')}`);
+                  }
+                });
+                if (explainabilityReasons.length === 0) {
+                  explainabilityReasons.push(`Overall score: ${actualScore}/10 (${(actualScore * 10).toFixed(0)}%)`);
+                }
+                
+                // Save structured AI_feedback (AI interpretation of performance data)
+                const { error: feedbackError } = await supabase
+                  .from('ai_feedback')
+                  .insert([{
+                    user_id: numericUserId,
+                    quiz_id: quizId || 'adaptive',
+                    topic: recordedTopic,
+                    summary: aiInterpretation,  // Human-friendly AI interpretation
+                    recommended_level: recommendedLevel,  // What difficulty to try next
+                    suggested_topics: suggestedTopics,  // Topics to focus on
+                    study_plan: studyPlan,  // Day-by-day plan
+                    explainability: {
+                      reasons: explainabilityReasons,
+                      performance_breakdown: {
+                        cognitive_scores: bloomPercentages,
+                        topic_scores: Object.fromEntries(Object.entries(topicPerf).map(([t, p]) => [t, p.score || 0]))
+                      }
+                    },
+                    created_at: new Date().toISOString()
+                  }]);
+                
+                if (feedbackError) {
+                  console.warn('[Results] ⚠️ ai_feedback save failed (non-blocking):', feedbackError.message);
+                } else {
+                  console.log('[Results] ✅ Saved AI feedback (interpretation) for user', numericUserId, '- topic:', recordedTopic);
+                  console.log('[Results]   Recommendation:', recommendedLevel, '| Primary focus:', primaryWeakArea);
+                }
+                
+                // Save to ai_learning_insights for cumulative learning profile
+                const { error: insightError } = await supabase
+                  .from('ai_learning_insights')
+                  .insert([{
+                    user_id: numericUserId,
+                    quiz_id: quizId || 'adaptive',
+                    topic: recordedTopic,
+                    ai_summary: aiInterpretation,
+                    recommended_topics: suggestedTopics,
+                    difficulty_adjustment: recommendedLevel,
+                    learning_plan: studyPlan.map(p => p.task).join(' → '),
+                    strong_areas: strongAreas,
+                    weak_areas: weakAreas,
+                    confidence_score: Math.min(1.0, Math.max(0.0, actualScore / 10.0)),
+                    created_at: new Date().toISOString()
+                  }]);
+                
+                if (insightError) {
+                  console.warn('[Results] ⚠️ ai_learning_insights save failed (non-blocking):', insightError.message);
+                } else {
+                  console.log('[Results] ✅ Saved AI learning insights for user', numericUserId, '- topic:', recordedTopic);
+                }
+              }
+            } catch (aiSaveErr) {
+              console.warn('[Results] ⚠️ Error saving AI feedback/insights (non-blocking):', aiSaveErr.message);
             }
             
             // Update user profile with new skills

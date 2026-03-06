@@ -320,6 +320,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
           userId: finalUserId,
           quizId: 'personalized-adaptive',
           quizName: 'Adaptive Quiz',
+          topic: quiz.topic,  // CRITICAL: Send topic name to backend for tracking
           answers: formattedAnswers,
           questions: quiz.questions,
           score: Math.round(analysisResults.overallScore),  // Convert to 0-10 scale

@@ -15,6 +15,7 @@ import { Sparkles, Target, TrendingUp, Lock, CheckCircle } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Spinner from '../components/Spinner';
+import AICoachPanel from '../components/AICoachPanel';
 import '../styles/LearningProfile.css';
 
 const translations = {
@@ -277,6 +278,9 @@ export default function LearningProfile({ userId }) {
         </h1>
         <p>{t.personalizedGuidance}</p>
       </header>
+
+      {/* ========== AI COACH PANEL ========== */}
+      <AICoachPanel userId={finalUserId} />
 
       {/* ========== AI INSIGHT SUMMARY ========== */}
       <section className="ai-insight-section">

@@ -1,0 +1,440 @@
+/**
+ * AI Coach Panel Styles
+ * Responsive design for personalized AI coaching display
+ */
+
+.ai-coach-container {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 28px;
+  margin: 24px 0;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  color: #ffffff;
+  animation: slideIn 0.5s ease-out;
+}
+
+.ai-coach-container.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.ai-coach-container.no-feedback {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-coach-container.no-feedback .no-feedback-message {
+  text-align: center;
+  color: #333;
+}
+
+.ai-coach-container.no-feedback .no-feedback-message p {
+  font-size: 16px;
+  margin: 8px 0;
+}
+
+.ai-coach-container.no-feedback .error-text {
+  color: #d32f2f;
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header */
+.ai-coach-header {
+  margin-bottom: 24px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+  padding-bottom: 16px;
+}
+
+.ai-coach-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.topic-label {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Coach Sections */
+.coach-section {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border-left: 4px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.coach-section:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateX(4px);
+}
+
+.coach-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Summary Section */
+.summary-section .summary-text {
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  opacity: 0.95;
+}
+
+/* Difficulty Section */
+.difficulty-recommendation {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.difficulty-emoji {
+  font-size: 32px;
+  animation: bounce 2s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.difficulty-text {
+  flex: 1;
+}
+
+.difficulty-label {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.difficulty-label strong {
+  color: #ffd700;
+  font-weight: 700;
+}
+
+.difficulty-hint {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Areas Section */
+.areas-section .area-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 8px 0;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.tag:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.strong-tag {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.6);
+}
+
+.strong-tag:hover {
+  background: rgba(76, 175, 80, 0.4);
+}
+
+.weak-tag {
+  background: rgba(255, 152, 0, 0.3);
+  border-color: rgba(255, 152, 0, 0.6);
+}
+
+.weak-tag:hover {
+  background: rgba(255, 152, 0, 0.4);
+}
+
+.suggested-tag {
+  background: rgba(33, 150, 243, 0.3);
+  border-color: rgba(33, 150, 243, 0.6);
+}
+
+.suggested-tag:hover {
+  background: rgba(33, 150, 243, 0.4);
+}
+
+/* Study Plan Section */
+.study-plan {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.study-day {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.study-day:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.day-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffd700;
+  margin-bottom: 6px;
+}
+
+.day-task {
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.95;
+}
+
+/* Explainability Section */
+.explainability-section .reasons-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.reasons-list li {
+  padding: 8px 0 8px 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  position: relative;
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
+  margin-left: 8px;
+  margin-bottom: 8px;
+}
+
+.reasons-list li:before {
+  content: "→";
+  position: absolute;
+  left: -12px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Insights Section */
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.insight-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.insight-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.insight-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.insight-card .label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin: 0 0 8px 0;
+}
+
+.insight-card .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffd700;
+  margin: 0;
+}
+
+.insight-card .summary {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  opacity: 0.95;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #ffd700);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* Footer */
+.ai-coach-footer {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 14px;
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.ai-coach-footer p {
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ai-coach-container {
+    padding: 20px;
+    margin: 16px 0;
+  }
+
+  .ai-coach-header h2 {
+    font-size: 24px;
+  }
+
+  .coach-section {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .coach-section h3 {
+    font-size: 16px;
+  }
+
+  .difficulty-recommendation {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .difficulty-emoji {
+    font-size: 28px;
+  }
+
+  .study-plan {
+    grid-template-columns: 1fr;
+  }
+
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reasons-list li {
+    padding: 8px 0 8px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-coach-container {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .ai-coach-header h2 {
+    font-size: 20px;
+  }
+
+  .coach-section h3 {
+    font-size: 15px;
+  }
+
+  .tag {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+
+  .difficulty-label {
+    font-size: 14px;
+  }
+
+  .day-task {
+    font-size: 12px;
+  }
+}
