@@ -35,8 +35,8 @@ const translations = {
     
     // Status labels
     mastered: '✓ Đã Thành Thạo',
-    developing: '⚠️ Đang Phát Triển',
-    needsWork: '❌ Cần Cải Thiện',
+    developing: ' Đang Phát Triển',
+    needsWork: ' Cần Cải Thiện',
     notReady: '⏸ Chưa Sẵn Sàng',
     
     // Weak Areas section

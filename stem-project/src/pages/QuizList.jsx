@@ -216,9 +216,9 @@ export default function QuizList() {
           key={currentPage}
         >
           <span className="mode-icon">
-            {currentPageData.type === 'normal' && '📚'}
-            {currentPageData.type === 'hard' && '⚡'}
-            {currentPageData.type === 'auto' && '🤖'}
+            {currentPageData.type === 'normal' && ''}
+            {currentPageData.type === 'hard' && ''}
+            {currentPageData.type === 'auto' && ''}
           </span>
           <span className="mode-title">{currentPageData.title}</span>
         </motion.div>
@@ -375,15 +375,15 @@ function QuizDetailModal({ quiz, onClose, language, t, onStart }) {
 
         <div className="modal-details">
           <div className="detail-row">
-            <span className="detail-label">{language === 'vi' ? '📝 Câu hỏi' : '📝 Questions'}:</span>
+            <span className="detail-label">{language === 'vi' ? ' Câu hỏi' : ' Questions'}:</span>
             <span className="detail-value">{quiz.questionsCount}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">{language === 'vi' ? '⏱️ Thời gian' : '⏱️ Time'}:</span>
+            <span className="detail-label">{language === 'vi' ? '⏱ Thời gian' : '⏱ Time'}:</span>
             <span className="detail-value">60 {language === 'vi' ? 'phút' : 'min'}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">{language === 'vi' ? '⭐ Độ khó' : '⭐ Difficulty'}:</span>
+            <span className="detail-label">{language === 'vi' ? ' Độ khó' : ' Difficulty'}:</span>
             <span className="detail-value">{quiz.difficulty}</span>
           </div>
         </div>
@@ -433,12 +433,12 @@ function HardModePopup({ quiz, language, onYes, onNo }) {
         <div className="difficulty-comparison">
           <div className="diff-item normal">
             <span className="diff-label">{language === 'vi' ? 'Bình thường' : 'Normal'}</span>
-            <span className="diff-icon">📚</span>
+            <span className="diff-icon"></span>
           </div>
           <div className="arrow">→</div>
           <div className="diff-item hard">
             <span className="diff-label">{language === 'vi' ? 'Khó' : 'Hard'}</span>
-            <span className="diff-icon">⚡</span>
+            <span className="diff-icon"></span>
           </div>
         </div>
 

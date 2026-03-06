@@ -183,7 +183,7 @@ const AIChat = () => {
         onClick={() => setIsOpen(true)}
         title="Open AI Tutor"
       >
-        🤖
+        SSH
       </button>
     );
   }
@@ -199,7 +199,7 @@ const AIChat = () => {
       {/* Chat Header */}
       <div className="chat-header">
         <div className="chat-title">
-          <h3>🤖 AI Tutor</h3>
+          <h3> AI Tutor</h3>
           <p className="chat-subtitle">Powered by GPT-4 + Your Learning Data</p>
         </div>
         <div className="chat-actions">
@@ -257,7 +257,7 @@ const AIChat = () => {
               transition={{ delay: idx * 0.05 }}
             >
               <div className="message-avatar">
-                {msg.role === 'user' ? '👤' : '🤖'}
+                {msg.role === 'user' ? 'Bạn' : 'Mentor'}
               </div>
               <div className="message-content">
                 <p className="message-text">{msg.content}</p>
@@ -278,7 +278,7 @@ const AIChat = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="message-avatar">🤖</div>
+            <div className="message-avatar">Me</div>
             <div className="message-content">
               <div className="typing-indicator">
                 <span></span>
