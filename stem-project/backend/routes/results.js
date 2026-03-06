@@ -154,6 +154,48 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
       return res.status(400).json({ error: 'Unable to determine user ID' });
     }
 
+    // 🎯 ENSURE USER PROFILE EXISTS - Initialize if not already created
+    if (supabase && numericUserId !== 1) {
+      try {
+        // Check if user_learning_profiles exists for this user
+        const { data: existingProfile } = await supabase
+          .from('user_learning_profiles')
+          .select('user_id')
+          .eq('user_id', numericUserId)
+          .single();
+        
+        if (!existingProfile) {
+          // Profile doesn't exist - create it with default values
+          console.log('[Results] User profile not found for user', numericUserId, '- creating...');
+          const { error: insertError } = await supabase
+            .from('user_learning_profiles')
+            .insert([{
+              user_id: numericUserId,
+              cognitive_levels: { level1: 0, level2: 0, level3: 0, level4: 0 },
+              proficiency_status: { 
+                level1: 'NOT_STARTED', 
+                level2: 'NOT_STARTED', 
+                level3: 'NOT_STARTED', 
+                level4: 'NOT_STARTED' 
+              },
+              weak_areas: [],
+              strong_areas: [],
+              recommendations: [],
+              quizzes_taken: 0
+            }]);
+          
+          if (insertError) {
+            console.warn('[Results] Warning: Could not create user profile:', insertError.message);
+          } else {
+            console.log('[Results] ✅ User profile created for user', numericUserId);
+          }
+        }
+      } catch (profileCheckError) {
+        console.warn('[Results] Warning: Could not check/create user profile:', profileCheckError.message);
+        // Continue anyway - profile creation is optional
+      }
+    }
+
     if (!quizId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'Missing required fields: quizId, answers' });
     }
