@@ -72,10 +72,11 @@ CREATE TABLE IF NOT EXISTS ml_performance_records (
   -- Timestamps
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
   
-  -- Constraints
-  CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+  -- NOTE: No foreign key to auth.users
+  -- user_id is INTEGER (1, 2, 3...) from app, not UUID from auth.users
+  -- Application handles user validation at app level
 );
 
 -- Create indexes for efficient queries
@@ -120,23 +121,25 @@ GROUP BY user_id, topic
 ORDER BY user_id, avg_topic_score DESC;
 
 -- Enable RLS (Row Level Security)
-ALTER TABLE ml_performance_records ENABLE ROW LEVEL SECURITY;
+-- NOTE: Disabled because user_id is INTEGER (not UUID from auth.users)
+-- Access control handled at application level via user_id parameter
+-- ALTER TABLE ml_performance_records ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policies
-CREATE POLICY "Users can view own performance records" 
-  ON ml_performance_records
-  FOR SELECT
-  USING (auth.uid() = user_id);
+-- RLS policies disabled - application manages access control
+-- CREATE POLICY "Users can view own performance records" 
+--   ON ml_performance_records
+--   FOR SELECT
+--   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own performance records" 
-  ON ml_performance_records
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+-- CREATE POLICY "Users can insert own performance records" 
+--   ON ml_performance_records
+--   FOR INSERT
+--   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own performance records" 
-  ON ml_performance_records
-  FOR UPDATE
-  USING (auth.uid() = user_id);
+-- CREATE POLICY "Users can update own performance records" 
+--   ON ml_performance_records
+--   FOR UPDATE
+--   USING (auth.uid() = user_id);
 
 -- Grant permissions
 GRANT SELECT, INSERT, UPDATE ON ml_performance_records TO authenticated;
