@@ -4,9 +4,9 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
   min-height: 100vh;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .topic-selector-header {
@@ -39,12 +39,12 @@
 /* Topic Card */
 .topic-card {
   background: white;
-  border-radius: 15px;
+  border-radius: 8px;
   padding: 25px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border-left: 5px solid #667eea;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-left: 5px solid #1e40af;
   position: relative;
   overflow: hidden;
 }
@@ -56,20 +56,20 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.05) 0%, rgba(30, 58, 138, 0.05) 100%);
   pointer-events: none;
 }
 
 .topic-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
-  border-left-color: #764ba2;
+  box-shadow: 0 15px 40px rgba(30, 64, 175, 0.2);
+  border-left-color: #1e3a8a;
 }
 
 .topic-card.active {
-  background: #f0f4ff;
-  border-left-color: #4CAF50;
-  box-shadow: 0 15px 40px rgba(76, 175, 80, 0.3);
+  background: #f0f4f8;
+  border-left-color: #059669;
+  box-shadow: 0 15px 40px rgba(5, 150, 105, 0.2);
 }
 
 .topic-card-content {
@@ -79,7 +79,7 @@
 
 .topic-name {
   font-size: 1.5rem;
-  color: #333;
+  color: #0f172a;
   margin: 0 0 20px 0;
   font-weight: 600;
 }
@@ -91,51 +91,34 @@
 .status-badge {
   display: inline-block;
   padding: 8px 16px;
-  border-radius: 20px;
+  border-radius: 8px;
   color: white;
   font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 15px;
 }
 
-/* Status badges for attempt tracking */
-.status-badge.attempted {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-}
-
-.status-badge.attempted-multiple {
-  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
-}
-
-.attempt-status {
-  margin-bottom: 10px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .progress-stats {
-  background: #f5f5f5;
+  background: #f8fafc;
   padding: 15px;
-  border-radius: 10px;
+  border-radius: 8px;
   margin: 15px 0;
+  border: 1px solid #e2e8f0;
 }
 
 .progress-stats p {
   margin: 8px 0;
   font-size: 0.95rem;
-  color: #555;
+  color: #475569;
 }
 
 .progress-stats strong {
-  color: #667eea;
+  color: #1e40af;
   font-weight: 600;
 }
 
 .new-topic-text {
-  color: #999;
+  color: #94a3b8;
   font-style: italic;
   margin: 10px 0 0 0;
   font-size: 0.95rem;
@@ -147,21 +130,21 @@
   align-items: center;
   margin-top: 20px;
   padding-top: 15px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #cbd5e1;
 }
 
 .question-count {
   font-size: 0.9rem;
-  color: #999;
+  color: #94a3b8;
   font-weight: 500;
 }
 
 .btn-select {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
   color: white;
   border: none;
   padding: 10px 20px;
-  border-radius: 20px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s ease;
@@ -170,7 +153,7 @@
 
 .btn-select:hover {
   transform: scale(1.05);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 5px 15px rgba(30, 64, 175, 0.2);
 }
 
 .btn-select:active {
@@ -179,7 +162,7 @@
 
 .loading-spinner {
   display: inline-block;
-  color: #667eea;
+  color: #1e40af;
   font-weight: 600;
   font-size: 0.9rem;
   animation: spin 1s linear infinite;
@@ -194,9 +177,10 @@
 /* Difficulty Info */
 .difficulty-info {
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 15px;
+  border-radius: 8px;
   padding: 30px;
-  color: #333;
+  color: #0f172a;
+  border: 1px solid rgba(30, 64, 175, 0.1);
 }
 
 .difficulty-info h4 {
@@ -215,15 +199,15 @@
 .difficulty-info li {
   padding: 12px;
   margin: 10px 0;
-  background: #f5f5f5;
-  border-left: 4px solid #667eea;
-  border-radius: 5px;
+  background: #f8fafc;
+  border-left: 4px solid #1e40af;
+  border-radius: 6px;
   font-size: 0.95rem;
   line-height: 1.5;
 }
 
 .difficulty-info strong {
-  color: #667eea;
+  color: #1e40af;
 }
 
 /* Loading & Error States */
@@ -236,17 +220,17 @@
 }
 
 .error-message {
-  background: rgba(244, 67, 54, 0.9);
-  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.9);
+  border-radius: 8px;
   margin: 20px;
 }
 
 .btn-retry {
   background: white;
-  color: #667eea;
+  color: #1e40af;
   border: none;
   padding: 12px 30px;
-  border-radius: 20px;
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   margin-top: 20px;
@@ -255,7 +239,7 @@
 
 .btn-retry:hover {
   transform: scale(1.05);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 5px 15px rgba(30, 64, 175, 0.2);
 }
 
 /* Responsive Design */

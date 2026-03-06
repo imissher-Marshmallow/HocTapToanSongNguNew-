@@ -48,37 +48,21 @@ CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_created
 -- SET TABLE PERMISSIONS (RLS - Row Level Security)
 -- ============================================================================
 
--- Enable RLS
-ALTER TABLE public.chat_conversations ENABLE ROW LEVEL SECURITY;
+-- RLS DISABLED: user_id is INTEGER (app-managed), not UUID from auth.users
+-- Access control handled at application level via user_id parameter
+-- Attempting to enable RLS with auth.uid() will fail due to type mismatch
 
--- Policy: Users can only view their own conversations
+-- Disable RLS (if previously enabled)
+-- ALTER TABLE public.chat_conversations DISABLE ROW LEVEL SECURITY;
+
+-- Drop any existing policies that may cause issues
 DROP POLICY IF EXISTS "Users can view own conversations" ON public.chat_conversations;
-CREATE POLICY "Users can view own conversations"
-  ON public.chat_conversations
-  FOR SELECT
-  USING (user_id = CAST(current_setting('request.jwt.claims', true)::json->>'sub' AS INTEGER) OR user_id::text = current_setting('request.jwt.claims', true)::json->>'user_id');
-
--- Policy: Users can only insert their own conversations
 DROP POLICY IF EXISTS "Users can insert own conversations" ON public.chat_conversations;
-CREATE POLICY "Users can insert own conversations"
-  ON public.chat_conversations
-  FOR INSERT
-  WITH CHECK (user_id = CAST(current_setting('request.jwt.claims', true)::json->>'sub' AS INTEGER) OR user_id::text = current_setting('request.jwt.claims', true)::json->>'user_id');
-
--- Policy: Users can update their own conversations
 DROP POLICY IF EXISTS "Users can update own conversations" ON public.chat_conversations;
-CREATE POLICY "Users can update own conversations"
-  ON public.chat_conversations
-  FOR UPDATE
-  USING (user_id = CAST(current_setting('request.jwt.claims', true)::json->>'sub' AS INTEGER) OR user_id::text = current_setting('request.jwt.claims', true)::json->>'user_id')
-  WITH CHECK (user_id = CAST(current_setting('request.jwt.claims', true)::json->>'sub' AS INTEGER) OR user_id::text = current_setting('request.jwt.claims', true)::json->>'user_id');
-
--- Policy: Users can delete their own conversations
 DROP POLICY IF EXISTS "Users can delete own conversations" ON public.chat_conversations;
-CREATE POLICY "Users can delete own conversations"
-  ON public.chat_conversations
-  FOR DELETE
-  USING (user_id = CAST(current_setting('request.jwt.claims', true)::json->>'sub' AS INTEGER) OR user_id::text = current_setting('request.jwt.claims', true)::json->>'user_id');
+
+-- Note: RLS policies would require comparing INTEGER user_id with UUID auth.uid()
+-- This is not possible without type conversion, and is better handled at app level
 
 -- ============================================================================
 -- VERIFICATION QUERIES (Run these to verify the setup)

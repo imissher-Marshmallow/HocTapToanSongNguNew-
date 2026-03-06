@@ -347,22 +347,46 @@ router.get('/weak-and-strong/:userId', async (req, res) => {
     }
 
     // Parse weak areas - convert to readable format
-    const weakAreas = (data.weak_areas || []).map((area, idx) => {
+    // Handle both JSON string and object formats from Supabase
+    let rawWeakAreas = data.weak_areas || [];
+    if (typeof rawWeakAreas === 'string') {
+      try {
+        rawWeakAreas = JSON.parse(rawWeakAreas);
+      } catch (e) {
+        console.warn('[WeakStrong] Could not parse weak_areas as JSON:', e);
+        rawWeakAreas = [];
+      }
+    }
+    
+    const weakAreas = (Array.isArray(rawWeakAreas) ? rawWeakAreas : []).map((area, idx) => {
+      if (typeof area === 'string') {
+        try {
+          area = JSON.parse(area);
+        } catch (e) {
+          // Fallback: Parse from string format (e.g., "Đại số: 45%")
+          const match = area.match(/([^:]+):\s*([\d.]+)%/);
+          if (match) {
+            return {
+              topic: match[1].trim(),
+              percentage: parseFloat(match[2]),
+              priority: idx + 1,
+              icon: '⚠️'
+            };
+          }
+          return {
+            topic: String(area),
+            percentage: 0,
+            priority: idx + 1,
+            icon: '⚠️'
+          };
+        }
+      }
+      
       if (typeof area === 'object' && area.topic) {
         return {
           topic: area.topic,
           percentage: area.percentage || 0,
           priority: area.priority || idx + 1,
-          icon: '⚠️'
-        };
-      }
-      // Parse from string format (e.g., "Đại số: 45%")
-      const match = String(area).match(/([^:]+):\s*([\d.]+)%/);
-      if (match) {
-        return {
-          topic: match[1].trim(),
-          percentage: parseFloat(match[2]),
-          priority: idx + 1,
           icon: '⚠️'
         };
       }
@@ -374,8 +398,31 @@ router.get('/weak-and-strong/:userId', async (req, res) => {
       };
     });
 
-    // Parse strong areas
-    const strongAreas = (data.strong_areas || []).map((area, idx) => {
+    // Parse strong areas - same handling for JSON strings
+    let rawStrongAreas = data.strong_areas || [];
+    if (typeof rawStrongAreas === 'string') {
+      try {
+        rawStrongAreas = JSON.parse(rawStrongAreas);
+      } catch (e) {
+        console.warn('[WeakStrong] Could not parse strong_areas as JSON:', e);
+        rawStrongAreas = [];
+      }
+    }
+    
+    const strongAreas = (Array.isArray(rawStrongAreas) ? rawStrongAreas : []).map((area, idx) => {
+      if (typeof area === 'string') {
+        try {
+          area = JSON.parse(area);
+        } catch (e) {
+          // Fallback to string
+          return {
+            topic: String(area),
+            percentage: 0,
+            icon: '💪'
+          };
+        }
+      }
+      
       if (typeof area === 'object' && area.topic) {
         return {
           topic: area.topic,

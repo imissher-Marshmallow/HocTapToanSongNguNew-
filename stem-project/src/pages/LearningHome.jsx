@@ -49,8 +49,32 @@ function LearningHome() {
         if (weakStrongResponse.ok) {
           const weakStrongData = await weakStrongResponse.json();
           console.log('[LearningHome] WeakStrong data:', weakStrongData);
-          setWeakAreas(weakStrongData.weakAreas || []);
-          setStrongAreas(weakStrongData.strongAreas || []);
+          
+          // Ensure weakAreas and strongAreas are properly formatted arrays of objects
+          const processedWeakAreas = (weakStrongData.weakAreas || []).map(area => {
+            if (typeof area === 'string') {
+              try {
+                return JSON.parse(area);
+              } catch (e) {
+                return { topic: area, percentage: 0 };
+              }
+            }
+            return area;
+          });
+          
+          const processedStrongAreas = (weakStrongData.strongAreas || []).map(area => {
+            if (typeof area === 'string') {
+              try {
+                return JSON.parse(area);
+              } catch (e) {
+                return { topic: area };
+              }
+            }
+            return area;
+          });
+          
+          setWeakAreas(processedWeakAreas);
+          setStrongAreas(processedStrongAreas);
         }
         
         // Also fetch historical summary for streak and other stats
