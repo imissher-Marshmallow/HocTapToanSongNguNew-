@@ -1102,18 +1102,23 @@ router.post('/analyze', async (req, res) => {
       console.log('[Analyze] Using personalizedQuizData IDs to rebuild questions from file')
       
       // Create a map of all questions in file by ID
+      // questionData.chapters[i].contests[j].questions_multiple_choice[k].id
       const allQuestionsMap = {}
-      if (questionData.contests) {
-        if (typeof questionData.contests === 'object' && !Array.isArray(questionData.contests)) {
-          Object.values(questionData.contests).forEach(contestQuestions => {
-            if (Array.isArray(contestQuestions)) {
-              contestQuestions.forEach(q => {
-                allQuestionsMap[q.id] = q
-              })
-            }
-          })
-        }
+      if (questionData && questionData.chapters && Array.isArray(questionData.chapters)) {
+        questionData.chapters.forEach(chapter => {
+          if (chapter.contests && Array.isArray(chapter.contests)) {
+            chapter.contests.forEach(contest => {
+              if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
+                contest.questions_multiple_choice.forEach(q => {
+                  allQuestionsMap[q.id] = q
+                })
+              }
+            })
+          }
+        })
       }
+      
+      console.log('[Analyze] Built question map with', Object.keys(allQuestionsMap).length, 'questions')
       
       // Rebuild questions array using IDs from personalizedQuizData + data from file
       personalizedQuizData.forEach(clientQ => {
@@ -1127,23 +1132,19 @@ router.post('/analyze', async (req, res) => {
         }
       })
       
-      console.log('[Analyze] Rebuilt questions from file using personalizedQuizData IDs, questions count:', questions.length)
+      console.log('[Analyze] Rebuilt questions from file using personalizedQuizData IDs, questions count:', questions.length, 'Have answerIndex:', questions.filter(q => q.answerIndex !== undefined).length)
     } else if (quizId === 'personalized') {
-      // For personalized quiz without quiz data provided, load from contests and flatten all
-      if (questionData.contests) {
-        if (Array.isArray(questionData.contests)) {
-          // If contests is an array (shouldn't be based on current data)
-          questionData.contests.forEach(contest => {
-            questions.push(...contest)
-          })
-        } else if (typeof questionData.contests === 'object') {
-          // Contests is an object with keys like 'contest1', 'contest2', etc.
-          Object.values(questionData.contests).forEach(contestQuestions => {
-            if (Array.isArray(contestQuestions)) {
-              questions.push(...contestQuestions)
-            }
-          })
-        }
+      // For personalized quiz without quiz data provided, load from chapters/contests
+      if (questionData && questionData.chapters && Array.isArray(questionData.chapters)) {
+        questionData.chapters.forEach(chapter => {
+          if (chapter.contests && Array.isArray(chapter.contests)) {
+            chapter.contests.forEach(contest => {
+              if (contest.questions_multiple_choice && Array.isArray(contest.questions_multiple_choice)) {
+                questions.push(...contest.questions_multiple_choice)
+              }
+            })
+          }
+        })
       }
       console.log('[Analyze] Loaded from file fallback, questions count:', questions.length)
     } else {
