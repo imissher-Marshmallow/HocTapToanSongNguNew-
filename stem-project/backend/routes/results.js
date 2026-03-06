@@ -657,7 +657,7 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                     return acc;
                   }, {}),
                   quiz_type: quizId?.includes('personalized') || quizId === 'adaptive' ? 'adaptive' : 'contest',
-                  completion_rate: (answeredCount / totalQuestions) * 100,
+                  completion_rate: (answers.length / totalQuestions) * 100,
                   created_at: new Date().toISOString(),
                   completed_at: new Date().toISOString()
                 }]);
@@ -912,15 +912,8 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                     topic: recordedTopic,
                     summary: aiInterpretation,  // Human-friendly AI interpretation
                     recommended_level: recommendedLevel,  // What difficulty to try next
-                    suggested_topics: suggestedTopics,  // Topics to focus on
-                    study_plan: studyPlan,  // Day-by-day plan
-                    explainability: {
-                      reasons: explainabilityReasons,
-                      performance_breakdown: {
-                        cognitive_scores: bloomPercentages,
-                        topic_scores: Object.fromEntries(Object.entries(topicPerf).map(([t, p]) => [t, p.score || 0]))
-                      }
-                    },
+                    suggested_topics: suggestedTopics || [],  // Topics to focus on
+                    study_plan: studyPlan || [],  // Day-by-day plan
                     created_at: new Date().toISOString()
                   }]);
                 
@@ -939,11 +932,11 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
                     quiz_id: quizId || 'adaptive',
                     topic: recordedTopic,
                     ai_summary: aiInterpretation,
-                    recommended_topics: suggestedTopics,
+                    recommended_topics: suggestedTopics || [],
                     difficulty_adjustment: recommendedLevel,
-                    learning_plan: studyPlan.map(p => p.task).join(' → '),
-                    strong_areas: strongAreas,
-                    weak_areas: weakAreas,
+                    learning_plan: studyPlan && studyPlan.length > 0 ? studyPlan.map(p => p.task || p).join(' → ') : '',
+                    strong_areas: strongAreas || [],
+                    weak_areas: weakAreas || [],
                     confidence_score: Math.min(1.0, Math.max(0.0, actualScore / 10.0)),
                     created_at: new Date().toISOString()
                   }]);

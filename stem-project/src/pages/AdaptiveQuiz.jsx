@@ -96,7 +96,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
           questionCount: questionsWithIds.length,
           recommendation: location.state.recommendation,
           quizType: location.state.quizType,
-          topic: location.state.topic
+          topic: location.state.topic || location.state.topicName || location.state.quiz?.topic || 'general'  // Get topic from multiple places
         };
         console.log('[AdaptiveQuiz] ✅ Quiz loaded successfully with', questionsWithIds.length, 'questions');
         console.log('[AdaptiveQuiz] Sample questions:', questionsWithIds.slice(0, 2).map(q => ({

@@ -71,6 +71,14 @@ const AIChat = () => {
     
     if (!inputValue.trim()) return;
 
+    // Get userId from Auth context or localStorage (fallback)
+    const finalUserId = userId || parseInt(localStorage.getItem('userId'));
+    if (!finalUserId) {
+      setError('User not authenticated. Please log in again.');
+      setLoading(false);
+      return;
+    }
+
     // Add user message to UI immediately
     const userMessage = {
       id: `user-${Date.now()}`,
@@ -100,7 +108,7 @@ const AIChat = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          userId,
+          userId: parseInt(finalUserId),
           message: inputValue,
           conversationHistory
         })
@@ -142,9 +150,15 @@ const AIChat = () => {
   };
 
   const clearChat = async () => {
+    const finalUserId = userId || parseInt(localStorage.getItem('userId'));
+    if (!finalUserId) {
+      setError('User not authenticated');
+      return;
+    }
+    
     if (window.confirm('Bạn có chắc chắn muốn xóa lịch sử chat?')) {
       try {
-        await fetch(`/api/chat/clear/${userId}`, { method: 'DELETE' });
+        await fetch(`/api/chat/clear/${finalUserId}`, { method: 'DELETE' });
         setMessages([
           {
             id: 'welcome',

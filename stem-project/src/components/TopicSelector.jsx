@@ -82,7 +82,12 @@ const TopicSelector = () => {
       // Navigate to quiz with all data
       navigate('/adaptive-quiz', {
         state: {
+          quiz: {
+            questions: quizData.questions,
+            topic: topic.name  // 🔑 CRITICAL: Pass topic name here for tracker
+          },
           quizId: quizData.quizId,
+          topic: topic.name,  // Also pass at top level for AdaptiveQuiz to find
           topicName: topic.name,
           questions: quizData.questions,
           totalQuestions: quizData.totalQuestions,

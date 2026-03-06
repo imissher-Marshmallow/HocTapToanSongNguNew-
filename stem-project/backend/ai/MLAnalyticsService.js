@@ -14,7 +14,7 @@ class MLAnalyticsService {
   constructor(pool) {
     this.pool = pool;
     this.analyzer = new AIAnalyzer();
-    this.analyticsEngine = new PerformanceAnalytics();
+    this.analyticsEngine = PerformanceAnalytics;  // PerformanceAnalytics is already a singleton instance
     this.pathGenerator = new LearningPathGenerator();
     this.database = new MLAnalyticsDB(pool);
   }

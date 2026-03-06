@@ -8,8 +8,9 @@
 -- Create quiz_results table
 CREATE TABLE IF NOT EXISTS quiz_results (
   id BIGSERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
   quiz_id TEXT NOT NULL DEFAULT 'personalized',
+  topic TEXT,
   overall_score FLOAT NOT NULL DEFAULT 0,
   correct_answers INTEGER NOT NULL DEFAULT 0,
   total_questions INTEGER NOT NULL DEFAULT 0,
@@ -33,37 +34,7 @@ CREATE TABLE IF NOT EXISTS quiz_results (
 CREATE INDEX IF NOT EXISTS idx_quiz_results_user_id ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_results_created_at ON quiz_results(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_quiz_results_user_created ON quiz_results(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quiz_results_topic ON quiz_results(topic);
 
--- Enable RLS (Row Level Security)
-ALTER TABLE quiz_results ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policy: Users can only see their own results
-CREATE POLICY "Users can view their own quiz results" ON quiz_results
-  FOR SELECT
-  USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can insert their own quiz results" ON quiz_results
-  FOR INSERT
-  WITH CHECK (auth.uid()::text = user_id);
-
--- Grant permissions
-GRANT SELECT, INSERT ON quiz_results TO authenticated;
-GRANT SELECT ON quiz_results TO anon;
-
--- Optional: Create a view for analytics
-CREATE OR REPLACE VIEW quiz_results_stats AS
-SELECT
-  user_id,
-  COUNT(*) as total_quizzes,
-  ROUND(AVG(overall_score)::numeric, 2) as avg_score,
-  MAX(overall_score) as best_score,
-  MAX(created_at) as last_quiz_date,
-  JSONB_OBJECT_AGG(
-    COALESCE((topic_performance::jsonb)->>'topic', 'Unknown'),
-    (topic_performance::jsonb)
-  ) as topic_stats
-FROM quiz_results
-GROUP BY user_id;
-
-GRANT SELECT ON quiz_results_stats TO authenticated;
-GRANT SELECT ON quiz_results_stats TO anon;
+-- Note: Not using Supabase RLS since user_id is INTEGER (application-managed)
+-- Access control should be handled at application level via checking user_id parameter
