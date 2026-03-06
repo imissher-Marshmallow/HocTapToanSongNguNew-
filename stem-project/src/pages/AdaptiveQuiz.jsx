@@ -107,10 +107,12 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
           hasOptions: Array.isArray(q.options) ? q.options.length : 0
         })));
         setQuiz(newQuiz);
+        setShowTopicSelector(false);  // 🎯 Hide TopicSelector and show quiz
         setTimeStarted(Date.now());
         setLoading(false);
       } else {
         console.error('[AdaptiveQuiz] ❌ Quiz data is empty');
+        setShowTopicSelector(true);  // Show TopicSelector if quiz is empty
         setLoading(false);
       }
     } else if (finalUserId) {
@@ -118,8 +120,22 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
       console.log('[AdaptiveQuiz] No location state, showing TopicSelector');
       setShowTopicSelector(true);
       setLoading(false);
+    } else {
+      console.warn('[AdaptiveQuiz] ⚠️ No userId and no quiz data');
+      setLoading(false);
     }
   }, [finalUserId, location.state]);
+
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log('[AdaptiveQuiz] State changed:', {
+      showTopicSelector,
+      hasQuiz: !!quiz,
+      questionsCount: quiz?.questions?.length || 0,
+      loading,
+      results: !!results
+    });
+  }, [showTopicSelector, quiz, loading, results]);
 
   // Timer effect
   useEffect(() => {
@@ -399,6 +415,7 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
 
   // 🎯 Show TopicSelector if user hasn't picked a topic yet
   if (showTopicSelector) {
+    console.log('[AdaptiveQuiz] 📋 Rendering TopicSelector component');
     return <TopicSelector />;
   }
 
@@ -452,6 +469,8 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   const allAnswered = answeredCount === quiz.questions.length;
   // Progress based on answered questions, not current question
   const progressPercent = ((answeredCount) / quiz.questions.length) * 100;
+
+  console.log('[AdaptiveQuiz] 🎯 Rendering quiz with', quiz.questions.length, 'questions, CurrentQ:', currentQuestion);
 
   return (
     <div className="adaptive-quiz">
