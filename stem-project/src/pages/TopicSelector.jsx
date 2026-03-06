@@ -68,8 +68,9 @@ export default function TopicSelector() {
       if (!diffResponse.ok) throw new Error('Failed to get difficulty recommendation');
       const diffData = await diffResponse.json();
       setRecommendation(diffData);
+      console.log('[TopicSelector] Difficulty analysis:', diffData);
 
-      // Generate quiz for this topic
+      // Generate quiz for this topic with recommended exam IDs
       const quizResponse = await fetch(`${apiBase}/api/adaptive/quiz/by-topic`, {
         method: 'POST',
         headers: {
@@ -79,27 +80,46 @@ export default function TopicSelector() {
         body: JSON.stringify({
           userId,
           topicName: topic.name,
+          examIds: diffData.examIds,  // Use smart difficulty exam IDs
           numQuestions: 10
         })
       });
 
       if (!quizResponse.ok) throw new Error('Failed to generate quiz');
       const quizData = await quizResponse.json();
+      console.log('[TopicSelector] Quiz generated:', {
+        topicName: quizData.topicName,
+        totalQuestions: quizData.totalQuestions,
+        questionsLength: quizData.questions?.length,
+        firstQuestion: quizData.questions?.length > 0 ? {
+          id: quizData.questions[0].id,
+          hasQuestion: !!quizData.questions[0].question,
+          hasOptions: Array.isArray(quizData.questions[0].options),
+          hasType: !!quizData.questions[0].type,
+          hasCognitiveLevel: quizData.questions[0].cognitiveLevel !== undefined
+        } : null
+      });
+
+      // Validate quiz data before navigation
+      if (!quizData.questions || quizData.questions.length === 0) {
+        throw new Error('No questions returned from backend');
+      }
 
       // Navigate to quiz with topic data
       navigate('/adaptive-quiz', {
         state: {
-          quiz: quizData.questions || [],
+          quiz: quizData.questions,
           topic: topic.name,
           difficulty: diffData.difficulty,
           recommendation: {
             topic: topic.name,
-            reason: diffData.reason,
+            reason: diffData.reasoning,
             difficulty: diffData.difficulty
           },
           quizType: 'topic-based'
         }
       });
+      console.log('[TopicSelector] Navigation to /adaptive-quiz with', quizData.questions.length, 'questions');
     } catch (error) {
       console.error('[TopicSelector] Error:', error);
       alert(language === 'vi' ? 'Lỗi tạo bài kiểm tra' : 'Error creating quiz');

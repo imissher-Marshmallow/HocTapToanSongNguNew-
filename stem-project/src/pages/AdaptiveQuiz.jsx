@@ -55,24 +55,38 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
   useEffect(() => {
     // Check if quiz data was passed via navigation state
     if (location.state?.quiz) {
-      console.log('[AdaptiveQuiz] Using quiz from location state');
+      console.log('[AdaptiveQuiz] ✅ Using quiz from location state');
       const quizData = Array.isArray(location.state.quiz) ? location.state.quiz : location.state.quiz.questions || [];
-      console.log('[AdaptiveQuiz] Raw quiz data:', quizData);
+      console.log('[AdaptiveQuiz] Quiz data received:', {
+        isArray: Array.isArray(quizData),
+        length: quizData.length,
+        firstQuestion: quizData.length > 0 ? {
+          id: quizData[0].id,
+          hasQuestion: !!quizData[0].question,
+          hasOptions: Array.isArray(quizData[0].options),
+          typeFromBackend: quizData[0].type,
+          cognitiveLevel: quizData[0].cognitiveLevel
+        } : null
+      });
       
       if (quizData.length > 0) {
         const questionsWithIds = quizData.map((q, idx) => {
-          // Detect question type based on structure
-          let qType = 'multiple-choice';
-          if (q.statements && Array.isArray(q.statements)) {
-            qType = 'true-false';
-          } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
-            qType = 'short-answer';
+          // Use type from backend if available, otherwise detect from structure
+          let qType = q.type || 'multiple-choice';
+          if (!q.type) {
+            // Fallback: detect question type based on structure
+            if (q.statements && Array.isArray(q.statements)) {
+              qType = 'true-false';
+            } else if (q.numerical_answer !== undefined || q.text_answer !== undefined) {
+              qType = 'short-answer';
+            }
           }
           
           return {
             ...q,
             id: q.id !== undefined && q.id !== null ? q.id : `q-${idx}`,
-            type: qType
+            type: qType,
+            cognitiveLevel: q.cognitiveLevel || q.difficulty || 1  // Ensure cognitiveLevel is set
           };
         });
 
@@ -81,14 +95,22 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
           userId: finalUserId,
           questionCount: questionsWithIds.length,
           recommendation: location.state.recommendation,
-          quizType: location.state.quizType
+          quizType: location.state.quizType,
+          topic: location.state.topic
         };
-        console.log('[AdaptiveQuiz] Setting quiz with', questionsWithIds.length, 'questions');
+        console.log('[AdaptiveQuiz] ✅ Quiz loaded successfully with', questionsWithIds.length, 'questions');
+        console.log('[AdaptiveQuiz] Sample questions:', questionsWithIds.slice(0, 2).map(q => ({
+          id: q.id,
+          type: q.type,
+          cognitiveLevel: q.cognitiveLevel,
+          hasQuestion: !!q.question,
+          hasOptions: Array.isArray(q.options) ? q.options.length : 0
+        })));
         setQuiz(newQuiz);
         setTimeStarted(Date.now());
         setLoading(false);
       } else {
-        console.error('[AdaptiveQuiz] Quiz data is empty');
+        console.error('[AdaptiveQuiz] ❌ Quiz data is empty');
         setLoading(false);
       }
     } else if (finalUserId) {

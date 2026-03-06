@@ -2515,15 +2515,15 @@ router.post('/quiz/by-topic', async (req, res) => {
       topicName,
       totalQuestions: selectedQuestions.length,
       examIdDistribution,
-      questions: selectedQuestions.map(q => ({
-        id: q.id,
-        question: q.question,
-        options: q.options,
-        topic: q.topic,
-        difficulty: q.difficulty,
-        exam_id: q.exam_id
-        // Don't send answerIndex (hidden until submission)
-      }))
+      questions: selectedQuestions.map(q => {
+        // Return complete question data EXCEPT answer keys
+        const { answerIndex, ...questionData } = q;
+        return {
+          ...questionData,
+          cognitiveLevel: q.difficulty || q.bloomLevel || 1,  // Map difficulty to cognitiveLevel
+          type: 'multiple-choice'  // These are from questions_multiple_choice
+        };
+      })
     });
   } catch (error) {
     console.error('Error generating topic-based quiz:', error);
