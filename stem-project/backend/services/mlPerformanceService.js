@@ -141,12 +141,21 @@ async function saveQuizPerformance(quizData) {
       .select();
 
     if (error) {
+      console.error('[MLPerformance] ❌ FAILED to save quiz performance:');
+      console.error('[MLPerformance]   Error message:', error.message);
+      console.error('[MLPerformance]   Error code:', error.code);
+      console.error('[MLPerformance]   Error details:', error.details);
+      console.error('[MLPerformance]   Attempted data:', performanceRecord);
       throw new Error(`[MLPerformance] Supabase error: ${error.message}`);
     }
 
-    console.log('[MLPerformance] ✓ Saved quiz performance for user', userId, {
+    console.log('[MLPerformance] ✅ SUCCESSFULLY saved quiz performance for user', userId, {
+      topic: topic,
       score: score,
+      maxScore: maxScore,
       percentage: percentage.toFixed(2),
+      recordId: data[0]?.id,
+      createdAt: data[0]?.created_at,
       weakTopics: weakTopics.length,
       strongTopics: strongTopics.length
     });

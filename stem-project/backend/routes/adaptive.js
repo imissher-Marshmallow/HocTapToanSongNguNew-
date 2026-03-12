@@ -2467,7 +2467,7 @@ router.get('/quiz/smart-difficulty/:userId/:topicName', async (req, res) => {
       .order('created_at', { ascending: false });
 
     let difficulty = 'easy';
-    let examIds = [1, 2, 3]; // Default: easy
+    let examIds = [1, 2, 3]; //idk Default: easy
     let reasoning = `First attempt on ${topicName}. Starting with easy questions.`;
 
     if (!error && attempts && attempts.length > 0) {
@@ -2475,7 +2475,7 @@ router.get('/quiz/smart-difficulty/:userId/:topicName', async (req, res) => {
       const avgScore = attempts.reduce((sum, a) => sum + a.percentage, 0) / attempts.length;
 
       if (avgScore >= 75) {
-        difficulty = 'hard';
+        difficulty = 'hard'; 
         examIds = [4, 5];
         reasoning = `Excellent progress (avg ${Math.round(avgScore)}%). Ready for challenging questions.`;
       } else if (avgScore >= 60) {
@@ -2511,7 +2511,9 @@ router.get('/quiz/smart-difficulty/:userId/:topicName', async (req, res) => {
  * @returns {Object} Quiz with questions
  * 
  * ENHANCED: With comprehensive topic validation & logging
- */
+ * * ok so what the fuck
+ */ 
+
 router.post('/quiz/by-topic', async (req, res) => {
   try {
     const { userId, topicName, examIds, numQuestions = 10 } = req.body;

@@ -19,32 +19,47 @@ export default function TopicSelector() {
   const [recommendation, setRecommendation] = useState(null);
 
   // Fetch topics with user progress
-  useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        const apiBase = getApiBase();
-        const response = await fetch(
-          `${apiBase}/api/adaptive/topics?userId=${userId}`,
-          {
-            headers: {
-              'Authorization': token ? `Bearer ${token}` : ''
-            }
+  const fetchTopics = async () => {
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(
+        `${apiBase}/api/adaptive/topics?userId=${userId}`,
+        {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
           }
-        );
+        }
+      );
 
-        if (!response.ok) throw new Error('Failed to fetch topics');
-        const data = await response.json();
-        setTopics(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('[TopicSelector] Error fetching topics:', error);
-        setLoading(false);
-      }
-    };
+      if (!response.ok) throw new Error('Failed to fetch topics');
+      const data = await response.json();
+      console.log('[TopicSelector] Topics fetched:', data.length, 'topics');
+      setTopics(data);
+      setLoading(false);
+    } catch (error) {
+      console.error('[TopicSelector] Error fetching topics:', error);
+      setLoading(false);
+    }
+  };
 
+  // Initial fetch on mount
+  useEffect(() => {
     if (userId) {
       fetchTopics();
     }
+  }, [userId, token]);
+
+  // Listen for profile refresh signal from AdaptiveQuiz
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (sessionStorage.getItem('profileRefreshNeeded') === 'true') {
+        console.log('[TopicSelector] Detected profile refresh signal, refetching topics...');
+        sessionStorage.removeItem('profileRefreshNeeded');
+        fetchTopics();
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
   }, [userId, token]);
 
   // Get smart difficulty for selected topic
