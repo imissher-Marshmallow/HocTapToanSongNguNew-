@@ -2403,39 +2403,70 @@ router.get('/topics', async (req, res) => {
     // If userId provided, fetch user's progress for each topic
     if (userId && !isNaN(userId)) {
       const numericUserId = parseInt(userId);
+      console.log(`[Adaptive] /topics: Fetching progress for user ${numericUserId}`);
       
       try {
-        const { data: mlRecords } = await supabase
+        // Fetch ALL ml_performance_records for this user (no limit)
+        const { data: mlRecords, error: mlError } = await supabase
           .from('ml_performance_records')
-          .select('topic, percentage, created_at')
-          .eq('user_id', numericUserId)
-          .order('created_at', { ascending: false });
+          .select('topic, percentage, created_at, id')
+          .eq('user_id', numericUserId);
 
+        if (mlError) {
+          console.error(`[Adaptive] Error fetching ml_performance_records:`, mlError.message);
+        }
+
+        console.log(`[Adaptive] /topics: Found ${mlRecords?.length || 0} ml_performance_records for user ${numericUserId}`);
+        
         if (mlRecords && mlRecords.length > 0) {
+          // Log all topics in database
+          const allTopicsInDb = [...new Set(mlRecords.map(r => r.topic))];
+          console.log(`[Adaptive] /topics: Topics in ml_performance_records:`, allTopicsInDb);
+          console.log(`[Adaptive] /topics: Chapter names available:`, topics.map(t => t.name));
+          
           topics.forEach(topic => {
-            const topicAttempts = mlRecords.filter(r => r.topic === topic.name);
+            // Try exact match first
+            let topicAttempts = mlRecords.filter(r => r.topic === topic.name);
+            
+            // If no exact match, try case-insensitive match
+            if (topicAttempts.length === 0) {
+              topicAttempts = mlRecords.filter(r => 
+                r.topic?.toLowerCase?.() === topic.name?.toLowerCase?.()
+              );
+              
+              if (topicAttempts.length > 0) {
+                console.log(`[Adaptive] /topics: Case-insensitive match found for "${topic.name}": ${topicAttempts.length} records`);
+              }
+            }
+            
             if (topicAttempts.length > 0) {
               const lastAttempt = topicAttempts[0];
-              const avgScore = topicAttempts.reduce((sum, r) => sum + r.percentage, 0) / topicAttempts.length;
+              const avgScore = topicAttempts.reduce((sum, r) => sum + (r.percentage || 0), 0) / topicAttempts.length;
               
               topic.userProgress = {
                 attempts: topicAttempts.length,
-                lastScore: lastAttempt.percentage,
+                lastScore: Math.round(lastAttempt.percentage || 0),
                 averageScore: Math.round(avgScore),
                 lastAttemptedAt: lastAttempt.created_at,
                 status: avgScore >= 80 ? 'mastered' : avgScore >= 60 ? 'developing' : 'needs_practice'
               };
+              
+              console.log(`[Adaptive] /topics: "${topic.name}" -> ${topic.userProgress.attempts} attempts, last score: ${topic.userProgress.lastScore}%, status: ${topic.userProgress.status}`);
+            } else {
+              console.log(`[Adaptive] /topics: "${topic.name}" -> No attempts found`);
             }
           });
+        } else {
+          console.log(`[Adaptive] /topics: No ml_performance_records found for user ${numericUserId}`);
         }
       } catch (err) {
-        console.warn('Could not fetch user progress:', err.message);
+        console.error(`[Adaptive] /topics: Error fetching user progress:`, err.message);
       }
     }
 
     res.json(topics);
   } catch (error) {
-    console.error('Error fetching topics:', error);
+    console.error('[Adaptive] Error fetching topics:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

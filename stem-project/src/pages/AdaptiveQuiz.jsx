@@ -323,37 +323,42 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         console.log('[AdaptiveQuiz] 🔍 TOPIC VALIDATION:', {
           selectedTopic,
           questionsTopics,
-          match: questionsTopics.length === 1 && questionsTopics[0] === selectedTopic
+          questionsCount: quiz.questions.length,
+          topicMatchPercentage: `${Math.round((quiz.questions.filter(q => (q.topic || q.chapterName) === selectedTopic).length / quiz.questions.length) * 100)}%`
         });
         
-        // If topics don't match, log severe warning
-        if (questionsTopics.length > 0 && !questionsTopics.includes(selectedTopic)) {
-          console.error('[AdaptiveQuiz] 🚨 CRITICAL MISMATCH:', {
+        // Check if most questions match the selected topic
+        const matchingQuestions = quiz.questions.filter(q => (q.topic || q.chapterName) === selectedTopic);
+        const matchPercentage = (matchingQuestions.length / quiz.questions.length) * 100;
+        
+        if (matchPercentage < 50) {
+          // If less than 50% match, log severe warning but continue
+          console.warn('[AdaptiveQuiz] ⚠️ TOPIC MISMATCH WARNING:', {
             selectedTopic,
-            actualQuestionTopics: questionsTopics,
-            warning: 'Questions do not match selected topic! This will corrupt the results.'
+            matchPercentage: Math.round(matchPercentage),
+            matchingQuestions: matchingQuestions.length,
+            totalQuestions: quiz.questions.length,
+            topicsFound: questionsTopics,
+            note: 'Saving under selected topic anyway, but only ' + matchPercentage.toFixed(0) + '% questions match'
           });
-          
-          // Use actual topic from questions instead of selected topic
-          console.log('[AdaptiveQuiz] ⚠️  Using actual question topic instead:', questionsTopics[0]);
-          // Don't throw - just warn and use the actual topic
         }
         
         const savePayload = {
           userId: finalUserId,
           quizId: 'personalized-adaptive',
           quizName: 'Adaptive Quiz',
-          // Use actual question topic if mismatch detected, otherwise use selected topic
-          topic: questionsTopics.length > 0 && !questionsTopics.includes(selectedTopic) 
-            ? questionsTopics[0]  // Use actual topic from questions
-            : selectedTopic,  // Use selected topic if matched
+          // 🔥 FIX: ALWAYS use selectedTopic (what user clicked on) for progress tracking
+          // Don't use actual question topics - that breaks user progress tracking
+          topic: selectedTopic || 'General',
           answers: formattedAnswers,
           questions: quiz.questions,
           score: Math.round(analysisResults.overallScore),  // Convert to 0-10 scale
           percentage: Math.round(analysisResults.overallScore * 10),  // Convert to 0-100 scale
           ai_analysis: analysisResults,
           timeTaken: elapsedTime,
-          isAutoSubmitted: false
+          isAutoSubmitted: false,
+          // Store actual question topics for debugging
+          _actualQuestionTopics: questionsTopics
         };
         
         const saveRes = await fetch(`${apiBase}/api/results`, {
@@ -362,6 +367,17 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(savePayload)
+        });
+        
+        console.log('[AdaptiveQuiz] 💾 SAVING TO /api/results with topic:', savePayload.topic);
+        console.log('[AdaptiveQuiz] 📊 Save payload:', {
+          userId: savePayload.userId,
+          quizId: savePayload.quizId,
+          topic: savePayload.topic,
+          score: savePayload.score,
+          percentage: savePayload.percentage,
+          questionsCount: savePayload.questions?.length,
+          answersCount: savePayload.answers?.length
         });
         
         if (saveRes.ok) {

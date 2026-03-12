@@ -34,6 +34,16 @@ export default function TopicSelector() {
       if (!response.ok) throw new Error('Failed to fetch topics');
       const data = await response.json();
       console.log('[TopicSelector] Topics fetched:', data.length, 'topics');
+      
+      // Log topic status for verification
+      data.forEach(topic => {
+        if (topic.userProgress) {
+          console.log(`  📊 ${topic.name}: Score ${topic.userProgress.lastScore}%, Attempts ${topic.userProgress.attempts}, Status ${topic.userProgress.status}`);
+        } else {
+          console.log(`  📋 ${topic.name}: Not attempted`);
+        }
+      });
+      
       setTopics(data);
       setLoading(false);
     } catch (error) {

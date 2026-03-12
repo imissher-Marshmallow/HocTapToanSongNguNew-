@@ -116,20 +116,52 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
           
           // Enrich each question with answer indices from master data
           let enrichedCount = 0;
+          let topicMismatchCount = 0;
+          const topicsFound = new Set();
+          
           questions.forEach((q, idx) => {
             const masterQuestion = questionMap[q.id];
             if (masterQuestion) {
               q.answerIndex = masterQuestion.answerIndex;
               q.correctAnswer = masterQuestion.answerIndex;
+              
+              // IMPORTANT: Track topics from master questions
+              if (masterQuestion.topic) {
+                topicsFound.add(masterQuestion.topic);
+                // Check if topic changed from frontend
+                if (q.topic && q.topic !== masterQuestion.topic) {
+                  topicMismatchCount++;
+                  if (idx < 3) {
+                    console.warn(`[Results] ⚠️ Topic mismatch at Q${idx}: frontend="${q.topic}" vs master="${masterQuestion.topic}"`);
+                  }
+                }
+              }
+              
               enrichedCount++;
               if (idx < 3) {
-                console.log(`[Results] Q${idx}: id=${q.id} -> answerIndex=${q.answerIndex}`);
+                console.log(`[Results] Q${idx}: id=${q.id} -> answerIndex=${q.answerIndex}, topic=${masterQuestion.topic || 'unknown'}`);
               }
             } else {
               console.warn(`[Results] Q${idx}: id=${q.id} not found in master questions!`);
             }
           });
           console.log(`[Results] ✓ Enriched ${enrichedCount}/${questions.length} questions with answer indices`);
+          console.log(`[Results] 📊 Topics from master questions:`, Array.from(topicsFound));
+          console.log(`[Results] ⚠️ Topic mismatches detected: ${topicMismatchCount}`);
+          
+          // CRITICAL: Check if passed topic is valid after rebuilding
+          const selectedTopicFromPayload = topic;
+          const topicFromMasterQuestions = topicsFound.size === 1 ? Array.from(topicsFound)[0] : null;
+          
+          if (topicMismatchCount > questions.length * 0.3) {
+            // If >30% recloaded questions have different topics, log critical warning
+            console.error('[Results] 🚨 CRITICAL ISSUE:', {
+              selectedTopic: selectedTopicFromPayload,
+              topicsFoundInMaster: Array.from(topicsFound),
+              note: 'Many questions retrieved from master data have different topics than frontend sent!',
+              recommendation: 'Check if question IDs are globally unique or if master data is stale'
+            });
+          }
         } catch (enrichErr) {
           console.error('[Results] ✗ Failed to enrich questions:', enrichErr);
           // Continue anyway - answers may still be analyzable
@@ -622,6 +654,15 @@ router.post('/', authMiddleware, rateLimitSubmission, async (req, res) => {
               // Use the explicitly passed topic, or extract first topic from topicPerf
               const recordedTopic = topic || Object.keys(topicPerf)[0] || 'general';
               const topicScore = topicPerf[recordedTopic]?.score || actualScore;
+              
+              console.log('[Results] 🔥 SAVING TO ml_performance_records:', {
+                userId: numericUserId,
+                recordedTopic: recordedTopic,
+                topicScore: topicScore,
+                actualScore: actualScore,
+                passedTopic: topic,
+                topicPerfKeys: Object.keys(topicPerf)
+              });
               
               // Build cognitive breakdown for storage
               const mlCognitiveBreakdown = {};
