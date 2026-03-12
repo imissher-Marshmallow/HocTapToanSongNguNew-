@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronRight, BookOpen, TrendingUp, Zap } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import '../styles/TopicSelector.css';
@@ -207,9 +206,9 @@ export default function TopicSelector() {
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="recommendation-content">
-            <Zap size={20} />
+            <div className="recommendation-icon">⚡</div>
             <div>
-              <h3> System Recommendation</h3>
+              <h3>System Recommendation</h3>
               <p>{recommendation.reason}</p>
               <p className="difficulty">
                 {language === 'vi' ? 'Mức độ:' : 'Difficulty:'}{' '}
@@ -242,11 +241,8 @@ export default function TopicSelector() {
               whileTap={{ scale: 0.98 }}
             >
               <div className="card-header">
-                <div className="topic-icon">
-                  <BookOpen size={24} />
-                </div>
-                <div className="status-badge" data-status={status.color}>
-                  {status.icon} {status.label}
+                <div className={`status-badge status-${status.color}`}>
+                  {status.label}
                 </div>
               </div>
 
@@ -273,7 +269,6 @@ export default function TopicSelector() {
                   )}
                   {!topic.userProgress && (
                     <div className="no-attempts">
-                      <TrendingUp size={16} />
                       <span>{language === 'vi' ? 'Chưa thử' : 'Not attempted'}</span>
                     </div>
                   )}
@@ -287,10 +282,7 @@ export default function TopicSelector() {
                     {language === 'vi' ? 'Đang tạo...' : 'Creating...'}
                   </div>
                 ) : (
-                  <>
-                    <span>{language === 'vi' ? 'Bắt đầu bài kiểm tra' : 'Start Quiz'}</span>
-                    <ChevronRight size={18} />
-                  </>
+                  <span>{language === 'vi' ? 'Bắt đầu bài kiểm tra' : 'Start Quiz'} →</span>
                 )}
               </div>
 

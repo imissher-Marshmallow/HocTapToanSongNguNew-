@@ -11,7 +11,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, TrendingUp, Lock, CheckCircle } from 'lucide-react';
 import { useAuth, getApiBase } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Spinner from '../components/Spinner';
