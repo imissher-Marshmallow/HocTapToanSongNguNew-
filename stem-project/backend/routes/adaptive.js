@@ -2425,17 +2425,34 @@ router.get('/topics', async (req, res) => {
           console.log(`[Adaptive] /topics: Chapter names available:`, topics.map(t => t.name));
           
           topics.forEach(topic => {
-            // Try exact match first
+            // Improved flexible topic matching
+            // Try multiple matching strategies in order
+            
+            // 1. Exact match (case-sensitive)
             let topicAttempts = mlRecords.filter(r => r.topic === topic.name);
             
-            // If no exact match, try case-insensitive match
+            // 2. Case-insensitive match
             if (topicAttempts.length === 0) {
               topicAttempts = mlRecords.filter(r => 
                 r.topic?.toLowerCase?.() === topic.name?.toLowerCase?.()
               );
-              
               if (topicAttempts.length > 0) {
-                console.log(`[Adaptive] /topics: Case-insensitive match found for "${topic.name}": ${topicAttempts.length} records`);
+                console.log(`[Adaptive] /topics: Case-insensitive match for "${topic.name}": ${topicAttempts.length} records`);
+              }
+            }
+            
+            // 3. Substring match (topic contains name or vice versa)
+            if (topicAttempts.length === 0) {
+              topicAttempts = mlRecords.filter(r => {
+                const rLower = (r.topic || '').toLowerCase().trim();
+                const nameLower = topic.name.toLowerCase().trim();
+                // Check if either contains the other, handling extra spaces
+                const rClean = rLower.replace(/\s+/g, ' ');
+                const nameClean = nameLower.replace(/\s+/g, ' ');
+                return rClean.includes(nameClean) || nameClean.includes(rClean);
+              });
+              if (topicAttempts.length > 0) {
+                console.log(`[Adaptive] /topics: Substring match for "${topic.name}": ${topicAttempts.length} records`);
               }
             }
             
@@ -2453,7 +2470,7 @@ router.get('/topics', async (req, res) => {
               
               console.log(`[Adaptive] /topics: "${topic.name}" -> ${topic.userProgress.attempts} attempts, last score: ${topic.userProgress.lastScore}%, status: ${topic.userProgress.status}`);
             } else {
-              console.log(`[Adaptive] /topics: "${topic.name}" -> No attempts found`);
+              console.log(`[Adaptive] /topics: "${topic.name}" -> No attempts found (tried exact, case-insensitive, and substring matching)`);
             }
           });
         } else {

@@ -320,27 +320,52 @@ export default function AdaptiveQuiz({ userId, onComplete }) {
         const questionsTopics = [...new Set(quiz.questions.map(q => q.topic || q.chapterName))];
         const selectedTopic = quiz.topic;
         
+        // Improved topic matching: handle Bloom level prefixes
+        // Questions have format: "Nhận biết (Knowledge) - Khái niệm Hàm số"
+        // Selected topic: "Hàm số và đồ thị"
+        // Extract chapter name from question topic (text after " - ")
+        const extractChapterFromQuestionTopic = (questionTopic) => {
+          if (!questionTopic) return '';
+          const parts = questionTopic.split(' - ');
+          // Return the last part (chapter name after Bloom level)
+          return parts.length > 1 ? parts[parts.length - 1].toLowerCase().trim() : questionTopic.toLowerCase().trim();
+        };
+        
+        // Improved matching: check if chapter name is contained in question topic OR exact match
+        const matchingQuestions = quiz.questions.filter(q => {
+          const qTopic = q.topic || q.chapterName || '';
+          const qChapter = extractChapterFromQuestionTopic(qTopic);
+          const selectedLower = selectedTopic.toLowerCase().trim();
+          
+          // Match if: exact match OR question topic contains selected topic OR extracted chapter matches
+          return qTopic.toLowerCase().includes(selectedLower) || 
+                 selectedLower.includes(qChapter) ||
+                 qChapter.includes(selectedLower.replace(/\s+/g, ''));
+        });
+        
+        const matchPercentage = (matchingQuestions.length / quiz.questions.length) * 100;
+        
         console.log('[AdaptiveQuiz] 🔍 TOPIC VALIDATION:', {
           selectedTopic,
           questionsTopics,
           questionsCount: quiz.questions.length,
-          topicMatchPercentage: `${Math.round((quiz.questions.filter(q => (q.topic || q.chapterName) === selectedTopic).length / quiz.questions.length) * 100)}%`
+          matchingCount: matchingQuestions.length,
+          matchPercentage: `${Math.round(matchPercentage)}%`,
+          matchingLogic: 'Flexible matching handles Bloom level prefixes'
         });
         
-        // Check if most questions match the selected topic
-        const matchingQuestions = quiz.questions.filter(q => (q.topic || q.chapterName) === selectedTopic);
-        const matchPercentage = (matchingQuestions.length / quiz.questions.length) * 100;
-        
         if (matchPercentage < 50) {
-          // If less than 50% match, log severe warning but continue
-          console.warn('[AdaptiveQuiz] ⚠️ TOPIC MISMATCH WARNING:', {
+          // If less than 50% match, log warning
+          console.warn('[AdaptiveQuiz] ⚠️ POTENTIAL TOPIC MISMATCH (may be data issue):', {
             selectedTopic,
             matchPercentage: Math.round(matchPercentage),
             matchingQuestions: matchingQuestions.length,
             totalQuestions: quiz.questions.length,
             topicsFound: questionsTopics,
-            note: 'Saving under selected topic anyway, but only ' + matchPercentage.toFixed(0) + '% questions match'
+            note: 'Saving under selected topic. If this persists, check master data'
           });
+        } else {
+          console.log('[AdaptiveQuiz] ✅ Topic validation passed:', matchPercentage.toFixed(0) + '% questions match selected topic');
         }
         
         const savePayload = {
